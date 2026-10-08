@@ -32,3 +32,11 @@ export const invoiceResponseSchema = z.object({
 export const listInvoicesResponseSchema = z.object({
   items: z.array(invoiceResponseSchema),
 });
+
+export const invoiceParamsSchema = z.object({
+  id: z.string(),
+});
+
+export const deleteInvoiceResponseSchema = z.object({
+  ok: z.literal(true),
+});

@@ -13,6 +13,14 @@ export async function update() {
     const body = await res.json();
     body.title satisfies string;
   }
+  if (res.status === 400) {
+    const body = await res.json();
+    body.error.code satisfies "VALIDATION_ERROR";
+  }
+  if (res.status === 401) {
+    const body = await res.json();
+    body.error.code satisfies "UNAUTHORIZED";
+  }
   if (res.status === 404) {
     const body = await res.json();
     body.error.code satisfies "NOT_FOUND";
@@ -21,20 +29,20 @@ export async function update() {
     const body = await res.json();
     body.error.code satisfies "NOT_OWNER";
   }
-  // @ts-expect-error 409 は返りえないので比べられない
+  // @ts-expect-error 409 は宣言していないので比べられない
   if (res.status === 409) return;
 }
 
 export async function get() {
   const res = await client.invoices[":id"].$get({ param: { id: "x" } });
 
-  // @ts-expect-error get は NOT_OWNER を返さないので 403 は出てこない
+  // @ts-expect-error get は NOT_OWNER を宣言していないので 403 は出てこない
   if (res.status === 403) return;
 }
 
 export async function list() {
   const res = await client.invoices.$get();
 
-  // @ts-expect-error 一覧は失敗を返さない
+  // @ts-expect-error 一覧は 404 を宣言していない
   if (res.status === 404) return;
 }
