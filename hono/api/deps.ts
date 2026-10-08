@@ -10,6 +10,8 @@ import { queuesReminderJobs } from "./modules/reminders/jobs.queues";
 import { resendMailer } from "./modules/reminders/mailer.resend";
 import { remindersRepository, remindersTable } from "./modules/reminders/repo.d1";
 import { remindersService } from "./modules/reminders/service";
+import { reportsRepository } from "./modules/reports/repo.d1";
+import { reportsService } from "./modules/reports/service";
 
 /**
  * feature の組み立て方を集める唯一の場所（composition root）。
@@ -52,6 +54,10 @@ export const makeDeps = (env: AppEnv["Bindings"]) => {
         // reminders が宣言した OverdueInvoices を、invoices の service が満たす
         this.invoices,
       );
+    },
+    // 自分のテーブルを持たず、読むだけ。書き込みの範囲（scope）ではなく、db をそのまま読みとして渡す
+    get reports() {
+      return reportsService(reportsRepository(db));
     },
   };
 };

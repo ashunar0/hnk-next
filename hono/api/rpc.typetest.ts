@@ -93,3 +93,18 @@ export async function startPayment() {
     body.error.code satisfies "GATEWAY_FAILED";
   }
 }
+
+export async function monthlyReport() {
+  const res = await client.reports.monthly.$get({ query: { from: "2026-01", to: "2026-06" } });
+
+  if (res.status === 200) {
+    const body = await res.json();
+    body.months[0]?.received satisfies number | undefined;
+  }
+  if (res.status === 403) {
+    const body = await res.json();
+    body.error.code satisfies "FORBIDDEN";
+  }
+  // 期間の検査があるので 400 も宣言される
+  if (res.status === 400) return;
+}

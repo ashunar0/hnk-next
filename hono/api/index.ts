@@ -3,6 +3,7 @@ import { makeDeps, type Deps } from "./deps";
 import type { AppEnv } from "./env";
 import { invoicesRouter } from "./modules/invoices/routes";
 import { paymentsRouter } from "./modules/payments/routes";
+import { reportsRouter } from "./modules/reports/routes";
 import { stripeWebhookRouter } from "./modules/payments/webhook.stripe";
 import { withViewer } from "./middleware/auth";
 import { enqueueOverdueReminders } from "./modules/reminders/cron";
@@ -27,6 +28,7 @@ export const buildApp = (makeDeps: (env: AppEnv["Bindings"]) => Deps) => {
     .use("*", withViewer)
     .route("/invoices", invoicesRouter)
     .route("/payments", paymentsRouter)
+    .route("/reports", reportsRouter)
     .route("/webhooks/stripe", stripeWebhookRouter)
     .onError(onError);
 };
