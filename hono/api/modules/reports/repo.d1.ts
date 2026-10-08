@@ -3,55 +3,52 @@
  * 自分のテーブルは持たず、invoices と payments のテーブルを SQL で集計する。
  * 書き込みが無いので、scope ではなく読みだけの db を受け取る
  */
-import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, lt, sql, type AnyColumn } from "drizzle-orm";
 import type { ReadDb } from "../../db";
 import { billedStatuses, reachOf } from "../invoices/domain";
-import { invoicesTable, within } from "../invoices/repo.d1";
-import { paymentsTable } from "../payments/repo.d1";
+import { invoicesWithin } from "../invoices/repo.d1";
+import { paymentsWithin } from "../payments/repo.d1";
 import type { ReportsRepository } from "./service";
 
 /** timestamp_ms の列を、月（YYYY-MM、UTC）にする */
-const monthOf = (column: typeof invoicesTable.dueAt | typeof paymentsTable.updatedAt) =>
+const monthOf = (column: AnyColumn) =>
   sql<string>`strftime('%Y-%m', ${column} / 1000, 'unixepoch')`;
 
 export function reportsRepository(db: ReadDb): ReportsRepository {
   return {
     async invoicedByMonth(viewer, from, to) {
-      const month = monthOf(invoicesTable.dueAt);
+      // 範囲の中の請求書だけが入った副問い合わせから読む。生の表には触れない
+      const invoices = invoicesWithin(db, reachOf(viewer));
+      const month = monthOf(invoices.dueAt);
 
       return db
-        .select({ month, total: sql<number>`sum(${invoicesTable.amount})` })
-        .from(invoicesTable)
+        .select({ month, total: sql<number>`sum(${invoices.amount})` })
+        .from(invoices)
         .where(
           and(
-            within(reachOf(viewer)),
-            inArray(invoicesTable.status, billedStatuses),
-            gte(invoicesTable.dueAt, from),
-            lt(invoicesTable.dueAt, to),
+            inArray(invoices.status, billedStatuses),
+            gte(invoices.dueAt, from),
+            lt(invoices.dueAt, to),
           ),
         )
         .groupBy(month);
     },
 
     async receivedByMonth(viewer, from, to) {
-      const month = monthOf(paymentsTable.updatedAt);
+      const payments = paymentsWithin(db, reachOf(viewer));
+      const month = monthOf(payments.updatedAt);
 
-      return (
-        db
-          .select({ month, total: sql<number>`sum(${paymentsTable.amount})` })
-          .from(paymentsTable)
-          // 支払いは組織を持たない。請求書を通して、範囲の中のものだけ数える
-          .innerJoin(invoicesTable, eq(invoicesTable.id, paymentsTable.invoiceId))
-          .where(
-            and(
-              within(reachOf(viewer)),
-              eq(paymentsTable.status, "succeeded"),
-              gte(paymentsTable.updatedAt, from),
-              lt(paymentsTable.updatedAt, to),
-            ),
-          )
-          .groupBy(month)
-      );
+      return db
+        .select({ month, total: sql<number>`sum(${payments.amount})` })
+        .from(payments)
+        .where(
+          and(
+            eq(payments.status, "succeeded"),
+            gte(payments.updatedAt, from),
+            lt(payments.updatedAt, to),
+          ),
+        )
+        .groupBy(month);
     },
   };
 }

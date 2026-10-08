@@ -10,6 +10,7 @@
       "files": ["api/**/*.ts"],
       "rules": {
         "hnk/layer-imports": "error",
+        "hnk/no-foreign-table-reads": "error",
         "hnk/route-exports-only-the-router": "error",
         "hnk/no-await-in-call-arguments": "error",
         "hnk/route-replies-through-reply": "error",

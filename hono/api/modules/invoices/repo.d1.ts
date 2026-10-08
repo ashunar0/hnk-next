@@ -4,7 +4,7 @@
  */
 import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import type { Scope } from "../../db";
+import type { ReadDb, Scope } from "../../db";
 import { invoiceStatuses, unpaidStatuses, type Invoice, type InvoiceReach } from "./domain";
 import type { InvoicesRepository } from "./service";
 
@@ -54,11 +54,8 @@ const toInvoice = (row: InvoiceRow): Invoice => ({
   updatedAt: row.updatedAt,
 });
 
-/**
- * 範囲を WHERE の条件にする。all なら絞らない。
- * 他の module がこの表を読むときも、これを通す（組織の線を越えて読まないため）
- */
-export const within = (reach: InvoiceReach) => {
+/** 範囲を WHERE の条件にする。all なら絞らない */
+const within = (reach: InvoiceReach) => {
   switch (reach.kind) {
     case "all":
       return undefined;
@@ -68,6 +65,13 @@ export const within = (reach: InvoiceReach) => {
       return and(eq(invoicesTable.orgId, reach.orgId), eq(invoicesTable.ownerId, reach.ownerId));
   }
 };
+
+/**
+ * 他の module が読むための入口。範囲の中の請求書だけが入った副問い合わせを返す。
+ * 範囲が必須なので、範囲を付けずに読む書き方が存在しない
+ */
+export const invoicesWithin = (db: ReadDb, reach: InvoiceReach) =>
+  db.select().from(invoicesTable).where(within(reach)).as("invoices_within");
 
 export function invoicesRepository(scope: Scope<typeof invoicesTable>): InvoicesRepository {
   return {

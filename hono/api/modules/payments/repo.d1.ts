@@ -1,10 +1,11 @@
 /**
  * payments の保存。service.ts が宣言した PaymentsRepository を、D1 で満たす
  */
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, getTableColumns, sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import type { Scope } from "../../db";
-import { invoicesTable } from "../invoices/repo.d1";
+import type { ReadDb, Scope } from "../../db";
+import type { InvoiceReach } from "../invoices/domain";
+import { invoicesTable, invoicesWithin } from "../invoices/repo.d1";
 import { paymentStatuses, type Payment } from "./domain";
 import type { PaymentsRepository } from "./service";
 
@@ -47,6 +48,20 @@ const toPayment = (row: PaymentRow): Payment => ({
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 });
+
+/**
+ * 他の module が読むための入口。範囲の中の請求書に結ばれた支払いだけが入った副問い合わせを返す。
+ * 支払いは組織を持たないので、範囲は請求書を通して決まる
+ */
+export const paymentsWithin = (db: ReadDb, reach: InvoiceReach) => {
+  const invoices = invoicesWithin(db, reach);
+
+  return db
+    .select(getTableColumns(paymentsTable))
+    .from(paymentsTable)
+    .innerJoin(invoices, eq(invoices.id, paymentsTable.invoiceId))
+    .as("payments_within");
+};
 
 export function paymentsRepository(scope: Scope<typeof paymentsTable>): PaymentsRepository {
   return {
