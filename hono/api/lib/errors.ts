@@ -52,7 +52,7 @@ export const failure = <E extends DomainError>(c: Context, error: E) =>
  * 失敗の種類ごとに応答を分ける。c.json のままだと 404 と 403 が 1 つにまとまり、
  * 「404 なら NOT_FOUND」の対応が型から消える
  */
-type FailureResponse<E extends DomainError> = {
+export type FailureResponse<E extends DomainError> = {
   [K in E]: TypedResponse<
     { error: { code: K; message: string } },
     (typeof errorCatalog)[K]["status"],
