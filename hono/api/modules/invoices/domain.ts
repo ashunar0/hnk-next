@@ -15,6 +15,8 @@ export type Invoice = {
   ownerId: string;
   title: string;
   body: string;
+  /** 請求額（円） */
+  amount: number;
   status: InvoiceStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -33,6 +35,11 @@ export const invoiceInputSchema = z
       .min(1, "タイトルを入力してください")
       .max(100, "タイトルは100文字以内です"),
     body: z.string().min(1, "本文を入力してください").max(20000, "本文は20000文字以内です"),
+    amount: z
+      .number()
+      .int("金額は円単位の整数で入力してください")
+      .min(1, "金額を入力してください")
+      .max(10_000_000, "金額は1000万円以下です"),
   })
   .brand<"InvoiceInput">();
 
@@ -40,7 +47,7 @@ export const invoiceInputSchema = z
 export type InvoiceInput = z.infer<typeof invoiceInputSchema>;
 
 /** 書き換えてよいもの。id や ownerId は変えられない */
-export type InvoiceChanges = Partial<Pick<Invoice, "title" | "body" | "status">> &
+export type InvoiceChanges = Partial<Pick<Invoice, "title" | "body" | "amount" | "status">> &
   Pick<Invoice, "updatedAt">;
 
 /** 閲覧者が触れる請求書の範囲 */
@@ -55,3 +62,6 @@ export const canSend = (viewer: Viewer) => viewer.role === "admin";
 
 /** 送付できるのは下書きだけ */
 export const isSendable = (invoice: Invoice) => invoice.status === "draft";
+
+/** 支払えるのは送付済みだけ */
+export const isPayable = (invoice: Invoice) => invoice.status === "sent";

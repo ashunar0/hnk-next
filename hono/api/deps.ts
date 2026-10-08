@@ -2,6 +2,9 @@ import { scopeTo, wireDb } from "./db";
 import type { AppEnv } from "./env";
 import { invoicesService } from "./modules/invoices/service";
 import { invoicesRepository, invoicesTable } from "./modules/invoices/repo.d1";
+import { stripeGateway } from "./modules/payments/gateway.stripe";
+import { paymentsRepository, paymentsTable } from "./modules/payments/repo.d1";
+import { paymentsService } from "./modules/payments/service";
 
 /**
  * feature の組み立て方を集める唯一の場所（composition root）。
@@ -19,6 +22,18 @@ export const makeDeps = (env: AppEnv["Bindings"]) => {
   return {
     get invoices() {
       return invoicesService(invoicesRepository(scopeTo(db, invoicesTable)));
+    },
+    get payments() {
+      return paymentsService(
+        paymentsRepository(scopeTo(db, paymentsTable)),
+        stripeGateway({
+          secretKey: env.STRIPE_SECRET_KEY,
+          successUrl: `${env.APP_URL}/payments/done`,
+          cancelUrl: `${env.APP_URL}/payments/canceled`,
+        }),
+        // payments が宣言した PayableInvoices を、invoices の service が満たす
+        this.invoices,
+      );
     },
   };
 };

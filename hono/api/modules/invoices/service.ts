@@ -5,6 +5,7 @@ import { err, ok, type Result } from "hnk/result";
 import type { Viewer } from "../users/domain";
 import {
   canSend,
+  isPayable,
   isSendable,
   reachOf,
   type Invoice,
@@ -77,6 +78,7 @@ export function invoicesService(repo: InvoicesRepository) {
         ownerId: viewer.id,
         title: input.title,
         body: input.body,
+        amount: input.amount,
         // 作った直後は下書き
         status: "draft",
       });
@@ -91,9 +93,22 @@ export function invoicesService(repo: InvoicesRepository) {
       const invoice = await repo.updateWithin(id, reachOf(viewer), {
         title: input.title,
         body: input.body,
+        amount: input.amount,
         updatedAt: new Date(),
       });
       if (invoice === null) return err("NOT_FOUND");
+
+      return ok(invoice);
+    },
+
+    /** 支払いに進める請求書。範囲の中で、送付済みのものだけ */
+    async getPayable(
+      id: string,
+      viewer: Viewer,
+    ): Promise<Result<Invoice, "NOT_FOUND" | "NOT_PAYABLE">> {
+      const invoice = await repo.findWithin(id, reachOf(viewer));
+      if (invoice === null) return err("NOT_FOUND");
+      if (!isPayable(invoice)) return err("NOT_PAYABLE");
 
       return ok(invoice);
     },

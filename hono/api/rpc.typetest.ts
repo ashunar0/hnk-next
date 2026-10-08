@@ -6,7 +6,7 @@ const client = hc<ApiApp>("/");
 export async function update() {
   const res = await client.invoices[":id"].$put({
     param: { id: "x" },
-    json: { title: "t", body: "b" },
+    json: { title: "t", body: "b", amount: 1000 },
   });
 
   if (res.status === 200) {
@@ -68,5 +68,22 @@ export async function send() {
   if (res.status === 200) {
     const body = await res.json();
     body.status satisfies "draft" | "sent" | "paid";
+  }
+}
+
+export async function startPayment() {
+  const res = await client.payments.$post({ json: { invoiceId: "x" } });
+
+  if (res.status === 200) {
+    const body = await res.json();
+    body.checkoutUrl satisfies string;
+  }
+  if (res.status === 409) {
+    const body = await res.json();
+    body.error.code satisfies "NOT_PAYABLE";
+  }
+  if (res.status === 502) {
+    const body = await res.json();
+    body.error.code satisfies "GATEWAY_FAILED";
   }
 }

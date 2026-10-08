@@ -5,6 +5,9 @@
 declare global {
   interface Env {
     DB: D1Database;
+    STRIPE_SECRET_KEY: string;
+    /** 支払い画面から戻ってくる先 */
+    APP_URL: string;
   }
 }
 

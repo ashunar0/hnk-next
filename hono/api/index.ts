@@ -2,6 +2,7 @@ import { createRouter, onError, provideDeps } from "hnk";
 import { makeDeps, type Deps } from "./deps";
 import type { AppEnv } from "./env";
 import { invoicesRouter } from "./modules/invoices/routes";
+import { paymentsRouter } from "./modules/payments/routes";
 import { withViewer } from "./middleware/auth";
 
 /**
@@ -21,6 +22,7 @@ export const buildApp = (makeDeps: (env: AppEnv["Bindings"]) => Deps) => {
     .use("*", provideDeps(makeDeps))
     .use("*", withViewer)
     .route("/invoices", invoicesRouter)
+    .route("/payments", paymentsRouter)
     .onError(onError);
 };
 
