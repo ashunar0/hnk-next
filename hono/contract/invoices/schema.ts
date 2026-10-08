@@ -1,26 +1,16 @@
 import { z } from "zod";
+import { invoiceInputSchema } from "./model";
 
-export const TITLE_MAX = 100;
-export const BODY_MAX = 20000;
+// 受け取る形。今は model の入力そのまま
+export const createInvoiceInputSchema = invoiceInputSchema;
 
-export const titleSchema = z
-  .string()
-  .trim()
-  .min(1, "タイトルを入力してください")
-  .max(TITLE_MAX, `タイトルは${TITLE_MAX}文字以内です`);
+export const updateInvoiceInputSchema = invoiceInputSchema;
 
-export const bodySchema = z
-  .string()
-  .min(1, "本文を入力してください")
-  .max(BODY_MAX, `本文は${BODY_MAX}文字以内です`);
-
-export const createInvoiceInputSchema = z.object({
-  title: titleSchema,
-  body: bodySchema,
+export const invoiceParamsSchema = z.object({
+  id: z.string(),
 });
 
-export const updateInvoiceInputSchema = createInvoiceInputSchema;
-
+// 返す形
 export const invoiceResponseSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -31,10 +21,6 @@ export const invoiceResponseSchema = z.object({
 
 export const listInvoicesResponseSchema = z.object({
   items: z.array(invoiceResponseSchema),
-});
-
-export const invoiceParamsSchema = z.object({
-  id: z.string(),
 });
 
 export const deleteInvoiceResponseSchema = z.object({

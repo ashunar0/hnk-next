@@ -1,4 +1,4 @@
-import type { CreateInvoiceInput, UpdateInvoiceInput } from "@contract/invoices/type";
+import type { InvoiceInput } from "@contract/invoices/model";
 import { err, ok, type Result } from "../../lib/result";
 import type { InvoiceRow, InvoiceUpdateValues, InvoicesRepository } from "./repository";
 
@@ -18,7 +18,7 @@ export function invoicesService(repo: InvoicesRepository) {
     },
 
     // 作成
-    async create(ownerId: string, input: CreateInvoiceInput): Promise<InvoiceRow> {
+    async create(ownerId: string, input: InvoiceInput): Promise<InvoiceRow> {
       const id = crypto.randomUUID();
 
       await repo.insert({
@@ -35,7 +35,7 @@ export function invoicesService(repo: InvoicesRepository) {
     async update(
       id: string,
       viewerId: string,
-      input: UpdateInvoiceInput,
+      input: InvoiceInput,
     ): Promise<Result<InvoiceRow, "NOT_FOUND" | "NOT_OWNER">> {
       const current = await repo.findById(id);
       if (current === null) return err("NOT_FOUND");
