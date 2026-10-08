@@ -26,20 +26,15 @@ export type ReminderJobs = {
 /** 手順が必要とする請求書の形。invoices の service が満たし、deps.ts でつなぐ */
 export type OverdueInvoices = {
   listOverdue(viewer: Viewer, now: Date): Promise<{ id: string }[]>;
-  get(
+  /** 督促してよいかを invoices に問う。判定は invoices のルールに任せる */
+  getRemindable(
     id: string,
     viewer: Viewer,
+    now: Date,
   ): Promise<
     Result<
-      {
-        id: string;
-        title: string;
-        amount: number;
-        customerEmail: string;
-        dueAt: Date;
-        status: string;
-      },
-      "NOT_FOUND"
+      { title: string; amount: number; customerEmail: string; dueAt: Date },
+      "NOT_FOUND" | "NOT_REMINDABLE"
     >
   >;
 };
@@ -73,8 +68,8 @@ export function remindersService(
       if (await repo.exists(reminder)) return ok("SKIPPED");
 
       // 積んだ後に支払われたり消されたりしたものは送らない
-      const invoice = await invoices.get(job.invoiceId, viewer);
-      if (!invoice.ok || invoice.value.status !== "sent") return ok("SKIPPED");
+      const invoice = await invoices.getRemindable(job.invoiceId, viewer, now);
+      if (!invoice.ok) return ok("SKIPPED");
 
       const sent = await mailer.send({
         to: invoice.value.customerEmail,

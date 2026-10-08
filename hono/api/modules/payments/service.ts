@@ -2,7 +2,7 @@
  * 支払いの手順（How）。請求書を確かめ、決済サービスの画面を作り、支払いを記録する
  */
 import { err, ok, type Result } from "hnk/result";
-import type { Viewer } from "../users/domain";
+import type { System, Viewer } from "../users/domain";
 import type { Payment, PaymentEvent } from "./domain";
 
 /** 手順が必要とする保存の形。repo.d1.ts が満たす */
@@ -43,7 +43,7 @@ export type PayableInvoices = {
     viewer: Viewer,
   ): Promise<Result<{ id: string; title: string; amount: number }, "NOT_FOUND" | "NOT_PAYABLE">>;
   /** 支払い済みにする。invoices の commands が満たす。何度呼んでも同じ結果になる */
-  markPaid(id: string): Promise<Result<unknown, "NOT_FOUND" | "NOT_PAYABLE">>;
+  markPaid(system: System, id: string): Promise<Result<unknown, "NOT_FOUND" | "NOT_PAYABLE">>;
 };
 
 export function paymentsService(
@@ -98,7 +98,10 @@ export function paymentsService(
      * 1 回の書き込みで変えるのは 1 つずつ。まとめて取り消す仕組みが無いので、
      * どちらも何度やっても同じ結果にしておき、途中で落ちたら決済サービスの再送でやり直す
      */
-    async receive(event: PaymentEvent): Promise<Result<void, "NOT_FOUND" | "NOT_PAYABLE">> {
+    async receive(
+      system: System,
+      event: PaymentEvent,
+    ): Promise<Result<void, "NOT_FOUND" | "NOT_PAYABLE">> {
       if (event.kind === "failed") {
         const failed = await repo.updateStatusByProviderRef(event.providerRef, "failed");
         if (failed === null) return err("NOT_FOUND");
@@ -109,7 +112,7 @@ export function paymentsService(
       const payment = await repo.updateStatusByProviderRef(event.providerRef, "succeeded");
       if (payment === null) return err("NOT_FOUND");
 
-      const invoice = await invoices.markPaid(payment.invoiceId);
+      const invoice = await invoices.markPaid(system, payment.invoiceId);
       if (!invoice.ok) return invoice;
 
       return ok(undefined);

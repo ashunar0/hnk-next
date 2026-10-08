@@ -10,6 +10,15 @@ export const invoiceStatuses = ["draft", "sent", "paid"] as const;
 
 export type InvoiceStatus = (typeof invoiceStatuses)[number];
 
+/** 請求した状態（送付済みか支払い済み）。集計の SQL もこの定数を使う */
+export const billedStatuses = ["sent", "paid"] as const satisfies InvoiceStatus[];
+
+/** まだ支払われていない、請求した状態。期限切れを探す SQL もこの定数を使う */
+export const unpaidStatuses = ["sent"] as const satisfies InvoiceStatus[];
+
+const isUnpaid = (status: InvoiceStatus) =>
+  (unpaidStatuses as readonly InvoiceStatus[]).includes(status);
+
 export type Invoice = {
   id: string;
   ownerId: string;
@@ -63,19 +72,22 @@ export type InvoiceReach = { kind: "all" } | { kind: "own"; ownerId: string };
 
 /** admin とシステムは全員のものに、member は自分のものだけに触れる */
 export const reachOf = (viewer: Viewer): InvoiceReach =>
-  viewer.role === "admin" || viewer.role === "system"
+  viewer.kind === "system" || viewer.role === "admin"
     ? { kind: "all" }
     : { kind: "own", ownerId: viewer.id };
 
 /** 送付できるのは admin だけ */
-export const canSend = (viewer: Viewer) => viewer.role === "admin";
+export const canSend = (viewer: Viewer) => viewer.kind === "user" && viewer.role === "admin";
 
 /** 送付できるのは下書きだけ */
 export const isSendable = (invoice: Invoice) => invoice.status === "draft";
 
 /** 支払えるのは送付済みだけ */
-export const isPayable = (invoice: Invoice) => invoice.status === "sent";
+export const isPayable = (invoice: Invoice) => isUnpaid(invoice.status);
 
 /** 期限切れ: 送付済みのまま、期限を過ぎた */
 export const isOverdue = (invoice: Invoice, now: Date) =>
-  invoice.status === "sent" && invoice.dueAt < now;
+  isUnpaid(invoice.status) && invoice.dueAt < now;
+
+/** 督促してよい: 期限切れのものだけ */
+export const isRemindable = isOverdue;

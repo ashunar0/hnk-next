@@ -1,17 +1,21 @@
 /**
  * 請求書を支払い済みにする。invoices が、他の module に変えさせてよい操作の 1 つ。
  *
- * 利用者の操作ではなく、決済の結果を受けて行う操作なので、閲覧者を取らない。
+ * 利用者の操作ではなく、決済の結果を受けて行う操作なので、システムの印を受け取る。
  * routes からは呼べない（deps はこれを routes に渡さず、payments にだけ渡す）。
  * 何度呼んでも同じ結果になる（すでに支払い済みなら、そのまま返す）
  */
 import { err, ok, type Result } from "hnk/result";
-import type { Invoice } from "../domain";
+import type { System } from "../../users/domain";
+import { reachOf, type Invoice } from "../domain";
 import type { InvoicesRepository } from "../service";
 
 export function markPaid(repo: Pick<InvoicesRepository, "updateWithin" | "findWithin">) {
-  return async (id: string): Promise<Result<Invoice, "NOT_FOUND" | "NOT_PAYABLE">> => {
-    const all = { kind: "all" } as const;
+  return async (
+    system: System,
+    id: string,
+  ): Promise<Result<Invoice, "NOT_FOUND" | "NOT_PAYABLE">> => {
+    const all = reachOf(system);
 
     const paid = await repo.updateWithin(
       id,

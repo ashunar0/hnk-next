@@ -1,9 +1,9 @@
-import type { Viewer } from "./modules/users/domain";
+import type { User } from "./modules/users/domain";
 
 /** withViewer が積む文脈変数。ハンドラ側で書き写さないための単一定義 */
 export type AuthVariables = {
   /** ログインしていなければ null */
-  viewer: Viewer | null;
+  viewer: User | null;
 };
 
 export type AppEnv = {

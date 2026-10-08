@@ -17,7 +17,7 @@ export type MonthlySummary = {
 };
 
 /** レポートを見られるのは admin だけ */
-export const canViewReports = (viewer: Viewer) => viewer.role === "admin";
+export const canViewReports = (viewer: Viewer) => viewer.kind === "user" && viewer.role === "admin";
 
 /** その月の初め（UTC） */
 export const startOfMonth = (month: Month) => new Date(`${month}-01T00:00:00Z`);

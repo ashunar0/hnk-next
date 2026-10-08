@@ -2,10 +2,11 @@
  * 請求書の手順（How）。domain のモノを使って、何をどの順でやるか
  */
 import { err, ok, type Result } from "hnk/result";
-import type { Viewer } from "../users/domain";
+import type { User, Viewer } from "../users/domain";
 import {
   canSend,
   isPayable,
+  isRemindable,
   isSendable,
   reachOf,
   type Invoice,
@@ -70,6 +71,19 @@ export function invoicesService(repo: InvoicesRepository) {
       return repo.listOverdueWithin(reachOf(viewer), now);
     },
 
+    /** 督促してよい請求書。範囲の中で、期限切れのものだけ */
+    async getRemindable(
+      id: string,
+      viewer: Viewer,
+      now: Date,
+    ): Promise<Result<Invoice, "NOT_FOUND" | "NOT_REMINDABLE">> {
+      const invoice = await repo.findWithin(id, reachOf(viewer));
+      if (invoice === null) return err("NOT_FOUND");
+      if (!isRemindable(invoice, now)) return err("NOT_REMINDABLE");
+
+      return ok(invoice);
+    },
+
     /** 範囲の外のものは、在ることも知らせない */
     async get(id: string, viewer: Viewer): Promise<Result<Invoice, "NOT_FOUND">> {
       const invoice = await repo.findWithin(id, reachOf(viewer));
@@ -79,7 +93,7 @@ export function invoicesService(repo: InvoicesRepository) {
     },
 
     // 作成。作った人が所有者になる
-    async create(viewer: Viewer, input: InvoiceInput): Promise<Invoice> {
+    async create(viewer: User, input: InvoiceInput): Promise<Invoice> {
       return repo.insert({
         id: crypto.randomUUID(),
         ownerId: viewer.id,

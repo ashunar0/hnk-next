@@ -2,10 +2,10 @@
  * invoices の保存。service.ts が宣言した InvoicesRepository を、D1 で満たす。
  * 行の形はこのファイルの外に出さず、domain の Invoice に詰め替えて返す
  */
-import { and, desc, eq, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import type { Scope } from "../../db";
-import { invoiceStatuses, type Invoice, type InvoiceReach } from "./domain";
+import { invoiceStatuses, unpaidStatuses, type Invoice, type InvoiceReach } from "./domain";
 import type { InvoicesRepository } from "./service";
 
 const now = sql`(cast(unixepoch('subsecond') * 1000 as integer))`;
@@ -89,7 +89,13 @@ export function invoicesRepository(scope: Scope<typeof invoicesTable>): Invoices
       const rows = await scope.reads
         .select()
         .from(invoicesTable)
-        .where(and(within(reach), eq(invoicesTable.status, "sent"), lt(invoicesTable.dueAt, now)));
+        .where(
+          and(
+            within(reach),
+            inArray(invoicesTable.status, unpaidStatuses),
+            lt(invoicesTable.dueAt, now),
+          ),
+        );
 
       return rows.map(toInvoice);
     },

@@ -118,7 +118,15 @@ const LAYERS = {
   domain: { zod: "value", "foreign:domain": "type" },
   service: { "hnk/result": "value", domain: "value", "foreign:domain": "type" },
   routes: { hnk: "value", zod: "value", errors: "value", middleware: "value", domain: "value" },
-  repo: { "drizzle-orm": "value", db: "type", domain: "value", service: "type", "foreign:repo": "value" },
+  repo: {
+    "drizzle-orm": "value",
+    db: "type",
+    domain: "value",
+    service: "type",
+    "foreign:repo": "value",
+    // 集計の SQL で、他 module の状態の集合（billedStatuses など）を使う
+    "foreign:domain": "value",
+  },
 };
 
 /** よくある間違いには、どうすればいいかを添える */

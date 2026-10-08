@@ -5,6 +5,7 @@
  */
 import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import type { ReadDb } from "../../db";
+import { billedStatuses } from "../invoices/domain";
 import { invoicesTable } from "../invoices/repo.d1";
 import { paymentsTable } from "../payments/repo.d1";
 import type { ReportsRepository } from "./service";
@@ -23,7 +24,7 @@ export function reportsRepository(db: ReadDb): ReportsRepository {
         .from(invoicesTable)
         .where(
           and(
-            inArray(invoicesTable.status, ["sent", "paid"]),
+            inArray(invoicesTable.status, billedStatuses),
             gte(invoicesTable.dueAt, from),
             lt(invoicesTable.dueAt, to),
           ),
