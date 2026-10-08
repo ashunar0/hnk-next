@@ -39,8 +39,17 @@ export async function get() {
 }
 
 export async function list() {
-  const res = await client.invoices.$get();
+  const res = await client.invoices.$get({ query: { status: "sent", limit: "20" } });
 
+  if (res.status === 200) {
+    const body = await res.json();
+    body.nextCursor satisfies string | null;
+  }
+  // 検索条件の検査があるので 400 が宣言される
+  if (res.status === 400) return;
   // @ts-expect-error 一覧は 404 を宣言していない
   if (res.status === 404) return;
+
+  // @ts-expect-error 状態は draft / sent / paid だけ
+  await client.invoices.$get({ query: { status: "unknown" } });
 }

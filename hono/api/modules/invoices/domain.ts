@@ -4,11 +4,17 @@
  */
 import { z } from "zod";
 
+/** 請求書の状態。下書き → 送付済み → 支払い済み */
+export const invoiceStatuses = ["draft", "sent", "paid"] as const;
+
+export type InvoiceStatus = (typeof invoiceStatuses)[number];
+
 export type Invoice = {
   id: string;
   ownerId: string;
   title: string;
   body: string;
+  status: InvoiceStatus;
   createdAt: Date;
   updatedAt: Date;
 };

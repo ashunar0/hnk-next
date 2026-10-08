@@ -118,7 +118,7 @@ const LAYERS = {
   domain: { zod: "value" },
   service: { "hnk/result": "value", domain: "type" },
   routes: { hnk: "value", zod: "value", errors: "value", middleware: "value", domain: "value" },
-  repo: { "drizzle-orm": "value", db: "type", domain: "type", service: "type", "foreign:repo": "value" },
+  repo: { "drizzle-orm": "value", db: "type", domain: "value", service: "type", "foreign:repo": "value" },
 };
 
 /** よくある間違いには、どうすればいいかを添える */

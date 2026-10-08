@@ -2,14 +2,32 @@
  * 請求書の手順（How）。domain のモノを使って、何をどの順でやるか
  */
 import { err, ok, type Result } from "hnk/result";
-import type { Invoice, InvoiceChanges, InvoiceInput } from "./domain";
+import type { Invoice, InvoiceChanges, InvoiceInput, InvoiceStatus } from "./domain";
+
+/** 一覧の中の位置。更新の新しい順に並べるので、updatedAt と id で決まる */
+export type InvoiceCursor = Pick<Invoice, "updatedAt" | "id">;
+
+/** 一覧の条件 */
+export type InvoiceListQuery = {
+  status?: InvoiceStatus;
+  /** この位置より後ろから */
+  after?: InvoiceCursor;
+  limit: number;
+};
+
+/** 一覧の 1 ページ。続きが無ければ next は null */
+export type InvoicePage = {
+  items: Invoice[];
+  next: InvoiceCursor | null;
+};
 
 /**
  * 手順が必要とする保存の形。使う側のここで宣言し、repo.d1.ts がそれを満たす。
  * service は保存の実装を知らないので、テストでは同じ形の偽物を渡せる
  */
 export type InvoicesRepository = {
-  listByOwnerId(ownerId: string): Promise<Invoice[]>;
+  /** 自分のものを、更新の新しい順に 1 ページ */
+  listByOwnerId(ownerId: string, query: InvoiceListQuery): Promise<InvoicePage>;
   findById(id: string): Promise<Invoice | null>;
   insert(invoice: Omit<Invoice, "createdAt" | "updatedAt">): Promise<Invoice>;
   /** 所有者が一致するものだけを書き換える。無ければ null */
@@ -21,8 +39,8 @@ export type InvoicesRepository = {
 export function invoicesService(repo: InvoicesRepository) {
   return {
     // 一覧。自分のものだけ、更新の新しい順
-    async listMine(ownerId: string): Promise<Invoice[]> {
-      return repo.listByOwnerId(ownerId);
+    async listMine(ownerId: string, query: InvoiceListQuery): Promise<InvoicePage> {
+      return repo.listByOwnerId(ownerId, query);
     },
 
     /** 他人のものは、在ることも知らせない */
@@ -40,6 +58,8 @@ export function invoicesService(repo: InvoicesRepository) {
         ownerId,
         title: input.title,
         body: input.body,
+        // 作った直後は下書き
+        status: "draft",
       });
     },
 

@@ -2,10 +2,10 @@
  * invoices の保存。service.ts が宣言した InvoicesRepository を、D1 で満たす。
  * 行の形はこのファイルの外に出さず、domain の Invoice に詰め替えて返す
  */
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, lt, or, sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import type { Scope } from "../../db";
-import type { Invoice } from "./domain";
+import { invoiceStatuses, type Invoice } from "./domain";
 import type { InvoicesRepository } from "./service";
 
 const now = sql`(cast(unixepoch('subsecond') * 1000 as integer))`;
@@ -19,12 +19,13 @@ export const invoicesTable = sqliteTable(
     ownerId: text("owner_id").notNull(),
     title: text("title").notNull(),
     body: text("body").notNull(),
+    status: text("status", { enum: invoiceStatuses }).default("draft").notNull(),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).default(now).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).default(now).notNull(),
   },
   (table) => [
-    index("invoices_owner_id_idx").on(table.ownerId),
-    index("invoices_updated_at_idx").on(table.updatedAt),
+    // 一覧の並び（自分のもの、更新の新しい順）をそのまま辿る
+    index("invoices_owner_updated_idx").on(table.ownerId, table.updatedAt, table.id),
   ],
 );
 
@@ -36,20 +37,38 @@ const toInvoice = (row: InvoiceRow): Invoice => ({
   ownerId: row.ownerId,
   title: row.title,
   body: row.body,
+  status: row.status,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 });
 
 export function invoicesRepository(scope: Scope<typeof invoicesTable>): InvoicesRepository {
   return {
-    async listByOwnerId(ownerId) {
+    async listByOwnerId(ownerId, { status, after, limit }) {
+      // 1 件多く読んで、続きがあるかを知る
       const rows = await scope.reads
         .select()
         .from(invoicesTable)
-        .where(eq(invoicesTable.ownerId, ownerId))
-        .orderBy(desc(invoicesTable.updatedAt));
+        .where(
+          and(
+            eq(invoicesTable.ownerId, ownerId),
+            status ? eq(invoicesTable.status, status) : undefined,
+            after
+              ? or(
+                  lt(invoicesTable.updatedAt, after.updatedAt),
+                  and(eq(invoicesTable.updatedAt, after.updatedAt), lt(invoicesTable.id, after.id)),
+                )
+              : undefined,
+          ),
+        )
+        .orderBy(desc(invoicesTable.updatedAt), desc(invoicesTable.id))
+        .limit(limit + 1);
 
-      return rows.map(toInvoice);
+      const items = rows.slice(0, limit).map(toInvoice);
+      const last = items.at(-1);
+      const next = rows.length > limit && last ? { updatedAt: last.updatedAt, id: last.id } : null;
+
+      return { items, next };
     },
 
     async findById(id) {

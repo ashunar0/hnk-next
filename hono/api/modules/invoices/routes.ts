@@ -5,11 +5,40 @@ import { createEndpoint, createRoute, createRouter, errorResponses, json, jsonBo
 import { z } from "zod";
 import { NotFound } from "../../errors";
 import { requireAuth } from "../../middleware/auth";
-import { invoiceInputSchema, type Invoice } from "./domain";
+import { invoiceInputSchema, invoiceStatuses, type Invoice } from "./domain";
 
 // 受け取る形。本文の入力は domain の invoiceInputSchema
 const invoiceParamsSchema = z.object({
   id: z.string(),
+});
+
+/** 一覧の位置を、外からは中身の読めない文字列にする */
+const encodeCursor = (cursor: Pick<Invoice, "updatedAt" | "id">) =>
+  btoa(`${cursor.updatedAt.getTime()}:${cursor.id}`);
+
+const cursorSchema = z.string().transform((value, ctx) => {
+  const decoded = (() => {
+    try {
+      return atob(value);
+    } catch {
+      return "";
+    }
+  })();
+  const at = decoded.indexOf(":");
+  const ms = Number(decoded.slice(0, at));
+  const id = decoded.slice(at + 1);
+  if (at < 0 || !Number.isInteger(ms) || id === "") {
+    ctx.addIssue({ code: "custom", message: "cursor が正しくありません" });
+    return z.NEVER;
+  }
+
+  return { updatedAt: new Date(ms), id };
+});
+
+const listInvoicesQuerySchema = z.object({
+  status: z.enum(invoiceStatuses).optional(),
+  cursor: cursorSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 
 // 返す形
@@ -17,12 +46,15 @@ const invoiceResponseSchema = z.object({
   id: z.string(),
   title: z.string(),
   body: z.string(),
+  status: z.enum(invoiceStatuses),
   createdAt: z.number(),
   updatedAt: z.number(),
 });
 
 const listInvoicesResponseSchema = z.object({
   items: z.array(invoiceResponseSchema),
+  /** 続きを読むときに cursor に渡す。続きが無ければ null */
+  nextCursor: z.string().nullable(),
 });
 
 const deleteInvoiceResponseSchema = z.object({
@@ -38,13 +70,20 @@ function invoiceResponse(invoice: Invoice): InvoiceResponse {
     id: invoice.id,
     title: invoice.title,
     body: invoice.body,
+    status: invoice.status,
     createdAt: invoice.createdAt.getTime(),
     updatedAt: invoice.updatedAt.getTime(),
   };
 }
 
-function listInvoicesResponse(invoices: Invoice[]): ListInvoicesResponse {
-  return { items: invoices.map(invoiceResponse) };
+function listInvoicesResponse(page: {
+  items: Invoice[];
+  next: Pick<Invoice, "updatedAt" | "id"> | null;
+}): ListInvoicesResponse {
+  return {
+    items: page.items.map(invoiceResponse),
+    nextCursor: page.next ? encodeCursor(page.next) : null,
+  };
 }
 
 export const invoicesRouter = createRouter()
@@ -55,16 +94,18 @@ export const invoicesRouter = createRouter()
         method: "get",
         path: "/",
         middleware: [requireAuth] as const,
+        request: { query: listInvoicesQuerySchema },
         responses: {
           200: json(listInvoicesResponseSchema, "自分の請求書の一覧"),
         },
       }),
       async (c, reply, { invoices }) => {
+        const { status, cursor, limit } = c.req.valid("query");
         const viewerId = c.get("authUserId");
 
-        const mine = await invoices.listMine(viewerId);
+        const page = await invoices.listMine(viewerId, { status, after: cursor, limit });
 
-        return reply(200, listInvoicesResponse(mine));
+        return reply(200, listInvoicesResponse(page));
       },
     ),
   )
