@@ -5,9 +5,18 @@
 /** 1 通の督促。同じ請求書には 1 日 1 通まで */
 export type Reminder = {
   invoiceId: string;
-  /** 送った日（YYYY-MM-DD、UTC） */
+  /** 送る日（YYYY-MM-DD、UTC） */
   sentOn: string;
 };
+
+/** 督促の状態。送る前に押さえ（claimed）、送れたら確定（sent） */
+export const reminderStatuses = ["claimed", "sent"] as const;
+
+export type ReminderStatus = (typeof reminderStatuses)[number];
+
+/** メールの提供元に渡す冪等キー。同じ請求書・同じ日なら同じキーになる */
+export const reminderKey = (reminder: Reminder) =>
+  `reminder/${reminder.invoiceId}/${reminder.sentOn}`;
 
 /** 督促を積むときに、キューに載せる中身 */
 export type ReminderJob = {

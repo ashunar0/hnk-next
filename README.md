@@ -140,8 +140,14 @@ go build ./cmd/api
 
 - **hnk はパッケージとして提供する**。仕組みは `hnk`、アプリの決めごと（失敗の一覧、env、組み立て、middleware）と module はアプリに置く。
   結びつけのためだけのファイルは作らない（`new Hono()` と同じく、使う場所で 1 行）
-- **想定内の失敗は Result で返す**。throw は HTTP の入口（未ログイン、入力の形）と想定外だけ。
-  どの失敗がありうるかが型に出るのは、Go の `error` より強い
+- **呼び出し側が別の道に進める失敗は Result、進めない失敗は throw**。再試行・案内・代替ができるもの
+  （見つからない、権限が無い、決済サービスやメールが答えない）は Result で返す。DB が落ちたなど、どうしようもないものは throw。
+  HTTP の入口の失敗（未ログイン、入力の形）も throw して onError に任せる。どの失敗がありうるかが型に出るのは、Go の `error` より強い
+- **外への副作用は「先に記録 → 外へ → 結果で確定」**。外に出る前に記録があるので、何が起きたかを後から辿れる。
+  外が冪等キーを受けるなら渡す（Stripe には paymentId、Resend には督促の日付入りのキー）。
+  途中で落ちたときに「重複してもよい」か「欠けてもよい」かは業務の判断なので、service のコメントに書く
+- **module の依存は一方向**。users ← invoices ← payments、invoices ← reminders、invoices と payments ← reports。
+  deps.ts の getter は互いを呼ぶので、逆向きが 1 本入ると実行時に無限再帰になる。全部を 1 回ずつ組み上げるスモークテスト（test/deps.test.ts）で止める
 - **route は `createRoute` ＋ `createEndpoint`**（@hono/zod-openapi の上）。`c.json` だとずれたときの赤線が handler の頭に付くので、`reply` で返す
 - **失敗は値で、番号と文言を持つ**（`httpError("NOT_FOUND", 404, "…")`）。guard が持つ失敗と ValidationError は自動で宣言する。
   `reply.failure` が受け取れるのは、route に手で書いたドメインの失敗だけ

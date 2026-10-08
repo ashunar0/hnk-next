@@ -14,8 +14,8 @@ export type Payment = {
   /** 支払う額（円）。始めた時点の請求額を写す */
   amount: number;
   status: PaymentStatus;
-  /** 決済サービス側での識別子。結果の通知と突き合わせるのに使う */
-  providerRef: string;
+  /** 決済サービス側での識別子。結果の通知と突き合わせるのに使う。画面を作る前は null */
+  providerRef: string | null;
   createdAt: Date;
   updatedAt: Date;
 };

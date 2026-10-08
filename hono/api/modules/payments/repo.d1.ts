@@ -20,7 +20,7 @@ export const paymentsTable = sqliteTable(
       .references(() => invoicesTable.id, { onDelete: "cascade" }),
     amount: integer("amount").notNull(),
     status: text("status", { enum: paymentStatuses }).default("pending").notNull(),
-    providerRef: text("provider_ref").notNull().unique(),
+    providerRef: text("provider_ref").unique(),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).default(now).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).default(now).notNull(),
   },
@@ -47,6 +47,16 @@ export function paymentsRepository(scope: Scope<typeof paymentsTable>): Payments
       if (!row) throw new Error(`payment ${payment.id} was not returned after insert`);
 
       return toPayment(row);
+    },
+
+    async attachProviderRef(id, providerRef) {
+      await scope.update({ providerRef, updatedAt: new Date() }).where(eq(paymentsTable.id, id));
+    },
+
+    async markFailed(id) {
+      await scope
+        .update({ status: "failed", updatedAt: new Date() })
+        .where(eq(paymentsTable.id, id));
     },
 
     async updateStatusByProviderRef(providerRef, status) {

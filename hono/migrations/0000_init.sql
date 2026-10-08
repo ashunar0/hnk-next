@@ -19,7 +19,7 @@ CREATE TABLE `payments` (
 	`invoice_id` text NOT NULL,
 	`amount` integer NOT NULL,
 	`status` text DEFAULT 'pending' NOT NULL,
-	`provider_ref` text NOT NULL,
+	`provider_ref` text,
 	`created_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
 	`updated_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
 	FOREIGN KEY (`invoice_id`) REFERENCES `invoices`(`id`) ON UPDATE no action ON DELETE cascade
@@ -30,6 +30,7 @@ CREATE INDEX `payments_invoice_id_idx` ON `payments` (`invoice_id`);--> statemen
 CREATE TABLE `reminders` (
 	`invoice_id` text NOT NULL,
 	`sent_on` text NOT NULL,
+	`status` text DEFAULT 'claimed' NOT NULL,
 	`created_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
 	PRIMARY KEY(`invoice_id`, `sent_on`),
 	FOREIGN KEY (`invoice_id`) REFERENCES `invoices`(`id`) ON UPDATE no action ON DELETE cascade

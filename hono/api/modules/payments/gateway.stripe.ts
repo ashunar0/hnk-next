@@ -61,6 +61,8 @@ export function stripeGateway(config: {
         headers: {
           Authorization: `Bearer ${config.secretKey}`,
           "Content-Type": "application/x-www-form-urlencoded",
+          // 同じ支払いで作り直しても、Stripe が 1 回にまとめる
+          "Idempotency-Key": paymentId,
         },
         body,
       });

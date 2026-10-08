@@ -8,6 +8,10 @@ import type { Payment, PaymentEvent } from "./domain";
 /** 手順が必要とする保存の形。repo.d1.ts が満たす */
 export type PaymentsRepository = {
   insert(payment: Omit<Payment, "createdAt" | "updatedAt">): Promise<Payment>;
+  /** 決済サービスの画面を作れたら、その識別子を結びつける */
+  attachProviderRef(id: string, providerRef: string): Promise<void>;
+  /** 画面を作れなかった支払いを、失敗で閉じる */
+  markFailed(id: string): Promise<void>;
   /** 決済サービス側の識別子で状態を書き換える。無ければ null */
   updateStatusByProviderRef(
     providerRef: string,
@@ -20,7 +24,7 @@ export type PaymentsRepository = {
  * 決済サービスの都合（API の形、認証、エラーの種類）はここに出さない
  */
 export type PaymentGateway = {
-  /** 支払い画面を作る。利用者を checkoutUrl に送る */
+  /** 支払い画面を作る。利用者を checkoutUrl に送る。同じ paymentId なら、決済サービスが 1 回にまとめる */
   createCheckout(input: {
     paymentId: string;
     amount: number;
@@ -65,25 +69,33 @@ export function paymentsService(
       const invoice = await invoices.getPayable(invoiceId, viewer);
       if (!invoice.ok) return invoice;
 
-      const id = crypto.randomUUID();
-
-      // 先に決済サービスの画面を作る。記録の後で失敗すると、使われない支払いが残るため
-      const checkout = await gateway.createCheckout({
-        paymentId: id,
-        amount: invoice.value.amount,
-        description: invoice.value.title,
-      });
-      if (!checkout.ok) return checkout;
-
+      // 先に記録 → 外へ → 結果で確定。外に出る前に記録があるので、何が起きたかを後から辿れる。
+      // 業務の判断: 画面を作った直後に落ちると、識別子の無い pending が残る（欠けてもよい）。
+      // 利用者はまだ画面を受け取っていないので、もう一度始めれば新しい支払いになる
       const payment = await repo.insert({
-        id,
+        id: crypto.randomUUID(),
         invoiceId,
         amount: invoice.value.amount,
         status: "pending",
-        providerRef: checkout.value.providerRef,
+        providerRef: null,
       });
 
-      return ok({ payment, checkoutUrl: checkout.value.checkoutUrl });
+      const checkout = await gateway.createCheckout({
+        paymentId: payment.id,
+        amount: payment.amount,
+        description: invoice.value.title,
+      });
+      if (!checkout.ok) {
+        await repo.markFailed(payment.id);
+        return checkout;
+      }
+
+      await repo.attachProviderRef(payment.id, checkout.value.providerRef);
+
+      return ok({
+        payment: { ...payment, providerRef: checkout.value.providerRef },
+        checkoutUrl: checkout.value.checkoutUrl,
+      });
     },
 
     /** 届いた通知を確かめる */

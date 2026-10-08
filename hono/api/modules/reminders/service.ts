@@ -3,19 +3,32 @@
  */
 import { err, ok, type Result } from "hnk/result";
 import type { Viewer } from "../users/domain";
-import { dayOf, reminderMail, type Reminder, type ReminderJob } from "./domain";
+import {
+  dayOf,
+  reminderKey,
+  reminderMail,
+  type Reminder,
+  type ReminderJob,
+  type ReminderStatus,
+} from "./domain";
 
 /** 手順が必要とする保存の形。repo.d1.ts が満たす */
 export type RemindersRepository = {
-  /** その日に送った記録があるか */
-  exists(reminder: Reminder): Promise<boolean>;
-  /** 送った記録を残す。もうあれば何もしない */
-  record(reminder: Reminder): Promise<void>;
+  /** 送る前に押さえる。もう押さえてあれば何もしない。今の状態を返す */
+  claim(reminder: Reminder): Promise<ReminderStatus>;
+  /** 送れたことを確定する */
+  markSent(reminder: Reminder): Promise<void>;
 };
 
 /** 手順が必要とするメールの形。mailer.resend.ts が満たす */
 export type Mailer = {
-  send(mail: { to: string; subject: string; body: string }): Promise<Result<void, "MAIL_FAILED">>;
+  /** 同じ idempotencyKey の送信は、提供元が 1 通にまとめる（24 時間） */
+  send(mail: {
+    to: string;
+    subject: string;
+    body: string;
+    idempotencyKey: string;
+  }): Promise<Result<void, "MAIL_FAILED">>;
 };
 
 /** 手順が必要とする積み先の形。jobs.queues.ts が満たす */
@@ -57,7 +70,11 @@ export function remindersService(
 
     /**
      * 督促を 1 通送る。同じ請求書には 1 日 1 通まで。
-     * キューは同じ中身を 2 回届けることがあるので、何度呼んでも 1 通にする
+     *
+     * 先に押さえ → メールを送る → 確定、の順。キューは同じ中身を 2 回届けることがあり、途中で落ちれば再送される。
+     * - 確定済みなら送らない
+     * - 押さえたまま落ちたら、再送で送り直す。冪等キーが同じなので、提供元が 1 通にまとめる
+     * 業務の判断: 督促は欠けても重複してもいけない。冪等キーで両方を防ぐ
      */
     async send(
       job: ReminderJob,
@@ -65,7 +82,7 @@ export function remindersService(
       now: Date,
     ): Promise<Result<"SENT" | "SKIPPED", "MAIL_FAILED">> {
       const reminder = { invoiceId: job.invoiceId, sentOn: dayOf(now) };
-      if (await repo.exists(reminder)) return ok("SKIPPED");
+      if ((await repo.claim(reminder)) === "sent") return ok("SKIPPED");
 
       // 積んだ後に支払われたり消されたりしたものは送らない
       const invoice = await invoices.getRemindable(job.invoiceId, viewer, now);
@@ -74,11 +91,11 @@ export function remindersService(
       const sent = await mailer.send({
         to: invoice.value.customerEmail,
         ...reminderMail(invoice.value),
+        idempotencyKey: reminderKey(reminder),
       });
       if (!sent.ok) return err(sent.error);
 
-      // 送った後に記録する。記録に失敗すると、再送で同じ日に 2 通目が出ることがある
-      await repo.record(reminder);
+      await repo.markSent(reminder);
 
       return ok("SENT");
     },

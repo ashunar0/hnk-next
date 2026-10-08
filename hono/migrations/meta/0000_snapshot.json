@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "7e808f24-c36a-4740-8725-13d609de6454",
+  "id": "701d1a8d-7175-414c-bd45-7b5af78b95a4",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "invoices": {
@@ -139,7 +139,7 @@
           "name": "provider_ref",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "created_at": {
@@ -202,6 +202,14 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'claimed'"
         },
         "created_at": {
           "name": "created_at",
