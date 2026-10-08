@@ -1,0 +1,28 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "hnk-invoices",
+  "main": "api/index.ts",
+  "compatibility_date": "2026-09-01",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "hnk-invoices",
+      "database_id": "local",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "queues": {
+    "producers": [{ "binding": "REMINDER_QUEUE", "queue": "reminders" }],
+    "consumers": [{ "queue": "reminders" }],
+  },
+  // 毎朝 9 時（JST）に期限切れの督促を積む
+  "triggers": { "crons": ["0 0 * * *"] },
+  // 本物の値は wrangler secret で入れる。ここはローカルとテスト用
+  "vars": {
+    "APP_URL": "http://localhost:8787",
+    "MAIL_FROM": "billing@example.com",
+    "STRIPE_SECRET_KEY": "sk_test_dummy",
+    "STRIPE_WEBHOOK_SECRET": "whsec_dummy",
+    "RESEND_API_KEY": "re_dummy",
+  },
+}

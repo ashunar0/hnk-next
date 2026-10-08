@@ -120,6 +120,7 @@ pnpm install
 cd hono
 pnpm typecheck   # 型検査（型テストを含む）
 pnpm lint        # hnk/lint のルール
+pnpm test        # ローカルの D1 で動かすテスト（vitest + @cloudflare/vitest-plugin）
 
 cd ../go
 go build ./cmd/api

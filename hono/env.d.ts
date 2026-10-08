@@ -3,6 +3,11 @@
  * fixture は型検査しかしないので、生成物が触る束縛だけを手で書いてある
  */
 declare global {
+  // cloudflare:workers の env は Cloudflare.Env 型なので、このアプリの Env とつなぐ
+  namespace Cloudflare {
+    interface Env extends globalThis.Env {}
+  }
+
   interface Env {
     DB: D1Database;
     STRIPE_SECRET_KEY: string;

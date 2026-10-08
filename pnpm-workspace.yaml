@@ -1,3 +1,7 @@
 packages:
   - hono
   - packages/*
+
+allowBuilds:
+  esbuild: true
+  workerd: true

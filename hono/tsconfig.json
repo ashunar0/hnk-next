@@ -4,7 +4,7 @@
     "lib": ["ES2022"],
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "types": ["@cloudflare/workers-types"],
+    "types": ["@cloudflare/workers-types", "@cloudflare/vitest-plugin/types"],
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noFallthroughCasesInSwitch": true,
@@ -19,5 +19,5 @@
       "@api/*": ["./api/*"]
     }
   },
-  "include": ["api", "web", "env.d.ts"]
+  "include": ["api", "web", "test", "env.d.ts"]
 }

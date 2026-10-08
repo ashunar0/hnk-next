@@ -8,20 +8,26 @@
     "typecheck": "tsc --noEmit",
     "lint": "oxlint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
     "@hono/zod-openapi": "^1.6.3",
     "@hono/zod-validator": "^0.9.0",
     "drizzle-orm": "^0.45.2",
+    "hnk": "workspace:*",
     "hono": "^4.13.1",
-    "zod": "^4.4.3",
-    "hnk": "workspace:*"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.3.7",
     "@cloudflare/workers-types": "^5.20260813.1",
+    "drizzle-kit": "^0.31.11",
     "oxlint": "^1.80.0",
     "prettier": "^3.9.6",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11",
+    "wrangler": "^4.148.0"
   }
 }
