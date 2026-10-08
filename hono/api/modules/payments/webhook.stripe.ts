@@ -20,7 +20,7 @@ export const stripeWebhookRouter = createRouter().openapi(
         ...errorResponses(InvalidSignature, NotFound, NotPayable),
       },
     }),
-    async (c, reply, { payments, settlePayment }) => {
+    async (c, reply, { payments }) => {
       // 署名は受け取ったままの本文に対して確かめるので、JSON として読まない
       const payload = await c.req.text();
       const signature = c.req.header("Stripe-Signature") ?? "";
@@ -30,10 +30,7 @@ export const stripeWebhookRouter = createRouter().openapi(
       // 支払いに関係ない通知は、受け取ったことだけ返す
       if (event.value === null) return reply(200, { received: true });
 
-      const result =
-        event.value.kind === "succeeded"
-          ? await settlePayment.run(event.value.providerRef)
-          : await payments.markFailed(event.value.providerRef);
+      const result = await payments.receive(event.value);
       if (!result.ok) return reply.failure(result.error);
 
       return reply(200, { received: true });

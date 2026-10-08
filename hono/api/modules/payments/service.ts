@@ -34,7 +34,7 @@ export type PaymentGateway = {
 };
 
 /**
- * 手順が必要とする請求書の形。invoices の service が満たし、deps.ts でつなぐ。
+ * 手順が必要とする請求書の形。読みは invoices の service、書きは invoices の commands が満たし、deps.ts でつなぐ。
  * payments は invoices を import しない
  */
 export type PayableInvoices = {
@@ -42,6 +42,8 @@ export type PayableInvoices = {
     id: string,
     viewer: Viewer,
   ): Promise<Result<{ id: string; title: string; amount: number }, "NOT_FOUND" | "NOT_PAYABLE">>;
+  /** 支払い済みにする。invoices の commands が満たす。何度呼んでも同じ結果になる */
+  markPaid(id: string): Promise<Result<unknown, "NOT_FOUND" | "NOT_PAYABLE">>;
 };
 
 export function paymentsService(
@@ -90,21 +92,27 @@ export function paymentsService(
     },
 
     /**
-     * 支払いを成功にする。何度呼んでも同じ結果になる（通知は再送されることがある）
+     * 決済サービスから届いた結果を反映する。
+     *
+     * 成功なら、支払いを成功にしてから、請求書を支払い済みにする。2 つの module に書くが、
+     * 1 回の書き込みで変えるのは 1 つずつ。まとめて取り消す仕組みが無いので、
+     * どちらも何度やっても同じ結果にしておき、途中で落ちたら決済サービスの再送でやり直す
      */
-    async markSucceeded(providerRef: string): Promise<Result<Payment, "NOT_FOUND">> {
-      const payment = await repo.updateStatusByProviderRef(providerRef, "succeeded");
+    async receive(event: PaymentEvent): Promise<Result<void, "NOT_FOUND" | "NOT_PAYABLE">> {
+      if (event.kind === "failed") {
+        const failed = await repo.updateStatusByProviderRef(event.providerRef, "failed");
+        if (failed === null) return err("NOT_FOUND");
+
+        return ok(undefined);
+      }
+
+      const payment = await repo.updateStatusByProviderRef(event.providerRef, "succeeded");
       if (payment === null) return err("NOT_FOUND");
 
-      return ok(payment);
-    },
+      const invoice = await invoices.markPaid(payment.invoiceId);
+      if (!invoice.ok) return invoice;
 
-    /** 支払いを失敗にする。何度呼んでも同じ結果になる */
-    async markFailed(providerRef: string): Promise<Result<Payment, "NOT_FOUND">> {
-      const payment = await repo.updateStatusByProviderRef(providerRef, "failed");
-      if (payment === null) return err("NOT_FOUND");
-
-      return ok(payment);
+      return ok(undefined);
     },
   };
 }

@@ -128,10 +128,11 @@ const HINTS = {
   "service→repo": "必要な保存の形は service に type で宣言し、repo がそれを満たす",
   "service→routes": "service は HTTP を知らない。失敗は Result のコードで返し、番号は routes が決める",
   "service→hnk": "service が hnk から使ってよいのは Result だけ。hnk/result から import する",
-  "service→foreign:service": "2 つ以上の module にまたがる操作は usecases/ に置く",
+  "service→foreign:service":
+    "他の module は import しない。使う形を service に宣言し、deps.ts でつなぐ。書くなら相手の commands/ を渡してもらう",
   "routes→service": "routes は service を import しない。deps から受け取って呼ぶ",
   "routes→repo": "routes は保存を知らない。service を deps から受け取って呼ぶ",
-  "routes→foreign:service": "2 つ以上の module にまたがる操作は usecases/ に置く",
+  "routes→foreign:service": "他の module の操作は、その流れの持ち主の service から呼ぶ",
   "repo→foreign:service": "読みは自分の repo の join で（相手の repo からテーブルを import してよい）",
 };
 

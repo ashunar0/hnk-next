@@ -1,0 +1,31 @@
+/**
+ * 請求書を支払い済みにする。invoices が、他の module に変えさせてよい操作の 1 つ。
+ *
+ * 利用者の操作ではなく、決済の結果を受けて行う操作なので、閲覧者を取らない。
+ * routes からは呼べない（deps はこれを routes に渡さず、payments にだけ渡す）。
+ * 何度呼んでも同じ結果になる（すでに支払い済みなら、そのまま返す）
+ */
+import { err, ok, type Result } from "hnk/result";
+import type { Invoice } from "../domain";
+import type { InvoicesRepository } from "../service";
+
+export function markPaid(repo: Pick<InvoicesRepository, "updateWithin" | "findWithin">) {
+  return async (id: string): Promise<Result<Invoice, "NOT_FOUND" | "NOT_PAYABLE">> => {
+    const all = { kind: "all" } as const;
+
+    const paid = await repo.updateWithin(
+      id,
+      all,
+      { status: "paid", updatedAt: new Date() },
+      "sent",
+    );
+    if (paid !== null) return ok(paid);
+
+    // 書き換わらなかった。無いのか、もう支払い済みなのか、送付前なのか
+    const invoice = await repo.findWithin(id, all);
+    if (invoice === null) return err("NOT_FOUND");
+    if (invoice.status === "paid") return ok(invoice);
+
+    return err("NOT_PAYABLE");
+  };
+}

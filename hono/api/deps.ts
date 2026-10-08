@@ -1,11 +1,11 @@
 import { scopeTo, wireDb } from "./db";
 import type { AppEnv } from "./env";
 import { invoicesService } from "./modules/invoices/service";
+import { markPaid } from "./modules/invoices/commands/markPaid";
 import { invoicesRepository, invoicesTable } from "./modules/invoices/repo.d1";
 import { stripeGateway } from "./modules/payments/gateway.stripe";
 import { paymentsRepository, paymentsTable } from "./modules/payments/repo.d1";
 import { paymentsService } from "./modules/payments/service";
-import { settlePayment } from "./usecases/settle-payment";
 
 /**
  * feature の組み立て方を集める唯一の場所（composition root）。
@@ -33,13 +33,12 @@ export const makeDeps = (env: AppEnv["Bindings"]) => {
           successUrl: `${env.APP_URL}/payments/done`,
           cancelUrl: `${env.APP_URL}/payments/canceled`,
         }),
-        // payments が宣言した PayableInvoices を、invoices の service が満たす
-        this.invoices,
+        // payments が宣言した PayableInvoices を、読みは invoices の service、書きは commands が満たす
+        {
+          getPayable: this.invoices.getPayable,
+          markPaid: markPaid(invoicesRepository(scopeTo(db, invoicesTable))),
+        },
       );
-    },
-    // 2 つの module に書く操作。それぞれの service が、usecase の宣言した形を満たす
-    get settlePayment() {
-      return settlePayment(this.payments, this.invoices);
     },
   };
 };
