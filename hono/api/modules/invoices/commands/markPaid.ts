@@ -6,7 +6,7 @@
  * 何度呼んでも同じ結果になる（すでに支払い済みなら、そのまま返す）
  */
 import { err, ok, type Result } from "hnk/result";
-import type { System } from "../../users/domain";
+import type { System } from "hnk/system";
 import { reachOf, type Invoice } from "../domain";
 import type { InvoicesRepository } from "../service";
 

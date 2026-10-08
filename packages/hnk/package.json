@@ -7,6 +7,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./result": "./src/result.ts",
+    "./system": "./src/system.ts",
+    "./testing": "./src/testing.ts",
     "./lint": "./lint.mjs"
   },
   "peerDependencies": {

@@ -2,7 +2,8 @@
  * 支払いの手順（How）。請求書を確かめ、決済サービスの画面を作り、支払いを記録する
  */
 import { err, ok, type Result } from "hnk/result";
-import type { System, Viewer } from "../users/domain";
+import type { System } from "hnk/system";
+import type { Viewer } from "../users/domain";
 import { isStale, type Payment, type PaymentEvent } from "./domain";
 
 /** 手順が必要とする保存の形。repo.d1.ts が満たす */

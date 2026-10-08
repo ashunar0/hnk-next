@@ -151,7 +151,7 @@ go build ./cmd/api
 - **route は `createRoute` ＋ `createEndpoint`**（@hono/zod-openapi の上）。`c.json` だとずれたときの赤線が handler の頭に付くので、`reply` で返す
 - **失敗は値で、番号と文言を持つ**（`httpError("NOT_FOUND", 404, "…")`）。guard が持つ失敗と ValidationError は自動で宣言する。
   `reply.failure` が受け取れるのは、route に手で書いたドメインの失敗だけ。同じ番号の失敗が複数あっても 1 つの応答にまとめ、コードごとの文言で返す
-- **利用者とシステムには印を付ける**（`unique symbol`）。`{ kind: "system" }` のようなリテラルでは書けず、作れるのは `systemViewer` と `authenticatedUser` だけ
+- **利用者とシステムには印を付ける**（`unique symbol`）。`{ kind: "system" }` のようなリテラルでは書けず、利用者を作れるのは `authenticatedUser` だけ。システムの型と値は hnk が持ち、アプリは作れず受け取るだけ（下の「HTTP 以外の入口」）
 - **module は domain / service / routes / repo.<技術> で始め、2 つ目が現れたときだけ育てる**（上の「出発点と育ち方」）。
   名前は modules（境界を持ったまとまり）。features は「機能」で、複数のモノにまたがる操作の言葉なので使わない
 - **domain は外を知らない**。import できるのは zod だけ。ルールは zod で書き、フロントとも共有する。手順（How）は service に分ける
@@ -167,12 +167,12 @@ go build ./cmd/api
 
 | 側       | 役割     | import してよいもの                                                                                                                                          |
 | -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| core     | domain   | zod, 他 module の domain（型だけ）                                                                                                                           |
+| core     | domain   | zod, hnk/system（型だけ）, 他 module の domain（型だけ）                                                                                                     |
 | core     | service  | hnk/result, domain, 他 module の domain（型だけ）                                                                                                            |
 | core     | commands | hnk/result, domain, service（型だけ）, 他 module の domain（型だけ）                                                                                         |
 | inbound  | routes   | hnk, zod, errors, middleware, domain                                                                                                                         |
-| inbound  | webhook  | routes と同じ ＋ 他 module の domain（systemViewer）                                                                                                         |
-| inbound  | cron     | deps（型だけ）, domain（型だけ）, 他 module の domain（systemViewer）                                                                                        |
+| inbound  | webhook  | routes と同じ。system は `allowSystem` から受け取る                                                                                                          |
+| inbound  | cron     | hnk（型だけ）, domain（型だけ）。deps・system・now は createWorker が渡す                                                                                    |
 | inbound  | queue    | cron と同じ                                                                                                                                                  |
 | outbound | repo     | drizzle-orm, db（型だけ）, domain, service（型だけ）, 他 module の repo（範囲付きの読みと、外部キーの references() だけ）, 他 module の domain（SQL の定数） |
 | outbound | gateway  | hnk/result, domain（型だけ）, service（型だけ）                                                                                                              |
@@ -180,6 +180,11 @@ go build ./cmd/api
 | outbound | jobs     | domain（型だけ）, service（型だけ）                                                                                                                          |
 
 - **名前は Hono に合わせて `create〜`**。束は `invoicesRouter`
+- **HTTP 以外の入口は `createWorker` に渡す**（`index.ts` に 1 つ）。deps は呼び出しごとに 1 回組み立て、`system` と `now` を渡す。
+  `now` は scheduled なら予定の時刻、queue ならメッセージが積まれた時刻（再送が日をまたいでも同じ日の督促になる）。
+  queue の handler は Result を返すだけ: ok で ack、err で retry、想定外の throw はそのメッセージだけ retry にして同じバッチの残りは続ける。
+  cron・queue のファイルは `system` を import せず受け取るだけ。システムの値を作る場所は hnk の中に 1 つ（テストは `hnk/testing`）。
+  署名つき webhook は `allowSystem` を宣言して `c.get("system")` で受け取る（署名を確かめた後に使う）
 - **組織は User が持ち、範囲（Reach）がデータで運ぶ**。システムは全組織、admin は自分の組織の全員分、member は自分の分だけ。
   どの範囲も組織の線を越えない
 - **共有は同じ組織の中で、閲覧と編集の 2 段階**。member の範囲は「自分のもの＋共有されたもの」。
@@ -202,6 +207,7 @@ go build ./cmd/api
 - テストの方針（service は偽物の repo、HTTP は vitest-pool-workers のローカル D1、偽物は外の API だけ、が候補）
 - `withViewer` が仮実装で、テストからログイン状態を作れない
 - ID のブランド型
-- 「育ち方」を lint と生成器にどこまで載せるか。cron.ts など、表に無い役割のファイルはまだ lint の対象外
+- 「育ち方」を lint と生成器にどこまで載せるか
+- queue を複数持つときの振り分け、cron 式ごとの切り替え（今は 1 つずつ）
 - conventions.md の hnk 側の列（どの層で縛るか）が空
 - この形で実プロダクトを書いてから、hnk 本体（生成器・スキル）に持ち帰る

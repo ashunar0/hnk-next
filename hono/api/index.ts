@@ -1,4 +1,4 @@
-import { createRouter, onError, provideDeps } from "hnk";
+import { createRouter, createWorker, onError, provideDeps } from "hnk";
 import { makeDeps, type Deps } from "./deps";
 import type { AppEnv } from "./env";
 import { invoicesRouter } from "./modules/invoices/routes";
@@ -8,7 +8,7 @@ import { stripeWebhookRouter } from "./modules/payments/webhook.stripe";
 import { withViewer } from "./middleware/auth";
 import { enqueueOverdueReminders } from "./modules/reminders/cron";
 import type { ReminderJob } from "./modules/reminders/domain";
-import { sendReminders } from "./modules/reminders/queue";
+import { sendReminder } from "./modules/reminders/queue";
 
 /**
  * アプリを組み立てる。依存の組み立て方を外から受け取るので、
@@ -39,14 +39,11 @@ const app = buildApp(makeDeps);
 
 /**
  * Workers の入口。HTTP は app、時刻は cron、キューは queue に渡す。
- * HTTP 以外の入口は provideDeps を通らないので、ここで makeDeps を呼んで渡す
+ * 依存の組み立て、system、now、ack と retry は createWorker が受け持つ
  */
-export default {
+export default createWorker<ReminderJob>({
+  makeDeps,
   fetch: app.fetch,
-  async scheduled(controller, env) {
-    await enqueueOverdueReminders(makeDeps(env), new Date(controller.scheduledTime));
-  },
-  async queue(batch, env) {
-    await sendReminders(makeDeps(env), batch as MessageBatch<ReminderJob>);
-  },
-} satisfies ExportedHandler<Env, ReminderJob>;
+  scheduled: enqueueOverdueReminders,
+  queue: sendReminder,
+});

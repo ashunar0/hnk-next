@@ -7,7 +7,7 @@ import {
   type Mailer,
   type OverdueInvoices,
 } from "../api/modules/reminders/service";
-import { systemViewer } from "../api/modules/users/domain";
+import { systemViewer } from "hnk/testing";
 import { db, insertInvoices, invoice } from "./fixtures";
 
 const now = new Date("2026-06-10T00:00:00Z");

@@ -4,7 +4,7 @@ import { invoicesService } from "../api/modules/invoices/service";
 import { paymentsTable } from "../api/modules/payments/repo.d1";
 import { reportsRepository } from "../api/modules/reports/repo.d1";
 import { reportsService } from "../api/modules/reports/service";
-import { systemViewer } from "../api/modules/users/domain";
+import { systemViewer } from "hnk/testing";
 import { admin, admin2, alice, carol, db, insertInvoices, invoice, invoicesRepo } from "./fixtures";
 
 const service = () => invoicesService(invoicesRepo());

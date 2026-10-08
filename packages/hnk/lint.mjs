@@ -29,11 +29,17 @@ const projectOf = (file) => {
 
 /** import 先をファイルの絶対パスに解決する。相対 import と tsconfig の paths。パッケージなら null */
 const resolveImport = (file, specifier, project) => {
-  if (specifier.startsWith(".")) return path.resolve(path.dirname(file), specifier);
+  if (specifier.startsWith("."))
+    return path.resolve(path.dirname(file), specifier);
   for (const [alias, [target]] of Object.entries(project.paths)) {
     const prefix = alias.replace(/\*$/, "");
-    if (alias.endsWith("*") ? specifier.startsWith(prefix) : specifier === alias) {
-      return path.resolve(project.root, target.replace("*", specifier.slice(prefix.length)));
+    if (
+      alias.endsWith("*") ? specifier.startsWith(prefix) : specifier === alias
+    ) {
+      return path.resolve(
+        project.root,
+        target.replace("*", specifier.slice(prefix.length)),
+      );
     }
   }
   return null;
@@ -63,7 +69,10 @@ const placeOf = (resolved, root) => {
     const [, module, rest] = m;
     // テストは役割の外。何を import してもよい
     if (/\.(test|typetest|spec)$/.test(rest)) return { module, role: "test" };
-    if (rest.startsWith("commands/") && !rest.slice("commands/".length).includes("/"))
+    if (
+      rest.startsWith("commands/") &&
+      !rest.slice("commands/".length).includes("/")
+    )
       return { module, role: "commands" };
     if (!rest.includes("/")) return { module, role: rest.split(".")[0] };
     return { module, role: rest };
@@ -74,12 +83,17 @@ const placeOf = (resolved, root) => {
 };
 
 /** HTTP の inbound か（routes と webhook）。createRouter の束を書く場所 */
-const isHttpInbound = (file) => /[/\\]modules[/\\][^/\\]+[/\\](routes|webhook(\.[^/\\]+)?)\.ts$/.test(file);
+const isHttpInbound = (file) =>
+  /[/\\]modules[/\\][^/\\]+[/\\](routes|webhook(\.[^/\\]+)?)\.ts$/.test(file);
 
 /** `as const` や `satisfies` を剥がす */
 const unwrap = (node) => {
   let cur = node;
-  while (cur && (cur.type === "TSAsExpression" || cur.type === "TSSatisfiesExpression")) cur = cur.expression;
+  while (
+    cur &&
+    (cur.type === "TSAsExpression" || cur.type === "TSSatisfiesExpression")
+  )
+    cur = cur.expression;
   return cur;
 };
 
@@ -98,14 +112,19 @@ const rootsAtCreateRouter = (node) => {
     } else if (cur.type === "MemberExpression") cur = cur.object;
     else break;
   }
-  return cur?.type === "Identifier" && cur.name === "createRouter" && last?.callee === cur;
+  return (
+    cur?.type === "Identifier" &&
+    cur.name === "createRouter" &&
+    last?.callee === cur
+  );
 };
 
 /**
  * guard の名前。「guard は要求するものの名前を持つ」に乗るので、
  * 維持するリストを持たない。requireAdmin を足しても規則の変更は要らない
  */
-const isGuardName = (node) => node?.type === "Identifier" && /^(require|allow)[A-Z]/.test(node.name);
+const isGuardName = (node) =>
+  node?.type === "Identifier" && /^(require|allow)[A-Z]/.test(node.name);
 
 /**
  * module の中の役割と、それが core / inbound / outbound のどれか。
@@ -140,25 +159,41 @@ const KINDS = {
  */
 const LAYERS = {
   // core
-  domain: { zod: "value", "foreign:domain": "type" },
-  service: { "hnk/result": "value", domain: "value", "foreign:domain": "type" },
+  domain: { zod: "value", "hnk/system": "type", "foreign:domain": "type" },
+  service: {
+    "hnk/result": "value",
+    "hnk/system": "type",
+    domain: "value",
+    "foreign:domain": "type",
+  },
   // 他の module に変えさせてよい操作。使う outbound の形は service の宣言を借りる
-  commands: { "hnk/result": "value", domain: "value", service: "type", "foreign:domain": "type" },
+  commands: {
+    "hnk/result": "value",
+    "hnk/system": "type",
+    domain: "value",
+    service: "type",
+    "foreign:domain": "type",
+  },
 
   // inbound（HTTP）
-  routes: { hnk: "value", zod: "value", errors: "value", middleware: "value", domain: "value" },
-  // 利用者のいない HTTP。誰として呼ぶか（systemViewer）を他 module の domain から借りる
+  routes: {
+    hnk: "value",
+    zod: "value",
+    errors: "value",
+    middleware: "value",
+    domain: "value",
+  },
+  // 利用者のいない HTTP。誰として呼ぶか（system）は allowSystem から c.get("system") で受け取る
   webhook: {
     hnk: "value",
     zod: "value",
     errors: "value",
     middleware: "value",
     domain: "value",
-    "foreign:domain": "value",
   },
-  // inbound（HTTP 以外）。deps を受け取り、システムとして呼ぶ
-  cron: { deps: "type", domain: "type", "foreign:domain": "value" },
-  queue: { deps: "type", domain: "type", "foreign:domain": "value" },
+  // inbound（HTTP 以外）。deps と system と now は createWorker が渡すので、型を借りるだけ
+  cron: { hnk: "type", domain: "type" },
+  queue: { hnk: "type", domain: "type" },
 
   // outbound
   repo: {
@@ -178,22 +213,32 @@ const LAYERS = {
 /** よくある間違いには、どうすればいいかを添える */
 const HINTS = {
   "domain→service": "domain はモノとルールだけ。手順は service に置く",
-  "domain→hnk/result": "domain は失敗を返す手順を持たない。手順は service に置く",
-  "service→routes": "service は HTTP を知らない。失敗は Result のコードで返し、番号は routes が決める",
-  "service→hnk": "service が hnk から使ってよいのは Result だけ。hnk/result から import する",
+  "domain→hnk/result":
+    "domain は失敗を返す手順を持たない。手順は service に置く",
+  "service→routes":
+    "service は HTTP を知らない。失敗は Result のコードで返し、番号は routes が決める",
+  "service→hnk":
+    "service が hnk から使ってよいのは Result だけ。hnk/result から import する",
   "service→foreign:service":
     "他の module は import しない。使う形を service に宣言し、deps.ts でつなぐ。書くなら相手の commands/ を渡してもらう",
-  "routes→foreign:domain": "routes は認証した利用者として呼ぶ。システムとして呼べるのは利用者のいない inbound だけ",
-  "routes→foreign:service": "他の module の操作は、その流れの持ち主の service から呼ぶ",
-  "repo→foreign:service": "読みは自分の repo の join で（相手の repo からテーブルを import してよい）",
+  "routes→foreign:domain":
+    'routes は認証した利用者として呼ぶ。システムが要る入口は、middleware に allowSystem を置いて c.get("system") で受け取る',
+  "routes→foreign:service":
+    "他の module の操作は、その流れの持ち主の service から呼ぶ",
+  "repo→foreign:service":
+    "読みは自分の repo の join で（相手の repo からテーブルを import してよい）",
 };
 
 /** 向きの間違いは、役割の組ではなく core / inbound / outbound の組で説明できる */
 const KIND_HINTS = {
-  "core→outbound": "core は outbound を知らない。必要な形は service に type で宣言し、outbound がそれを満たす",
-  "core→inbound": "core は inbound を知らない。失敗は Result のコードで返し、HTTP の番号などは inbound が決める",
-  "inbound→outbound": "inbound は outbound を知らない。deps から core を受け取って呼ぶ",
-  "inbound→core": "inbound は service や commands を import しない。deps から受け取って呼ぶ",
+  "core→outbound":
+    "core は outbound を知らない。必要な形は service に type で宣言し、outbound がそれを満たす",
+  "core→inbound":
+    "core は inbound を知らない。失敗は Result のコードで返し、HTTP の番号などは inbound が決める",
+  "inbound→outbound":
+    "inbound は outbound を知らない。deps から core を受け取って呼ぶ",
+  "inbound→core":
+    "inbound は service や commands を import しない。deps から受け取って呼ぶ",
   "outbound→inbound": "outbound は inbound を知らない",
 };
 
@@ -201,9 +246,15 @@ const KIND_HINTS = {
 const show = (name) => name.replace(/^foreign:/, "他 module の ");
 
 const isTypeOnly = (node) =>
-  node.importKind === "type" || (node.specifiers?.length > 0 && node.specifiers.every((s) => s.importKind === "type"));
+  node.importKind === "type" ||
+  (node.specifiers?.length > 0 &&
+    node.specifiers.every((s) => s.importKind === "type"));
 
-const FUNCTIONS = new Set(["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"]);
+const FUNCTIONS = new Set([
+  "FunctionDeclaration",
+  "FunctionExpression",
+  "ArrowFunctionExpression",
+]);
 
 /**
  * 部分木を歩く。入れ子の関数には降りない——中の await は
@@ -275,7 +326,9 @@ const plugin = {
               : undefined);
           if (!kind) {
             const list = Object.entries(allowed)
-              .map(([k, v]) => (v === "type" ? `${show(k)}（型だけ）` : show(k)))
+              .map(([k, v]) =>
+                v === "type" ? `${show(k)}（型だけ）` : show(k),
+              )
               .join(", ");
             context.report({
               node,
@@ -328,9 +381,17 @@ const plugin = {
               const resolved = resolveImport(file, node.source.value, project);
               if (resolved === null) continue;
               const place = placeOf(resolved, project.root);
-              if (!place.module || place.module === self.module || place.role !== "repo") continue;
+              if (
+                !place.module ||
+                place.module === self.module ||
+                place.role !== "repo"
+              )
+                continue;
               for (const spec of node.specifiers) {
-                if (spec.type === "ImportSpecifier" && /Table$/.test(spec.local.name)) {
+                if (
+                  spec.type === "ImportSpecifier" &&
+                  /Table$/.test(spec.local.name)
+                ) {
                   tables.set(spec.local.name, place.module);
                 }
               }
@@ -340,7 +401,11 @@ const plugin = {
             const visit = (node, ancestors) => {
               if (!node || typeof node.type !== "string") return;
               if (node.type === "ImportDeclaration") return;
-              if (node.type === "Identifier" && tables.has(node.name) && !insideReferences(ancestors)) {
+              if (
+                node.type === "Identifier" &&
+                tables.has(node.name) &&
+                !insideReferences(ancestors)
+              ) {
                 context.report({
                   node,
                   message: `他の module の表 ${node.name} を読みに使っている。表は外部キーの references() の中でだけ使う。読むときは ${tables.get(node.name)} が出している範囲付きの読み（〜Within）を使う`,
@@ -370,7 +435,8 @@ const plugin = {
         const report = (node) =>
           context.report({
             node,
-            message: "routes.ts が createRouter() の束以外を export している。組み立てヘルパはこのファイル内に留める",
+            message:
+              "routes.ts が createRouter() の束以外を export している。組み立てヘルパはこのファイル内に留める",
           });
 
         return {
@@ -408,7 +474,8 @@ const plugin = {
                   reported.add(inner);
                   context.report({
                     node: inner,
-                    message: "呼び出しの引数の中で待っている。await は変数に受けてから渡す",
+                    message:
+                      "呼び出しの引数の中で待っている。await は変数に受けてから渡す",
                   });
                 }
               });
@@ -430,7 +497,11 @@ const plugin = {
           CallExpression(node) {
             const callee = node.callee;
             if (callee?.type !== "MemberExpression") return;
-            if (callee.object?.type !== "Identifier" || callee.object.name !== "c") return;
+            if (
+              callee.object?.type !== "Identifier" ||
+              callee.object.name !== "c"
+            )
+              return;
             const method = callee.property?.name;
             if (!RESPONSE_METHODS.has(method)) return;
             context.report({
@@ -454,7 +525,10 @@ const plugin = {
         return {
           Program(program) {
             for (const statement of program.body) {
-              const declaration = statement.type === "ExportNamedDeclaration" ? statement.declaration : statement;
+              const declaration =
+                statement.type === "ExportNamedDeclaration"
+                  ? statement.declaration
+                  : statement;
               if (declaration?.type !== "VariableDeclaration") continue;
 
               if (declaration.kind !== "const") {
@@ -466,7 +540,10 @@ const plugin = {
               }
               for (const declarator of declaration.declarations) {
                 const init = unwrap(declarator.init);
-                if (init?.type === "NewExpression" && MUTABLE.has(init.callee?.name)) {
+                if (
+                  init?.type === "NewExpression" &&
+                  MUTABLE.has(init.callee?.name)
+                ) {
                   context.report({
                     node: declarator,
                     message: `モジュールの一番上の new ${init.callee.name}()。同時リクエストで共有されるので、中身が変わる入れ物は置かない`,
@@ -496,15 +573,27 @@ const plugin = {
 
         return {
           CallExpression(node) {
-            if (node.callee?.type !== "Identifier" || node.callee.name !== "createRoute") return;
+            if (
+              node.callee?.type !== "Identifier" ||
+              node.callee.name !== "createRoute"
+            )
+              return;
             const config = unwrap(node.arguments[0]);
             if (config?.type !== "ObjectExpression") return;
 
             const middleware = config.properties.find(
-              (p) => p.type === "Property" && p.key?.type === "Identifier" && p.key.name === "middleware",
+              (p) =>
+                p.type === "Property" &&
+                p.key?.type === "Identifier" &&
+                p.key.name === "middleware",
             );
             const list = unwrap(middleware?.value);
-            const elements = list?.type === "ArrayExpression" ? list.elements : list ? [list] : [];
+            const elements =
+              list?.type === "ArrayExpression"
+                ? list.elements
+                : list
+                  ? [list]
+                  : [];
             const guards = elements.filter(isGuardName);
 
             if (guards.length === 0) {
@@ -524,7 +613,8 @@ const plugin = {
             if (elements[0] !== guards[0]) {
               context.report({
                 node: guards[0],
-                message: "認証の指定は middleware の先頭に置く。宣言を縦に読めるようにするため",
+                message:
+                  "認証の指定は middleware の先頭に置く。宣言を縦に読めるようにするため",
               });
             }
           },

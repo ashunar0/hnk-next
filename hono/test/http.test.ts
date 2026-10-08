@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { systemViewer } from "hnk/testing";
 import { expect, it } from "vitest";
 import { makeDeps } from "../api/deps";
 import { buildApp } from "../api/index";
@@ -17,4 +18,30 @@ it("ログインしていなければ 401", async () => {
   const res = await app.request("/invoices", {}, env);
 
   expect(res.status).toBe(401);
+});
+
+it("webhook は allowSystem で、署名を確かめた後の handler にシステムを渡す", async () => {
+  const received: unknown[] = [];
+  const fakeApp = buildApp(
+    () =>
+      ({
+        payments: {
+          async verifyEvent() {
+            return {
+              ok: true,
+              value: { providerRef: "cs_x", outcome: "succeeded", at: new Date() },
+            };
+          },
+          async receive(system: unknown) {
+            received.push(system);
+            return { ok: true, value: undefined };
+          },
+        },
+      }) as never,
+  );
+
+  const res = await fakeApp.request("/webhooks/stripe", { method: "POST", body: "{}" }, env);
+
+  expect(res.status).toBe(200);
+  expect(received).toEqual([systemViewer]);
 });
