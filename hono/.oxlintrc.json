@@ -21,7 +21,10 @@
           "error",
           {
             "paths": [
-              { "name": "zod", "message": "zod を書いていいのは contract/ だけ。ルールは contract の model に置く" }
+              {
+                "name": "zod",
+                "message": "zod を書いていいのは route と contract/ だけ。同じルールを route の外でも使うなら contract の model に昇格する"
+              }
             ]
           }
         ]
@@ -34,12 +37,50 @@
           "error",
           {
             "paths": [
-              { "name": "zod", "message": "zod を書いていいのは contract/ だけ。ルールは contract の model に置く" },
-              { "name": "hono", "message": "feature は hono を直接使わない。hnk から import する" },
-              { "name": "@hono/zod-openapi", "message": "feature は zod-openapi を直接使わない。hnk から import する" }
+              {
+                "name": "zod",
+                "message": "zod を書いていいのは route と contract/ だけ。同じルールを route の外でも使うなら contract の model に昇格する"
+              },
+              {
+                "name": "hono",
+                "message": "feature は hono を直接使わない。hnk から import する"
+              },
+              {
+                "name": "@hono/zod-openapi",
+                "message": "feature は zod-openapi を直接使わない。hnk から import する"
+              }
             ],
             "patterns": [
-              { "group": ["hono/*", "@hono/*"], "message": "feature は hono を直接使わない。hnk から import する" }
+              {
+                "group": ["hono/*", "@hono/*"],
+                "message": "feature は hono を直接使わない。hnk から import する"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["api/features/*/route.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "hono",
+                "message": "feature は hono を直接使わない。hnk から import する"
+              },
+              {
+                "name": "@hono/zod-openapi",
+                "message": "feature は zod-openapi を直接使わない。hnk から import する"
+              }
+            ],
+            "patterns": [
+              {
+                "group": ["hono/*", "@hono/*"],
+                "message": "feature は hono を直接使わない。hnk から import する"
+              }
             ]
           }
         ]
@@ -52,13 +93,28 @@
           "error",
           {
             "paths": [
-              { "name": "zod", "message": "zod を書いていいのは contract/ だけ。ルールは contract の model に置く" },
-              { "name": "hono", "message": "service は hono を知らない。HTTP の翻訳は route の仕事" },
-              { "name": "@hono/zod-openapi", "message": "service は hono を知らない。HTTP の翻訳は route の仕事" },
-              { "name": "hnk", "message": "service が hnk から使ってよいのは Result だけ。hnk/result から import する" }
+              {
+                "name": "zod",
+                "message": "zod を書いていいのは route と contract/ だけ。同じルールを route の外でも使うなら contract の model に昇格する"
+              },
+              {
+                "name": "hono",
+                "message": "service は hono を知らない。HTTP の翻訳は route の仕事"
+              },
+              {
+                "name": "@hono/zod-openapi",
+                "message": "service は hono を知らない。HTTP の翻訳は route の仕事"
+              },
+              {
+                "name": "hnk",
+                "message": "service が hnk から使ってよいのは Result だけ。hnk/result から import する"
+              }
             ],
             "patterns": [
-              { "group": ["hono/*", "@hono/*"], "message": "service は hono を知らない。HTTP の翻訳は route の仕事" }
+              {
+                "group": ["hono/*", "@hono/*"],
+                "message": "service は hono を知らない。HTTP の翻訳は route の仕事"
+              }
             ]
           }
         ]

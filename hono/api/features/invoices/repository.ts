@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import type { Scope } from "../../db";
 import type { InvoicesRepository } from "./service";
-import { invoices } from "./table";
+import { invoices } from "../../db/schema";
 
 /** service が宣言した InvoicesRepository を、D1 で満たす */
 export function invoicesRepository(scope: Scope<typeof invoices>): InvoicesRepository {

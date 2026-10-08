@@ -26,7 +26,7 @@ export const invoicesRouter = createRouter()
         method: "put",
         path: "/{id}",
         middleware: [requireAuth] as const,
-        request: { params: invoiceParamsSchema, body: jsonBody(updateInvoiceInputSchema) },
+        request: { params: invoiceParamsSchema, body: jsonBody(invoiceInputSchema) },
         responses: {
           200: json(invoiceResponseSchema, "更新した請求書"),
           ...errorResponses(NotFound, NotOwner),
@@ -61,7 +61,29 @@ async update(id, viewerId, input: InvoiceInput): Promise<Result<InvoiceRow, "NOT
 ```
 
 - 想定内の失敗は Result で返す。service は HTTP のステータスを知らない
-- `InvoiceInput` は zod の brand 付き。検査を通っていない値は渡せない
+- `InvoiceInput` は service が自分で宣言する普通の型。検査は route が済ませている
+
+## 最小で始めて、必要になったら足す
+
+feature は 3 ファイルで始める。テーブルは全 feature 分を `api/db/schema.ts` に置く。
+
+```
+api/
+├─ db/schema.ts          全 feature のテーブル
+└─ features/invoices/
+   ├─ route.ts           入力の検査（zod）、応答の形、行 → 応答の変換
+   ├─ service.ts         業務の手順。使う repository の形もここで宣言する
+   └─ repository.ts      保存の実装
+```
+
+足すかどうかは感覚ではなく、次の事実で決める。同じ状況なら誰が書いても同じ形になる。
+
+| 足すもの | 足す条件 |
+|---|---|
+| `contract/<feature>/schema.ts` | フロントが入力・応答の形を import するとき |
+| `contract/<feature>/model.ts` | service を route 以外（cron、CSV の取り込みなど）から呼ぶとき、または同じルールをフロントでも使うとき。zod の brand で、検査を通った値だけを service が受け取るようにする |
+| `features/<feature>/presenter.ts` | 同じ応答の形を 2 つ以上の route で組み立てるとき |
+| `usecases/` | 1 回の操作で 2 つ以上の feature に書き込むとき |
 
 ## 動かす
 
@@ -94,13 +116,14 @@ go build ./cmd/api
 - **route は `createRoute` ＋ `createEndpoint`**（@hono/zod-openapi の上）。`c.json` だとずれたときの赤線が handler の頭に付くので、`reply` で返す
 - **失敗は値で、番号と文言を持つ**（`httpError("NOT_FOUND", 404, "…")`）。guard が持つ失敗と ValidationError は自動で宣言する。
   `reply.failure` が受け取れるのは、route に手で書いたドメインの失敗だけ
-- **入力のルールは `contract/<feature>/model.ts`**。zod の brand で、検査を通った値だけを service が受け取る
+- **feature は route・service・repository の 3 つで始める**。それ以外は「足す条件」を満たしたときに足す。テーブルは `api/db/schema.ts` にまとめる
+- **service は hono を知らない**。hnk から使うのは `hnk/result` だけ（lint で止める）
 - **依存は `buildApp(makeDeps)`**。Workers はリクエストをまたいだ I/O を拒むので、組み立てた結果ではなく組み立て方を渡す。
   `provideDeps` がリクエストごとに、使うときに 1 回だけ組み立てる
 - **repository の形は service が宣言する**（Go の「interface は使う側が決める」）
 - **lint は `hnk/lint` で提供する**。route の export は束 1 本、`createRoute` に認証の指定、`c.json` 禁止、引数の中で await しない、
   他 feature の repository に触らない、service が repository を import しない、モジュールの一番上に変わる状態を置かない、
-  feature は hono と zod を直接 import しない
+  feature は hono を直接 import しない、zod を書くのは route と contract/ だけ
 - **名前は Hono に合わせて `create〜`**。束は `invoicesRouter`
 
 ## 未決
@@ -109,6 +132,7 @@ go build ./cmd/api
 - D1 には対話的なトランザクションが無い（`batch` が基本）。マルチテナントを考えるときに効く
 - テストの方針（service は偽物の repository、HTTP は vitest-pool-workers のローカル D1、偽物は外の API だけ、が候補）
 - `withViewer` が仮実装で、テストからログイン状態を作れない
-- presenter の扱い、ID のブランド型
+- ID のブランド型
+- 「足す条件」を lint と生成器（`hnk add presenter invoices` のような昇格のコマンド）にどこまで載せるか
 - conventions.md の hnk 側の列（どの層で縛るか）が空
 - この形で実プロダクトを書いてから、hnk 本体（生成器・スキル）に持ち帰る

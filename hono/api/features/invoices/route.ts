@@ -1,15 +1,53 @@
-import {
-  createInvoiceInputSchema,
-  deleteInvoiceResponseSchema,
-  invoiceParamsSchema,
-  invoiceResponseSchema,
-  listInvoicesResponseSchema,
-  updateInvoiceInputSchema,
-} from "@contract/invoices/schema";
+import { z } from "zod";
+import type { InvoiceRow } from "../../db/schema";
 import { NotFound, NotOwner } from "../../errors";
 import { createEndpoint, createRoute, createRouter, errorResponses, json, jsonBody } from "hnk";
 import { requireAuth } from "../../middleware/auth";
-import { invoiceResponse, listInvoicesResponse } from "./presenter";
+
+// 受け取る形
+const invoiceInputSchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(1, "タイトルを入力してください")
+    .max(100, "タイトルは100文字以内です"),
+  body: z.string().min(1, "本文を入力してください").max(20000, "本文は20000文字以内です"),
+});
+
+const invoiceParamsSchema = z.object({
+  id: z.string(),
+});
+
+// 返す形
+const invoiceResponseSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  body: z.string(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+});
+
+const listInvoicesResponseSchema = z.object({
+  items: z.array(invoiceResponseSchema),
+});
+
+const deleteInvoiceResponseSchema = z.object({
+  ok: z.literal(true),
+});
+
+function invoiceResponse(row: InvoiceRow): z.infer<typeof invoiceResponseSchema> {
+  return {
+    id: row.id,
+    title: row.title,
+    body: row.body,
+    createdAt: row.createdAt.getTime(),
+    updatedAt: row.updatedAt.getTime(),
+  };
+}
+
+function listInvoicesResponse(rows: InvoiceRow[]): z.infer<typeof listInvoicesResponseSchema> {
+  return { items: rows.map(invoiceResponse) };
+}
 
 export const invoicesRouter = createRouter()
   // 一覧
@@ -63,7 +101,7 @@ export const invoicesRouter = createRouter()
         method: "post",
         path: "/",
         middleware: [requireAuth] as const,
-        request: { body: jsonBody(createInvoiceInputSchema) },
+        request: { body: jsonBody(invoiceInputSchema) },
         responses: {
           200: json(invoiceResponseSchema, "作成した請求書"),
         },
@@ -85,7 +123,7 @@ export const invoicesRouter = createRouter()
         method: "put",
         path: "/{id}",
         middleware: [requireAuth] as const,
-        request: { params: invoiceParamsSchema, body: jsonBody(updateInvoiceInputSchema) },
+        request: { params: invoiceParamsSchema, body: jsonBody(invoiceInputSchema) },
         responses: {
           200: json(invoiceResponseSchema, "更新した請求書"),
           ...errorResponses(NotFound, NotOwner),

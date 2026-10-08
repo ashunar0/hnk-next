@@ -1,6 +1,6 @@
 import { scopeTo, wireDb } from "./db";
 import type { AppEnv } from "./env";
-import { invoices as invoicesTable } from "./features/invoices/table";
+import { invoices as invoicesTable } from "./db/schema";
 import { invoicesRepository } from "./features/invoices/repository";
 import { invoicesService } from "./features/invoices/service";
 

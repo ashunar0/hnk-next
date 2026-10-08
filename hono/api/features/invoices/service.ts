@@ -1,6 +1,8 @@
-import type { InvoiceInput } from "@contract/invoices/model";
 import { err, ok, type Result } from "hnk/result";
-import type { InvoiceRow, InvoiceUpdateValues, NewInvoiceRow } from "./table";
+import type { InvoiceRow, InvoiceUpdateValues, NewInvoiceRow } from "../../db/schema";
+
+/** 作成・更新で受け取る値。検査は route が済ませている */
+export type InvoiceInput = { title: string; body: string };
 
 /**
  * この service が必要とする保存の形。使う側のここで宣言し、repository.ts がそれを満たす。
