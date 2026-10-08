@@ -1,6 +1,5 @@
 import type { CreateInvoiceInput, UpdateInvoiceInput } from "@contract/invoices/type";
-import { forbidden, notFound } from "../../lib/errors";
-import { loadById } from "../../lib/repository";
+import { err, ok, type Result } from "../../lib/result";
 import type { InvoiceRow, InvoiceUpdateValues, InvoicesRepository } from "./repository";
 
 export function invoicesService(repo: InvoicesRepository) {
@@ -11,11 +10,11 @@ export function invoicesService(repo: InvoicesRepository) {
     },
 
     /** 他人のものは、在ることも知らせない */
-    async get(id: string, viewerId: string): Promise<InvoiceRow> {
-      const row = await loadById(repo, id);
-      if (row.ownerId !== viewerId) throw notFound();
+    async get(id: string, viewerId: string): Promise<Result<InvoiceRow, "NOT_FOUND">> {
+      const row = await repo.findById(id);
+      if (row === null || row.ownerId !== viewerId) return err("NOT_FOUND");
 
-      return row;
+      return ok(row);
     },
 
     // 作成
@@ -29,13 +28,18 @@ export function invoicesService(repo: InvoicesRepository) {
         body: input.body,
       });
 
-      return loadById(repo, id);
+      return mustFind(repo, id);
     },
 
     /** 書き換えられるのは所有者だけ */
-    async update(id: string, viewerId: string, input: UpdateInvoiceInput): Promise<InvoiceRow> {
-      const current = await loadById(repo, id);
-      if (current.ownerId !== viewerId) throw forbidden();
+    async update(
+      id: string,
+      viewerId: string,
+      input: UpdateInvoiceInput,
+    ): Promise<Result<InvoiceRow, "NOT_FOUND" | "NOT_OWNER">> {
+      const current = await repo.findById(id);
+      if (current === null) return err("NOT_FOUND");
+      if (current.ownerId !== viewerId) return err("NOT_OWNER");
 
       const values: InvoiceUpdateValues = {
         title: input.title,
@@ -45,17 +49,28 @@ export function invoicesService(repo: InvoicesRepository) {
 
       await repo.update(id, values);
 
-      return loadById(repo, id);
+      return ok(await mustFind(repo, id));
     },
 
     /** 消せるのは所有者だけ */
-    async remove(id: string, viewerId: string): Promise<void> {
-      const current = await loadById(repo, id);
-      if (current.ownerId !== viewerId) throw forbidden();
+    async remove(id: string, viewerId: string): Promise<Result<void, "NOT_FOUND" | "NOT_OWNER">> {
+      const current = await repo.findById(id);
+      if (current === null) return err("NOT_FOUND");
+      if (current.ownerId !== viewerId) return err("NOT_OWNER");
 
       await repo.deleteById(id);
+
+      return ok(undefined);
     },
   };
 }
 
 export type InvoicesService = ReturnType<typeof invoicesService>;
+
+/** 書いた直後に読み直す。無ければ想定外なので throw する */
+async function mustFind(repo: InvoicesRepository, id: string): Promise<InvoiceRow> {
+  const row = await repo.findById(id);
+  if (row === null) throw new Error(`invoice ${id} disappeared right after write`);
+
+  return row;
+}

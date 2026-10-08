@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { createInvoiceInputSchema, updateInvoiceInputSchema } from "@contract/invoices/schema";
 import { deps } from "../../deps";
 import type { AppEnv } from "../../env";
+import { failure } from "../../lib/errors";
 import { validateBody } from "../../lib/validator";
 import { requireAuth } from "../../middleware/auth";
 import { invoiceResponse, listInvoicesResponse } from "./presenter";
@@ -14,7 +15,7 @@ export const invoicesRoute = new Hono<AppEnv>()
 
     const rows = await invoices.listMine(viewerId);
 
-    return c.json(listInvoicesResponse(rows));
+    return c.json(listInvoicesResponse(rows), 200);
   })
   // 1件
   .get("/:id", requireAuth, async (c) => {
@@ -22,9 +23,10 @@ export const invoicesRoute = new Hono<AppEnv>()
     const viewerId = c.get("authUserId");
     const { invoices } = deps(c);
 
-    const row = await invoices.get(id, viewerId);
+    const result = await invoices.get(id, viewerId);
+    if (!result.ok) return failure(c, result.error);
 
-    return c.json(invoiceResponse(row));
+    return c.json(invoiceResponse(result.value), 200);
   })
   // 作成
   .post("/", requireAuth, validateBody(createInvoiceInputSchema), async (c) => {
@@ -34,7 +36,7 @@ export const invoicesRoute = new Hono<AppEnv>()
 
     const row = await invoices.create(viewerId, input);
 
-    return c.json(invoiceResponse(row));
+    return c.json(invoiceResponse(row), 200);
   })
   // 更新
   .put("/:id", requireAuth, validateBody(updateInvoiceInputSchema), async (c) => {
@@ -43,9 +45,10 @@ export const invoicesRoute = new Hono<AppEnv>()
     const viewerId = c.get("authUserId");
     const { invoices } = deps(c);
 
-    const row = await invoices.update(id, viewerId, input);
+    const result = await invoices.update(id, viewerId, input);
+    if (!result.ok) return failure(c, result.error);
 
-    return c.json(invoiceResponse(row));
+    return c.json(invoiceResponse(result.value), 200);
   })
   // 削除
   .delete("/:id", requireAuth, async (c) => {
@@ -53,7 +56,8 @@ export const invoicesRoute = new Hono<AppEnv>()
     const viewerId = c.get("authUserId");
     const { invoices } = deps(c);
 
-    await invoices.remove(id, viewerId);
+    const result = await invoices.remove(id, viewerId);
+    if (!result.ok) return failure(c, result.error);
 
-    return c.json({ ok: true });
+    return c.json({ ok: true }, 200);
   });

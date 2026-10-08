@@ -1,18 +1,16 @@
-import type { ErrorHandler } from "hono";
+import type { Context, ErrorHandler, TypedResponse } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 
 export type ApiErrorCode =
   | "VALIDATION_ERROR"
   | "UNAUTHORIZED"
-  | "FORBIDDEN"
-  | "NOT_FOUND"
-  | "CONFLICT"
   | "INTERNAL";
 
 /**
- * 失敗は必ず throw する。返り値にすると RPC の推論に混ざる。
- * export しないので、feature 側は下のファクトリ経由でしか失敗を作れない
+ * HTTP の入口で起きる失敗（未ログイン、入力の形が違う）。throw して onError へ流す。
+ * ドメインの失敗はこれを使わず、Result で返す（DomainError）。
+ * export しないので、下のファクトリ経由でしか作れない
  */
 class ApiError extends HTTPException {
   constructor(
@@ -30,26 +28,42 @@ class ApiError extends HTTPException {
 export const validationFailed = (message: string) =>
   new ApiError("VALIDATION_ERROR", 400, message);
 
-/**
- * よく投げる失敗。コードとステータスの対応をここだけで決めるので、
- * NOT_FOUND に 400 を添えるような取り違えが書けなくなる。
- * 仕様が文言を決めているときだけ message を渡す
- */
+/** ログインしていない。requireAuth から使う */
 export const unauthorized = (message = "ログインが必要です") =>
   new ApiError("UNAUTHORIZED", 401, message);
 
-export const forbidden = (message = "この操作は許可されていません") =>
-  new ApiError("FORBIDDEN", 403, message);
+/**
+ * ドメインの失敗。service は HTTP を知らず、この名前を Result で返す
+ */
+export type DomainError = "NOT_FOUND" | "NOT_OWNER";
 
-export const notFound = (message = "対象が見つかりません") =>
-  new ApiError("NOT_FOUND", 404, message);
+/**
+ * ドメインの失敗を何番で、どの文言で返すか。ここだけで決める。
+ * DomainError に名前を足して、ここに足し忘れると型エラーになる
+ */
+const domainErrors = {
+  NOT_FOUND: { status: 404, message: "対象が見つかりません" },
+  NOT_OWNER: { status: 403, message: "この操作は許可されていません" },
+} as const satisfies Record<DomainError, { status: ContentfulStatusCode; message: string }>;
 
-export const conflict = (message: string) =>
-  new ApiError("CONFLICT", 409, message);
+/**
+ * ドメインの失敗を応答にする。route で `if (!result.ok) return failure(c, result.error);` と使う。
+ * ステータスがリテラルのまま残るので、クライアントの型にも何番が返りうるかが出る
+ */
+export const failure = <E extends DomainError>(c: Context, error: E) =>
+  c.json(
+    { error: { code: error, message: domainErrors[error].message } },
+    domainErrors[error].status,
+  ) as unknown as FailureResponse<E>;
 
-/** 素通しさせると onError が既定の文言で 500 にする。文言を決めたいときだけ */
-export const internal = (message: string) =>
-  new ApiError("INTERNAL", 500, message);
+/** 失敗の種類ごとに応答を分ける。404 なら NOT_FOUND、と型の上でも対応が残る */
+type FailureResponse<E extends DomainError> = {
+  [K in E]: TypedResponse<
+    { error: { code: K; message: string } },
+    (typeof domainErrors)[K]["status"],
+    "json"
+  >;
+}[E];
 
 /** 全ての失敗の唯一の出口 */
 export const onError: ErrorHandler = (err, c) => {
