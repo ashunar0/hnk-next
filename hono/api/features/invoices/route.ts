@@ -1,4 +1,3 @@
-import { createRoute } from "@hono/zod-openapi";
 import {
   createInvoiceInputSchema,
   deleteInvoiceResponseSchema,
@@ -8,17 +7,14 @@ import {
   updateInvoiceInputSchema,
 } from "@contract/invoices/schema";
 import { deps } from "../../deps";
-import type { AppEnv } from "../../env";
-import { createRouter, defineEndpoint, errorResponses, json, jsonBody } from "../../lib/openapi";
+import { createEndpoint, createRoute, createRouter, errorResponses, json, jsonBody } from "../../hnk";
 import { requireAuth } from "../../middleware/auth";
 import { invoiceResponse, listInvoicesResponse } from "./presenter";
 
-const endpoint = defineEndpoint<AppEnv>();
-
-export const invoicesRoute = createRouter<AppEnv>()
+export const invoicesRouter = createRouter()
   // 一覧
   .openapi(
-    ...endpoint(
+    ...createEndpoint(
       createRoute({
         method: "get",
         path: "/",
@@ -40,7 +36,7 @@ export const invoicesRoute = createRouter<AppEnv>()
   )
   // 1件
   .openapi(
-    ...endpoint(
+    ...createEndpoint(
       createRoute({
         method: "get",
         path: "/{id}",
@@ -65,7 +61,7 @@ export const invoicesRoute = createRouter<AppEnv>()
   )
   // 作成
   .openapi(
-    ...endpoint(
+    ...createEndpoint(
       createRoute({
         method: "post",
         path: "/",
@@ -89,7 +85,7 @@ export const invoicesRoute = createRouter<AppEnv>()
   )
   // 更新
   .openapi(
-    ...endpoint(
+    ...createEndpoint(
       createRoute({
         method: "put",
         path: "/{id}",
@@ -115,7 +111,7 @@ export const invoicesRoute = createRouter<AppEnv>()
   )
   // 削除
   .openapi(
-    ...endpoint(
+    ...createEndpoint(
       createRoute({
         method: "delete",
         path: "/{id}",

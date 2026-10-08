@@ -1,0 +1,20 @@
+{
+  "name": "hnk",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Hono の上で、誰が書いても同じ形になるための仕組み",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "peerDependencies": {
+    "@hono/zod-openapi": "^1.6.3",
+    "hono": "^4.13.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@hono/zod-openapi": "^1.6.3",
+    "hono": "^4.13.1",
+    "zod": "^4.4.3"
+  }
+}
