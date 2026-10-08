@@ -1,5 +1,5 @@
 import {
-  createRoute,
+  createRoute as zodCreateRoute,
   OpenAPIHono,
   z,
   type RouteConfig,
@@ -12,7 +12,6 @@ import { HTTPException } from "hono/http-exception";
 import type { ContentfulStatusCode, SuccessStatusCode } from "hono/utils/http-status";
 import type { JSONParsed } from "hono/utils/types";
 
-export { createRoute };
 export { err, ok, type Result } from "./result";
 
 /**
@@ -132,12 +131,76 @@ const errorSchema = <K extends string>(code: K) =>
  * `responses: { 200: json(...), ...errorResponses(Unauthorized, NotFound) }`
  */
 export const errorResponses = <const T extends readonly HttpError[]>(...errors: T) =>
-  Object.fromEntries(errors.map((e) => [e.status, json(errorSchema(e.code), e.message)])) as {
-    [E in T[number] as E["status"]]: {
-      description: string;
-      content: { "application/json": { schema: ReturnType<typeof errorSchema<E["code"]>> } };
-    };
+  Object.fromEntries(errors.map((e) => [e.status, json(errorSchema(e.code), e.message)])) as ErrorResponses<
+    T[number]
+  >;
+
+type ErrorResponses<E extends HttpError> = {
+  [P in E as P["status"]]: {
+    description: string;
+    content: { "application/json": { schema: ReturnType<typeof errorSchema<P["code"]>> } };
   };
+};
+
+// ---- guard と、失敗の自動の宣言 ----
+
+const GUARD_ERRORS: unique symbol = Symbol("hnk.guardErrors");
+
+/** 返しうる失敗を持った middleware */
+export type Guard<M extends MiddlewareHandler, E extends readonly HttpError[]> = M & {
+  readonly [GUARD_ERRORS]: E;
+};
+
+/**
+ * middleware に、それが返しうる失敗を持たせる。createRoute の middleware に置くと、
+ * その失敗が responses に自動で足される。`export const requireAuth = guard([Unauthorized], ...)`
+ */
+export const guard = <const E extends readonly HttpError[], M extends MiddlewareHandler>(
+  errors: E,
+  middleware: M,
+): Guard<M, E> => Object.assign(middleware, { [GUARD_ERRORS]: errors });
+
+type GuardErrorsOf<M> = M extends readonly unknown[]
+  ? GuardErrorsOf<M[number]>
+  : M extends { readonly [GUARD_ERRORS]: infer E extends readonly HttpError[] }
+    ? E[number]
+    : never;
+
+const INPUT_PARTS = ["params", "query", "body", "headers", "cookies"] as const;
+
+/** 入力の検査があるか。あれば ValidationError を返しうる */
+type HasInput<R> = R extends { request: infer Q }
+  ? Extract<keyof Q, (typeof INPUT_PARTS)[number]> extends never
+    ? false
+    : true
+  : false;
+
+/** 自動で足す失敗。guard が持つものと、入力があれば ValidationError */
+type AutoErrors<R> = GuardErrorsOf<R extends { middleware: infer M } ? M : never> | (HasInput<R> extends true ? typeof ValidationError : never);
+
+/** 手で書いた失敗のコード。reply.failure が受け取れるのはこれだけ */
+declare const DECLARED_BY_HAND: unique symbol;
+
+type WithAutoErrors<R extends RouteConfig> = Omit<R, "responses"> & {
+  responses: R["responses"] & ErrorResponses<AutoErrors<R>>;
+  readonly [DECLARED_BY_HAND]?: { [S in keyof R["responses"]]: CodeOf<R, S> }[keyof R["responses"]];
+};
+
+/**
+ * route の宣言。zod-openapi の createRoute に、失敗の自動の宣言を足したもの。
+ * guard が返しうる失敗（requireAuth なら Unauthorized）と、入力があるときの ValidationError は
+ * responses に書かなくていい。書くのはドメインの失敗だけ
+ */
+export const createRoute = <const R extends RouteConfig>(config: R) => {
+  const middleware = [config.middleware ?? []].flat() as { [GUARD_ERRORS]?: readonly HttpError[] }[];
+  const auto: HttpError[] = middleware.flatMap((m) => m[GUARD_ERRORS] ?? []);
+  if (INPUT_PARTS.some((part) => config.request?.[part] !== undefined)) auto.push(ValidationError);
+
+  return zodCreateRoute({
+    ...config,
+    responses: { ...errorResponses(...auto), ...config.responses },
+  } as WithAutoErrors<R>);
+};
 
 // ---- reply ----
 
@@ -154,8 +217,13 @@ type CodeOf<R extends RouteConfig, S> = JsonBodyOf<R, S> extends { error: { code
 /** 2xx のうち、この route が宣言したもの */
 type DeclaredSuccess<R extends RouteConfig> = keyof R["responses"] & SuccessStatusCode;
 
-/** この route が宣言した失敗のコード */
-type DeclaredFailure<R extends RouteConfig> = { [S in keyof R["responses"]]: CodeOf<R, S> }[keyof R["responses"]];
+/**
+ * reply.failure が受け取れる失敗のコード。hnk の createRoute なら手で書いたものだけ
+ * （guard や入力の検査が返す失敗は、handler が返すものではないので除く）
+ */
+type DeclaredFailure<R extends RouteConfig> = R extends { readonly [DECLARED_BY_HAND]?: infer K }
+  ? Exclude<K, undefined>
+  : { [S in keyof R["responses"]]: CodeOf<R, S> }[keyof R["responses"]];
 
 /** 失敗のコードごとに、宣言したステータスの応答を返す。「404 なら NOT_FOUND」の対応を型に残す */
 type FailureResponse<R extends RouteConfig, K> = {

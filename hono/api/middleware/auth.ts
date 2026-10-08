@@ -1,7 +1,7 @@
 import { createMiddleware } from "hono/factory";
 import type { MiddlewareHandler } from "hono";
 import type { AppEnv, AuthVariables } from "../env";
-import { fail } from "hnk";
+import { fail, guard } from "hnk";
 import { Unauthorized } from "../errors";
 
 /**
@@ -16,18 +16,22 @@ export const withViewer: MiddlewareHandler<AppEnv> = async (c, next) => {
 };
 
 /**
- * ログインを要求する。チェーンに置くと、その先の handler で
- * authUserId が string になる（viewerId は null を含んだまま）
+ * ログインを要求する。createRoute の middleware に置くと、その先の handler で
+ * authUserId が string になる（viewerId は null を含んだまま）。
+ * Unauthorized は responses に自動で足される
  */
-export const requireAuth = createMiddleware<{
-  Variables: AuthVariables & { authUserId: string };
-}>(async (c, next) => {
-  const viewerId = c.get("viewerId");
-  if (viewerId === null) throw fail(Unauthorized);
+export const requireAuth = guard(
+  [Unauthorized],
+  createMiddleware<{
+    Variables: AuthVariables & { authUserId: string };
+  }>(async (c, next) => {
+    const viewerId = c.get("viewerId");
+    if (viewerId === null) throw fail(Unauthorized);
 
-  c.set("authUserId", viewerId);
-  await next();
-});
+    c.set("authUserId", viewerId);
+    await next();
+  }),
+);
 
 /**
  * 認証を要求しないことを明示する。何もしない。

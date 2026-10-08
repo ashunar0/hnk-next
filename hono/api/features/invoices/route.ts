@@ -6,8 +6,8 @@ import {
   listInvoicesResponseSchema,
   updateInvoiceInputSchema,
 } from "@contract/invoices/schema";
-import { NotFound, NotOwner, Unauthorized } from "../../errors";
-import { createEndpoint, createRoute, createRouter, errorResponses, json, jsonBody, ValidationError } from "hnk";
+import { NotFound, NotOwner } from "../../errors";
+import { createEndpoint, createRoute, createRouter, errorResponses, json, jsonBody } from "hnk";
 import { requireAuth } from "../../middleware/auth";
 import { invoiceResponse, listInvoicesResponse } from "./presenter";
 
@@ -21,7 +21,6 @@ export const invoicesRouter = createRouter()
         middleware: [requireAuth] as const,
         responses: {
           200: json(listInvoicesResponseSchema, "自分の請求書の一覧"),
-          ...errorResponses(Unauthorized),
         },
       }),
       async (c, reply, { invoices }) => {
@@ -43,7 +42,7 @@ export const invoicesRouter = createRouter()
         request: { params: invoiceParamsSchema },
         responses: {
           200: json(invoiceResponseSchema, "請求書"),
-          ...errorResponses(ValidationError, Unauthorized, NotFound),
+          ...errorResponses(NotFound),
         },
       }),
       async (c, reply, { invoices }) => {
@@ -67,7 +66,6 @@ export const invoicesRouter = createRouter()
         request: { body: jsonBody(createInvoiceInputSchema) },
         responses: {
           200: json(invoiceResponseSchema, "作成した請求書"),
-          ...errorResponses(ValidationError, Unauthorized),
         },
       }),
       async (c, reply, { invoices }) => {
@@ -90,7 +88,7 @@ export const invoicesRouter = createRouter()
         request: { params: invoiceParamsSchema, body: jsonBody(updateInvoiceInputSchema) },
         responses: {
           200: json(invoiceResponseSchema, "更新した請求書"),
-          ...errorResponses(ValidationError, Unauthorized, NotFound, NotOwner),
+          ...errorResponses(NotFound, NotOwner),
         },
       }),
       async (c, reply, { invoices }) => {
@@ -115,7 +113,7 @@ export const invoicesRouter = createRouter()
         request: { params: invoiceParamsSchema },
         responses: {
           200: json(deleteInvoiceResponseSchema, "削除した"),
-          ...errorResponses(ValidationError, Unauthorized, NotFound, NotOwner),
+          ...errorResponses(NotFound, NotOwner),
         },
       }),
       async (c, reply, { invoices }) => {
