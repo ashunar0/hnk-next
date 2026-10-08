@@ -6,6 +6,10 @@ import { invoicesRepository, invoicesTable } from "./modules/invoices/repo.d1";
 import { stripeGateway } from "./modules/payments/gateway.stripe";
 import { paymentsRepository, paymentsTable } from "./modules/payments/repo.d1";
 import { paymentsService } from "./modules/payments/service";
+import { queuesReminderJobs } from "./modules/reminders/jobs.queues";
+import { resendMailer } from "./modules/reminders/mailer.resend";
+import { remindersRepository, remindersTable } from "./modules/reminders/repo.d1";
+import { remindersService } from "./modules/reminders/service";
 
 /**
  * feature の組み立て方を集める唯一の場所（composition root）。
@@ -38,6 +42,15 @@ export const makeDeps = (env: AppEnv["Bindings"]) => {
           getPayable: this.invoices.getPayable,
           markPaid: markPaid(invoicesRepository(scopeTo(db, invoicesTable))),
         },
+      );
+    },
+    get reminders() {
+      return remindersService(
+        remindersRepository(scopeTo(db, remindersTable)),
+        resendMailer({ apiKey: env.RESEND_API_KEY, from: env.MAIL_FROM }),
+        queuesReminderJobs(env.REMINDER_QUEUE),
+        // reminders が宣言した OverdueInvoices を、invoices の service が満たす
+        this.invoices,
       );
     },
   };

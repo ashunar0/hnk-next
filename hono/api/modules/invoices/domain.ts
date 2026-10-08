@@ -17,6 +17,10 @@ export type Invoice = {
   body: string;
   /** 請求額（円） */
   amount: number;
+  /** 請求先のメールアドレス */
+  customerEmail: string;
+  /** 支払いの期限 */
+  dueAt: Date;
   status: InvoiceStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -35,6 +39,8 @@ export const invoiceInputSchema = z
       .min(1, "タイトルを入力してください")
       .max(100, "タイトルは100文字以内です"),
     body: z.string().min(1, "本文を入力してください").max(20000, "本文は20000文字以内です"),
+    customerEmail: z.email("メールアドレスの形で入力してください"),
+    dueAt: z.coerce.date("期限を日付で入力してください"),
     amount: z
       .number()
       .int("金額は円単位の整数で入力してください")
@@ -47,15 +53,19 @@ export const invoiceInputSchema = z
 export type InvoiceInput = z.infer<typeof invoiceInputSchema>;
 
 /** 書き換えてよいもの。id や ownerId は変えられない */
-export type InvoiceChanges = Partial<Pick<Invoice, "title" | "body" | "amount" | "status">> &
+export type InvoiceChanges = Partial<
+  Pick<Invoice, "title" | "body" | "amount" | "customerEmail" | "dueAt" | "status">
+> &
   Pick<Invoice, "updatedAt">;
 
 /** 閲覧者が触れる請求書の範囲 */
 export type InvoiceReach = { kind: "all" } | { kind: "own"; ownerId: string };
 
-/** admin は全員のものに、member は自分のものだけに触れる */
+/** admin とシステムは全員のものに、member は自分のものだけに触れる */
 export const reachOf = (viewer: Viewer): InvoiceReach =>
-  viewer.role === "admin" ? { kind: "all" } : { kind: "own", ownerId: viewer.id };
+  viewer.role === "admin" || viewer.role === "system"
+    ? { kind: "all" }
+    : { kind: "own", ownerId: viewer.id };
 
 /** 送付できるのは admin だけ */
 export const canSend = (viewer: Viewer) => viewer.role === "admin";
@@ -65,3 +75,7 @@ export const isSendable = (invoice: Invoice) => invoice.status === "draft";
 
 /** 支払えるのは送付済みだけ */
 export const isPayable = (invoice: Invoice) => invoice.status === "sent";
+
+/** 期限切れ: 送付済みのまま、期限を過ぎた */
+export const isOverdue = (invoice: Invoice, now: Date) =>
+  invoice.status === "sent" && invoice.dueAt < now;

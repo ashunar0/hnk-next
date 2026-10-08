@@ -1,0 +1,28 @@
+/**
+ * 督促というモノ。期限を過ぎた請求書について、請求先に送る知らせ（What）
+ */
+
+/** 1 通の督促。同じ請求書には 1 日 1 通まで */
+export type Reminder = {
+  invoiceId: string;
+  /** 送った日（YYYY-MM-DD、UTC） */
+  sentOn: string;
+};
+
+/** 督促を積むときに、キューに載せる中身 */
+export type ReminderJob = {
+  invoiceId: string;
+};
+
+/** その日を表す文字列。1 日 1 通の判定に使う */
+export const dayOf = (now: Date) => now.toISOString().slice(0, 10);
+
+/** 督促の文面 */
+export const reminderMail = (invoice: { title: string; amount: number; dueAt: Date }) => ({
+  subject: `【お支払いのお願い】${invoice.title}`,
+  body: [
+    `「${invoice.title}」のお支払い期限（${dayOf(invoice.dueAt)}）を過ぎています。`,
+    `ご請求額: ${invoice.amount.toLocaleString("ja-JP")} 円`,
+    "お手数ですが、お支払いをお願いいたします。",
+  ].join("\n"),
+});

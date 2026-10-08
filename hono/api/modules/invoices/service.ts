@@ -39,6 +39,8 @@ export type InvoicePage = {
 export type InvoicesRepository = {
   /** 範囲の中のものを、更新の新しい順に 1 ページ */
   listWithin(reach: InvoiceReach, query: InvoiceListQuery): Promise<InvoicePage>;
+  /** 範囲の中の、送付済みで期限を過ぎたもの */
+  listOverdueWithin(reach: InvoiceReach, now: Date): Promise<Invoice[]>;
   /** 範囲の中に無ければ null */
   findWithin(id: string, reach: InvoiceReach): Promise<Invoice | null>;
   insert(invoice: Omit<Invoice, "createdAt" | "updatedAt">): Promise<Invoice>;
@@ -63,6 +65,11 @@ export function invoicesService(repo: InvoicesRepository) {
       return repo.listWithin(reachOf(viewer), query);
     },
 
+    /** 期限切れのもの。範囲の中だけ */
+    async listOverdue(viewer: Viewer, now: Date): Promise<Invoice[]> {
+      return repo.listOverdueWithin(reachOf(viewer), now);
+    },
+
     /** 範囲の外のものは、在ることも知らせない */
     async get(id: string, viewer: Viewer): Promise<Result<Invoice, "NOT_FOUND">> {
       const invoice = await repo.findWithin(id, reachOf(viewer));
@@ -79,6 +86,8 @@ export function invoicesService(repo: InvoicesRepository) {
         title: input.title,
         body: input.body,
         amount: input.amount,
+        customerEmail: input.customerEmail,
+        dueAt: input.dueAt,
         // 作った直後は下書き
         status: "draft",
       });
@@ -94,6 +103,8 @@ export function invoicesService(repo: InvoicesRepository) {
         title: input.title,
         body: input.body,
         amount: input.amount,
+        customerEmail: input.customerEmail,
+        dueAt: input.dueAt,
         updatedAt: new Date(),
       });
       if (invoice === null) return err("NOT_FOUND");

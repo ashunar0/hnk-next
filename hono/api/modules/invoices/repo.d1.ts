@@ -20,6 +20,8 @@ export const invoicesTable = sqliteTable(
     title: text("title").notNull(),
     body: text("body").notNull(),
     amount: integer("amount").notNull(),
+    customerEmail: text("customer_email").notNull(),
+    dueAt: integer("due_at", { mode: "timestamp_ms" }).notNull(),
     status: text("status", { enum: invoiceStatuses }).default("draft").notNull(),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).default(now).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).default(now).notNull(),
@@ -27,6 +29,8 @@ export const invoicesTable = sqliteTable(
   (table) => [
     // 一覧の並び（自分のもの、更新の新しい順）をそのまま辿る
     index("invoices_owner_updated_idx").on(table.ownerId, table.updatedAt, table.id),
+    // 期限切れを探す
+    index("invoices_status_due_idx").on(table.status, table.dueAt),
     // admin が全員のものを見るときの並び
     index("invoices_updated_idx").on(table.updatedAt, table.id),
   ],
@@ -41,6 +45,8 @@ const toInvoice = (row: InvoiceRow): Invoice => ({
   title: row.title,
   body: row.body,
   amount: row.amount,
+  customerEmail: row.customerEmail,
+  dueAt: row.dueAt,
   status: row.status,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
@@ -77,6 +83,15 @@ export function invoicesRepository(scope: Scope<typeof invoicesTable>): Invoices
       const next = rows.length > limit && last ? { updatedAt: last.updatedAt, id: last.id } : null;
 
       return { items, next };
+    },
+
+    async listOverdueWithin(reach, now) {
+      const rows = await scope.reads
+        .select()
+        .from(invoicesTable)
+        .where(and(within(reach), eq(invoicesTable.status, "sent"), lt(invoicesTable.dueAt, now)));
+
+      return rows.map(toInvoice);
     },
 
     async findWithin(id, reach) {

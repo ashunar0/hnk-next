@@ -6,7 +6,13 @@ const client = hc<ApiApp>("/");
 export async function update() {
   const res = await client.invoices[":id"].$put({
     param: { id: "x" },
-    json: { title: "t", body: "b", amount: 1000 },
+    json: {
+      title: "t",
+      body: "b",
+      amount: 1000,
+      customerEmail: "a@example.com",
+      dueAt: "2026-11-01",
+    },
   });
 
   if (res.status === 200) {
