@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["import"],
-  "jsPlugins": ["./hnk-lint-plugin.mjs"],
+  "jsPlugins": ["hnk/lint"],
   "rules": {
     "import/no-cycle": "error"
   },
@@ -11,12 +11,36 @@
       "rules": {
         "hnk/no-foreign-repository": "error",
         "hnk/no-foreign-service-from-service": "error",
-        "hnk/lib-stays-portable": "error",
-        "hnk/route-exports-only-the-route": "error",
+        "hnk/route-exports-only-the-router": "error",
         "hnk/no-await-in-call-arguments": "error",
-        "hnk/one-c-json-per-handler": "error",
-        "hnk/let-needs-a-contract-type": "error",
-        "hnk/route-declares-auth": "error"
+        "hnk/route-replies-through-reply": "error",
+        "hnk/route-declares-auth": "error",
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              { "name": "zod", "message": "zod を書いていいのは contract/ だけ。ルールは contract の model に置く" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["api/features/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              { "name": "zod", "message": "zod を書いていいのは contract/ だけ。ルールは contract の model に置く" },
+              { "name": "hono", "message": "feature は hono を直接使わない。hnk から import する" },
+              { "name": "@hono/zod-openapi", "message": "feature は zod-openapi を直接使わない。hnk から import する" }
+            ],
+            "patterns": [
+              { "group": ["hono/*", "@hono/*"], "message": "feature は hono を直接使わない。hnk から import する" }
+            ]
+          }
+        ]
       }
     }
   ]

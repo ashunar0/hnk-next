@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Hono の上で、誰が書いても同じ形になるための仕組み",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./lint": "./lint.mjs"
   },
   "peerDependencies": {
     "@hono/zod-openapi": "^1.6.3",
