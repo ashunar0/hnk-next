@@ -1,6 +1,7 @@
 /**
  * 請求書の手順（How）。domain のモノを使って、何をどの順でやるか
  */
+import type { Page, PageQuery } from "hnk/page";
 import { err, ok, type Result } from "hnk/result";
 import type { User, Viewer } from "../users/domain";
 import {
@@ -20,22 +21,13 @@ import {
   type ShareLevel,
 } from "./domain";
 
-/** 一覧の中の位置。更新の新しい順に並べるので、updatedAt と id で決まる */
-export type InvoiceCursor = Pick<Invoice, "updatedAt" | "id">;
-
-/** 一覧の条件 */
-export type InvoiceListQuery = {
+/** 一覧の条件。位置と件数は hnk の PageQuery */
+export type InvoiceListQuery = PageQuery & {
   status?: InvoiceStatus;
-  /** この位置より後ろから */
-  after?: InvoiceCursor;
-  limit: number;
 };
 
-/** 一覧の 1 ページ。続きが無ければ next は null */
-export type InvoicePage = {
-  items: Invoice[];
-  next: InvoiceCursor | null;
-};
+/** 一覧の 1 ページ。位置は更新の新しい順（updatedAt と id）で決まる */
+export type InvoicePage = Page<Invoice>;
 
 /**
  * 手順が必要とする保存の形。使う側のここで宣言し、repo.d1.ts がそれを満たす。

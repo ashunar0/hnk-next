@@ -4,6 +4,7 @@
  */
 import { and, desc, eq, getTableColumns, inArray, lt, or, sql, type SQL } from "drizzle-orm";
 import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { toPage } from "hnk/page";
 import type { ReadDb, Scope } from "../../db";
 import {
   invoiceStatuses,
@@ -125,8 +126,8 @@ export function invoicesRepository(
             status ? eq(invoicesTable.status, status) : undefined,
             after
               ? or(
-                  lt(invoicesTable.updatedAt, after.updatedAt),
-                  and(eq(invoicesTable.updatedAt, after.updatedAt), lt(invoicesTable.id, after.id)),
+                  lt(invoicesTable.updatedAt, after.at),
+                  and(eq(invoicesTable.updatedAt, after.at), lt(invoicesTable.id, after.id)),
                 )
               : undefined,
           ),
@@ -134,11 +135,10 @@ export function invoicesRepository(
         .orderBy(desc(invoicesTable.updatedAt), desc(invoicesTable.id))
         .limit(limit + 1);
 
-      const items = rows.slice(0, limit).map(toInvoice);
-      const last = items.at(-1);
-      const next = rows.length > limit && last ? { updatedAt: last.updatedAt, id: last.id } : null;
-
-      return { items, next };
+      return toPage(rows.map(toInvoice), limit, (invoice) => ({
+        at: invoice.updatedAt,
+        id: invoice.id,
+      }));
     },
 
     async listOverdueWithin(reach, now) {

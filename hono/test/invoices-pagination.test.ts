@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { InvoiceCursor } from "../api/modules/invoices/service";
+import type { Cursor } from "hnk/page";
 import { alice, bob, insertInvoices, invoice, invoicesRepo } from "./fixtures";
 
 const at = (iso: string) => new Date(iso);
@@ -19,7 +19,7 @@ describe("一覧のキーセットのページ送り", () => {
     const repo = invoicesRepo();
 
     const seen: string[] = [];
-    let after: InvoiceCursor | undefined;
+    let after: Cursor | undefined;
     for (let pages = 0; pages < 10; pages++) {
       const page = await repo.listWithin(
         { kind: "member", orgId: alice.orgId, userId: alice.id },

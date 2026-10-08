@@ -181,6 +181,9 @@ go build ./cmd/api
 | outbound | jobs     | domain（型だけ）, service（型だけ）                                                                                                                          |
 
 - **名前は Hono に合わせて `create〜`**。束は `invoicesRouter`
+- **一覧のページ送りは hnk の部品**（`hnk/page` と `pageQuery` / `pageResponseSchema` / `pageResponse`）。
+  一覧は `PageQuery`（`limit` は必須）を受け取って `Page` を返す。query に展開すると `limit` に既定（20）と上限（100）が付く。
+  repo は `limit + 1` 件読んで `toPage` に渡す。部品を使わない一覧を書くことは、まだ止めていない（AI に書かせる実験で確かめてから決める）
 - **ログイン状態は `buildApp(makeDeps, authenticate)` で差し込む**。`authenticate` は viewer（未ログインは null）を文脈に積む middleware で、
   本番は `withViewer`（認証の提供元ができるまでは仮実装）、テストは `appAs(user)`（`test/fixtures.ts`）で本物の deps と D1 のまま利用者だけ差し替える。
   route 層は HTTP 越しに試せる（`test/invoices-http.test.ts`）

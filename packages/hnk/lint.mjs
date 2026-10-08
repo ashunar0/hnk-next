@@ -162,6 +162,7 @@ const LAYERS = {
   domain: { zod: "value", "hnk/system": "type", "foreign:domain": "type" },
   service: {
     "hnk/result": "value",
+    "hnk/page": "type",
     "hnk/system": "type",
     domain: "value",
     "foreign:domain": "type",
@@ -198,6 +199,7 @@ const LAYERS = {
   // outbound
   repo: {
     "drizzle-orm": "value",
+    "hnk/page": "value",
     db: "type",
     domain: "value",
     service: "type",
