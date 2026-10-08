@@ -1,7 +1,8 @@
 import { createMiddleware } from "hono/factory";
 import type { MiddlewareHandler } from "hono";
 import type { AppEnv, AuthVariables } from "../env";
-import { fail } from "../hnk";
+import { fail } from "hnk";
+import { Unauthorized } from "../errors";
 
 /**
  * 閲覧者を文脈に積む。未ログインでも通す。
@@ -22,7 +23,7 @@ export const requireAuth = createMiddleware<{
   Variables: AuthVariables & { authUserId: string };
 }>(async (c, next) => {
   const viewerId = c.get("viewerId");
-  if (viewerId === null) throw fail("UNAUTHORIZED");
+  if (viewerId === null) throw fail(Unauthorized);
 
   c.set("authUserId", viewerId);
   await next();

@@ -1,5 +1,5 @@
 import type { InvoiceInput } from "@contract/invoices/model";
-import { err, ok, type Result } from "../../hnk";
+import { err, ok, type Result } from "hnk";
 import type { InvoiceRow, InvoiceUpdateValues, InvoicesRepository } from "./repository";
 
 export function invoicesService(repo: InvoicesRepository) {

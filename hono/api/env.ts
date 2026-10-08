@@ -8,3 +8,9 @@ export type AppEnv = {
   Bindings: Env;
   Variables: AuthVariables;
 };
+
+declare module "hnk" {
+  interface Register {
+    env: AppEnv;
+  }
+}

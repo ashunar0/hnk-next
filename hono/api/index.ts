@@ -1,5 +1,5 @@
 import { invoicesRouter } from "./features/invoices/route";
-import { createRouter, onError } from "./hnk";
+import { createRouter, onError } from "hnk";
 import { withViewer } from "./middleware/auth";
 
 const root = createRouter();
