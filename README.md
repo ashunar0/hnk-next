@@ -75,7 +75,7 @@ async update(id, viewerId, input: InvoiceInput): Promise<Result<Invoice, "NOT_FO
 
 ```
 api/modules/invoices/
-├─ domain.ts      モノ（What）: 型・ルール。外を何も知らない
+├─ domain.ts      モノ（What）: 型・ルール（検査済みの印付き）。外を何も知らない
 ├─ service.ts     モノ（How）: 手順と、手順が必要とする保存の形の宣言
 ├─ routes.ts      公開: HTTP の入出力の形と、モノ → 応答の変換
 └─ repo.d1.ts     保存: テーブルと、D1 での実装。行 → モノの詰め替え
@@ -135,6 +135,7 @@ go build ./cmd/api
 - **module は domain / service / routes / repo.<技術> で始め、2 つ目が現れたときだけ育てる**（上の「出発点と育ち方」）。
   名前は modules（境界を持ったまとまり）。features は「機能」で、複数のモノにまたがる usecases のほうの言葉なので使わない
 - **domain は外を知らない**。import できるのは zod だけ。ルールは zod で書き、フロントとも共有する。手順（How）は service に分ける
+- **入力は検査済みの印（zod の brand）付きでしか service に渡せない**。どの入口から呼んでも、検査を飛ばすと型エラーになる
 - **service は hono を知らない**。hnk から使うのは `hnk/result` だけ
 - **依存は `buildApp(makeDeps)`**。Workers はリクエストをまたいだ I/O を拒むので、組み立てた結果ではなく組み立て方を渡す。
   `provideDeps` がリクエストごとに、使うときに 1 回だけ組み立てる

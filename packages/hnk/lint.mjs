@@ -58,7 +58,11 @@ const placeOf = (resolved, root) => {
     .replace(/\.tsx?$/, "")
     .replace(/\/index$/, "");
   let m;
-  if ((m = rel.match(/^api\/modules\/([^/]+)\/([^/.]+)(\.[^/]+)?$/))) return { module: m[1], role: m[2] };
+  if ((m = rel.match(/^api\/modules\/([^/]+)\/([^/.]+)(\.[^/]+)?$/))) {
+    // テストは役割の外。何を import してもよい
+    if (/\.(test|typetest|spec)$/.test(m[3] ?? "")) return { module: m[1], role: "test" };
+    return { module: m[1], role: m[2] };
+  }
   if ((m = rel.match(/^api\/(errors|env|deps|db)$/))) return { role: m[1] };
   if (rel.startsWith("api/middleware/")) return { role: "middleware" };
   return { role: rel };
