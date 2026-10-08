@@ -1,11 +1,12 @@
 /**
- * invoices の保存。domain.ts が宣言した InvoicesRepository を、D1 で満たす。
+ * invoices の保存。service.ts が宣言した InvoicesRepository を、D1 で満たす。
  * 行の形はこのファイルの外に出さず、domain の Invoice に詰め替えて返す
  */
 import { and, desc, eq, sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import type { Scope } from "../../db";
-import type { Invoice, InvoicesRepository } from "./domain";
+import type { Invoice } from "./domain";
+import type { InvoicesRepository } from "./service";
 
 const now = sql`(cast(unixepoch('subsecond') * 1000 as integer))`;
 

@@ -103,27 +103,32 @@ const isGuardName = (node) => node?.type === "Identifier" && /^(require|allow)[A
  * "type" は `import type` だけ許す。実行時には依存せず、形だけを借りる。
  *
  * 矢印は全部 domain に向かう。domain は外を何も知らない。
+ * service は手順で、保存の形を宣言する。repo はその形を満たす。
  *
  * 相手の書き方:
  *   パッケージ名（hnk, hnk/result, zod, drizzle-orm）
- *   自分の module の役割（domain, routes, repo）。他の module のものは "foreign:<role>"
+ *   自分の module の役割（domain, service, routes, repo）。他の module のものは "foreign:<role>"
  *   アプリの決めごと（errors, middleware, db）
  */
 const LAYERS = {
-  domain: { zod: "value", "hnk/result": "value" },
+  domain: { zod: "value" },
+  service: { "hnk/result": "value", domain: "type" },
   routes: { hnk: "value", zod: "value", errors: "value", middleware: "value", domain: "value" },
-  repo: { "drizzle-orm": "value", db: "type", domain: "type", "foreign:repo": "value" },
+  repo: { "drizzle-orm": "value", db: "type", domain: "type", service: "type", "foreign:repo": "value" },
 };
 
 /** よくある間違いには、どうすればいいかを添える */
 const HINTS = {
-  "domain→repo": "必要な保存の形は domain に type で宣言し、repo がそれを満たす",
-  "domain→routes": "domain は HTTP を知らない。失敗は Result のコードで返し、番号は routes が決める",
-  "domain→hnk": "domain が hnk から使ってよいのは Result だけ。hnk/result から import する",
-  "domain→foreign:domain": "2 つ以上の module にまたがる操作は usecases/ に置く",
-  "routes→repo": "routes は保存を知らない。domain の service を deps から受け取って呼ぶ",
-  "routes→foreign:domain": "2 つ以上の module にまたがる操作は usecases/ に置く",
-  "repo→foreign:domain": "読みは自分の repo の join で（相手の repo からテーブルを import してよい）",
+  "domain→service": "domain はモノとルールだけ。手順は service に置く",
+  "domain→hnk/result": "domain は失敗を返す手順を持たない。手順は service に置く",
+  "service→repo": "必要な保存の形は service に type で宣言し、repo がそれを満たす",
+  "service→routes": "service は HTTP を知らない。失敗は Result のコードで返し、番号は routes が決める",
+  "service→hnk": "service が hnk から使ってよいのは Result だけ。hnk/result から import する",
+  "service→foreign:service": "2 つ以上の module にまたがる操作は usecases/ に置く",
+  "routes→service": "routes は service を import しない。deps から受け取って呼ぶ",
+  "routes→repo": "routes は保存を知らない。service を deps から受け取って呼ぶ",
+  "routes→foreign:service": "2 つ以上の module にまたがる操作は usecases/ に置く",
+  "repo→foreign:service": "読みは自分の repo の join で（相手の repo からテーブルを import してよい）",
 };
 
 /** foreign:domain → 他 module の domain */
