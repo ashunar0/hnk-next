@@ -7,7 +7,7 @@ import { Unauthorized } from "../errors";
 /**
  * 閲覧者を文脈に積む。未ログインでも通す。
  *
- * TODO: features/auth/ が cookie のセッションを解いて返すようになったら、
+ * TODO: modules/auth/ が cookie のセッションを解いて返すようになったら、
  * その結果を積む。認証提供元がまだ無いあいだは常に null
  */
 export const withViewer: MiddlewareHandler<AppEnv> = async (c, next) => {

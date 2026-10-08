@@ -1,8 +1,7 @@
 import { scopeTo, wireDb } from "./db";
 import type { AppEnv } from "./env";
-import { invoices as invoicesTable } from "./features/invoices/table";
-import { invoicesRepository } from "./features/invoices/repository";
-import { invoicesService } from "./features/invoices/service";
+import { invoicesService } from "./modules/invoices/domain";
+import { invoicesRepository, invoicesTable } from "./modules/invoices/repo.d1";
 
 /**
  * feature の組み立て方を集める唯一の場所（composition root）。

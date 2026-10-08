@@ -14,24 +14,7 @@
         "hnk/no-await-in-call-arguments": "error",
         "hnk/route-replies-through-reply": "error",
         "hnk/route-declares-auth": "error",
-        "hnk/no-module-scope-state": "error",
-        "no-restricted-imports": [
-          "error",
-          {
-            "paths": [
-              {
-                "name": "zod",
-                "message": "zod を書いていいのは contract/ だけ。入出力の形は contract の schema に置く"
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "files": ["contract/**/*.ts"],
-      "rules": {
-        "hnk/layer-imports": "error"
+        "hnk/no-module-scope-state": "error"
       }
     }
   ]

@@ -16,9 +16,8 @@
     "noEmit": true,
     "paths": {
       "@/*": ["./web/*"],
-      "@contract/*": ["./contract/*"],
       "@api/*": ["./api/*"]
     }
   },
-  "include": ["api", "contract", "web", "env.d.ts"]
+  "include": ["api", "web", "env.d.ts"]
 }

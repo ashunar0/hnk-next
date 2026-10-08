@@ -17,7 +17,7 @@ memo.md         別の会話でまとめた、Go の設計思想を Hono で再�
 ## hnk を使うとこう書く
 
 ```ts
-// hono/api/features/invoices/route.ts
+// hono/api/modules/invoices/routes.ts
 export const invoicesRouter = createRouter()
   // 更新
   .openapi(
@@ -54,40 +54,49 @@ export const invoicesRouter = createRouter()
 - handler の引数は「受け取る（`c`）・返す（`reply`）・使う（依存）」の順
 
 ```ts
-// hono/api/features/invoices/service.ts
-async update(id, viewerId, input: InvoiceInput): Promise<Result<InvoiceRow, "NOT_FOUND">> {
-  const row = await repo.updateOwned(id, viewerId, { ...input, updatedAt: new Date() });
-  if (row === null) return err("NOT_FOUND");
+// hono/api/modules/invoices/domain.ts
+async update(id, viewerId, input: InvoiceInput): Promise<Result<Invoice, "NOT_FOUND">> {
+  const invoice = await repo.updateOwned(id, viewerId, { ...input, updatedAt: new Date() });
+  if (invoice === null) return err("NOT_FOUND");
 
-  return ok(row);
+  return ok(invoice);
 }
 ```
 
-- 想定内の失敗は Result で返す。service は HTTP のステータスを知らない
-- 所有者の条件は repository の WHERE に入れて 1 文で書く。他人のものは在ることも知らせず NOT_FOUND
-- `InvoiceInput` は service が自分で宣言する普通の型。検査は route が済ませている
+- 想定内の失敗は Result で返す。domain は HTTP のステータスを知らない
+- 所有者の条件は repo の WHERE に入れて 1 文で書く。他人のものは在ることも知らせず NOT_FOUND
+- `Invoice` は domain が宣言するモノの型。repo は DB の行をこれに詰め替えて返す
 
-## 毎回あるものは最初から、規模で出てくるものは後から
+## 出発点と育ち方
 
-どの feature にも毎回あるものは、最初から置く。
+### 出発点: 箱 3 つ
+
+どのアプリにも必ずあるのは、モノ・公開・保存の 3 つだけ。module ごとに 1 箱 1 ファイルで始める。
 
 ```
-contract/invoices/
-└─ schema.ts             HTTP の入出力の形（zod）と、その型。フロントも import する
-api/features/invoices/
-├─ route.ts              HTTP の翻訳
-├─ presenter.ts          行 → 応答の形
-├─ service.ts            業務の手順。受け取る値と、使う repository の形もここで宣言する
-├─ repository.ts         保存の実装
-└─ table.ts              テーブル
+api/modules/invoices/
+├─ domain.ts      モノ: 型・ルール・失敗・保存の形の宣言・手順。外を何も知らない
+├─ routes.ts      公開: HTTP の入出力の形と、モノ → 応答の変換
+└─ repo.d1.ts     保存: テーブルと、D1 での実装。行 → モノの詰め替え
 ```
 
-アプリが大きくなったら出てくるものは、最初からある前提にしない。足すかどうかは感覚ではなく、次の事実で決める。
+```
+  routes  ──→  domain  ←──  repo.d1
+```
 
-| 足すもの                      | 足す条件                                                                                                                          |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `contract/<feature>/model.ts` | service を route 以外（cron、CSV の取り込みなど）から呼ぶとき。zod の brand で、検査を通った値だけを service が受け取るようにする |
-| `usecases/`                   | 1 回の操作で 2 つ以上の feature に書き込むとき                                                                                    |
+ルールは 1 つ。**矢印は全部 domain に向かう**。アダプター（routes、repo.d1）のファイル名には、何に繋ぐかを書く。
+
+### 育ち方: 2 つ目が現れたときだけ、3 種類
+
+| 動き       | きっかけ                                    | 足すもの                                                                                 |
+| ---------- | ------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| 横に増える | 2 つ目の入口                                | `cron.ts`、`queue.ts`（routes.ts の隣）                                                  |
+| 横に増える | 2 つ目の保存先                              | `files.r2.ts` など。必要な形は domain で宣言する                                         |
+| 中で割れる | 1 つのファイルが 2 つ目の理由で変わり始めた | 同じ箱の中で分ける（domain.ts → ports.ts、routes.ts → schema.ts など）。矢印は変わらない |
+| 上に載る   | 2 つ目の module が触りにくる                | `index.ts`（公開口）。他の module はここからだけ触る                                     |
+| 上に載る   | 1 回の操作で 2 つの module に書く           | `usecases/`                                                                              |
+
+どの動きでも、矢印は domain に向かったまま変わらない。
 
 ## 動かす
 
@@ -113,31 +122,28 @@ go build ./cmd/api
 
 ## 決めたこと
 
-- **hnk はパッケージとして提供する**。仕組みは `hnk`、アプリの決めごと（失敗の一覧、env、組み立て、middleware）と feature はアプリに置く。
+- **hnk はパッケージとして提供する**。仕組みは `hnk`、アプリの決めごと（失敗の一覧、env、組み立て、middleware）と module はアプリに置く。
   結びつけのためだけのファイルは作らない（`new Hono()` と同じく、使う場所で 1 行）
 - **想定内の失敗は Result で返す**。throw は HTTP の入口（未ログイン、入力の形）と想定外だけ。
   どの失敗がありうるかが型に出るのは、Go の `error` より強い
 - **route は `createRoute` ＋ `createEndpoint`**（@hono/zod-openapi の上）。`c.json` だとずれたときの赤線が handler の頭に付くので、`reply` で返す
 - **失敗は値で、番号と文言を持つ**（`httpError("NOT_FOUND", 404, "…")`）。guard が持つ失敗と ValidationError は自動で宣言する。
   `reply.failure` が受け取れるのは、route に手で書いたドメインの失敗だけ
-- **毎回あるものは最初から置き、規模で出てくるもの（model、usecases）は「足す条件」を満たしたときに足す**
-- **service は hono を知らない**。hnk から使うのは `hnk/result` だけ（lint で止める）
+- **module は domain / routes / repo.<技術> の 3 つで始め、2 つ目が現れたときだけ育てる**（上の「出発点と育ち方」）。
+  名前は modules（境界を持ったまとまり）。features は「機能」で、複数のモノにまたがる usecases のほうの言葉なので使わない
+- **domain は外を知らない**。import できるのは zod と `hnk/result` だけ。ルールは zod で書き、フロントとも共有する
 - **依存は `buildApp(makeDeps)`**。Workers はリクエストをまたいだ I/O を拒むので、組み立てた結果ではなく組み立て方を渡す。
   `provideDeps` がリクエストごとに、使うときに 1 回だけ組み立てる
-- **repository の形は service が宣言する**（Go の「interface は使う側が決める」）
+- **保存の形は domain が宣言する**（Go の「interface は使う側が決める」）
 - **lint は `hnk/lint` で提供する**。依存の向きは役割ごとの許可表（`layer-imports`）で守らせる。表に無い import は全部だめで、
-  相対 import も tsconfig の paths 経由も同じに見る。他に、route の export は束 1 本、`createRoute` に認証の指定、`c.json` 禁止、
+  相対 import も tsconfig の paths 経由も同じに見る。他に、routes の export は束 1 本、`createRoute` に認証の指定、`c.json` 禁止、
   引数の中で await しない、モジュールの一番上に変わる状態を置かない
 
-| 役割            | import してよいもの                                                                     |
-| --------------- | --------------------------------------------------------------------------------------- |
-| route           | hnk, contract/schema, errors, middleware, presenter                                     |
-| presenter       | contract/schema（型だけ）, table（型だけ）                                              |
-| service         | hnk/result, contract/model（型だけ）, table（型だけ）                                   |
-| repository      | drizzle-orm, db（型だけ）, table, 他 feature の table（join のため）, service（型だけ） |
-| table           | drizzle-orm                                                                             |
-| contract/schema | zod, contract/model                                                                     |
-| contract/model  | zod                                                                                     |
+| 役割   | import してよいもの                                                           |
+| ------ | ----------------------------------------------------------------------------- |
+| domain | zod, hnk/result                                                               |
+| routes | hnk, zod, errors, middleware, domain                                          |
+| repo   | drizzle-orm, db（型だけ）, domain（型だけ）, 他 module の repo（join のため） |
 
 - **名前は Hono に合わせて `create〜`**。束は `invoicesRouter`
 
@@ -145,9 +151,9 @@ go build ./cmd/api
 
 - 同じ番号の失敗が 2 つあると、responses のキーがぶつかって片方が消える
 - D1 には対話的なトランザクションが無い（`batch` が基本）。マルチテナントを考えるときに効く
-- テストの方針（service は偽物の repository、HTTP は vitest-pool-workers のローカル D1、偽物は外の API だけ、が候補）
+- テストの方針（domain は偽物の repo、HTTP は vitest-pool-workers のローカル D1、偽物は外の API だけ、が候補）
 - `withViewer` が仮実装で、テストからログイン状態を作れない
 - ID のブランド型
-- 「足す条件」を lint と生成器（`hnk add usecase` のようなコマンド）にどこまで載せるか
+- 「育ち方」を lint と生成器にどこまで載せるか。cron.ts など、表に無い役割のファイルはまだ lint の対象外
 - conventions.md の hnk 側の列（どの層で縛るか）が空
 - この形で実プロダクトを書いてから、hnk 本体（生成器・スキル）に持ち帰る

@@ -1,14 +1,51 @@
-import {
-  deleteInvoiceResponseSchema,
-  invoiceInputSchema,
-  invoiceParamsSchema,
-  invoiceResponseSchema,
-  listInvoicesResponseSchema,
-} from "@contract/invoices/schema";
-import { NotFound } from "../../errors";
+/**
+ * invoices を HTTP で公開する。入出力の形と、モノ → 応答の変換もここに置く
+ */
 import { createEndpoint, createRoute, createRouter, errorResponses, json, jsonBody } from "hnk";
+import { z } from "zod";
+import { NotFound } from "../../errors";
 import { requireAuth } from "../../middleware/auth";
-import { invoiceResponse, listInvoicesResponse } from "./presenter";
+import { invoiceInputSchema, type Invoice } from "./domain";
+
+// 受け取る形。本文の入力は domain の invoiceInputSchema
+const invoiceParamsSchema = z.object({
+  id: z.string(),
+});
+
+// 返す形
+const invoiceResponseSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  body: z.string(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+});
+
+const listInvoicesResponseSchema = z.object({
+  items: z.array(invoiceResponseSchema),
+});
+
+const deleteInvoiceResponseSchema = z.object({
+  ok: z.literal(true),
+});
+
+type InvoiceResponse = z.infer<typeof invoiceResponseSchema>;
+type ListInvoicesResponse = z.infer<typeof listInvoicesResponseSchema>;
+
+// モノ → 応答。モノをそのまま返さず、見せる形に詰め替える
+function invoiceResponse(invoice: Invoice): InvoiceResponse {
+  return {
+    id: invoice.id,
+    title: invoice.title,
+    body: invoice.body,
+    createdAt: invoice.createdAt.getTime(),
+    updatedAt: invoice.updatedAt.getTime(),
+  };
+}
+
+function listInvoicesResponse(invoices: Invoice[]): ListInvoicesResponse {
+  return { items: invoices.map(invoiceResponse) };
+}
 
 export const invoicesRouter = createRouter()
   // 一覧
@@ -25,9 +62,9 @@ export const invoicesRouter = createRouter()
       async (c, reply, { invoices }) => {
         const viewerId = c.get("authUserId");
 
-        const rows = await invoices.listMine(viewerId);
+        const mine = await invoices.listMine(viewerId);
 
-        return reply(200, listInvoicesResponse(rows));
+        return reply(200, listInvoicesResponse(mine));
       },
     ),
   )

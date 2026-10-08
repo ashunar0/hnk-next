@@ -48,7 +48,7 @@ const packageOf = (specifier) => {
 
 /**
  * アプリの中のファイルを、役割で見る。
- * features/<f>/<role>.ts → { feature, role }、contract/<f>/<name>.ts → { contract, role: "contract/<name>" }、
+ * modules/<m>/<role>.ts → { module, role }。アダプターの技術名は落とす（repo.d1 → repo）。
  * api 直下の決めごと（errors, middleware, db, env, deps）→ { role }
  */
 const placeOf = (resolved, root) => {
@@ -58,15 +58,14 @@ const placeOf = (resolved, root) => {
     .replace(/\.tsx?$/, "")
     .replace(/\/index$/, "");
   let m;
-  if ((m = rel.match(/^api\/features\/([^/]+)\/([^/]+)$/))) return { feature: m[1], role: m[2] };
-  if ((m = rel.match(/^contract\/([^/]+)\/([^/]+)$/))) return { contract: m[1], role: `contract/${m[2]}` };
+  if ((m = rel.match(/^api\/modules\/([^/]+)\/([^/.]+)(\.[^/]+)?$/))) return { module: m[1], role: m[2] };
   if ((m = rel.match(/^api\/(errors|env|deps|db)$/))) return { role: m[1] };
   if (rel.startsWith("api/middleware/")) return { role: "middleware" };
   return { role: rel };
 };
 
-/** route.ts か。features 配下のものだけを見る */
-const isRouteFile = (file) => /[/\\]features[/\\][^/\\]+[/\\]route\.ts$/.test(file);
+/** routes.ts か。modules 配下のものだけを見る */
+const isRouteFile = (file) => /[/\\]modules[/\\][^/\\]+[/\\]routes\.ts$/.test(file);
 
 /** `as const` や `satisfies` を剥がす */
 const unwrap = (node) => {
@@ -101,52 +100,34 @@ const isGuardName = (node) => node?.type === "Identifier" && /^(require|allow)[A
 
 /**
  * 役割ごとに、import してよい相手。ここに無いものは全部だめ。
- * "type" は `import type` だけ許す。実行時には依存せず、形だけを借りる
+ * "type" は `import type` だけ許す。実行時には依存せず、形だけを借りる。
+ *
+ * 矢印は全部 domain に向かう。domain は外を何も知らない。
  *
  * 相手の書き方:
  *   パッケージ名（hnk, hnk/result, zod, drizzle-orm）
- *   自分の feature の役割（table, service, presenter）
- *   他の feature の役割は "foreign:<role>"
+ *   自分の module の役割（domain, routes, repo）。他の module のものは "foreign:<role>"
  *   アプリの決めごと（errors, middleware, db）
- *   自分の feature の contract（contract/schema, contract/model）
  */
 const LAYERS = {
-  route: {
-    hnk: "value",
-    "contract/schema": "value",
-    errors: "value",
-    middleware: "value",
-    presenter: "value",
-  },
-  presenter: { "contract/schema": "type", table: "type" },
-  service: { "hnk/result": "value", "contract/model": "type", table: "type" },
-  repository: {
-    "drizzle-orm": "value",
-    db: "type",
-    table: "value",
-    "foreign:table": "value",
-    service: "type",
-  },
-  table: { "drizzle-orm": "value" },
-  "contract/schema": { zod: "value", "contract/model": "value" },
-  "contract/model": { zod: "value" },
+  domain: { zod: "value", "hnk/result": "value" },
+  routes: { hnk: "value", zod: "value", errors: "value", middleware: "value", domain: "value" },
+  repo: { "drizzle-orm": "value", db: "type", domain: "type", "foreign:repo": "value" },
 };
 
 /** よくある間違いには、どうすればいいかを添える */
 const HINTS = {
-  "service→repository": "必要な保存の形は service に type で宣言し、repository がそれを満たす",
-  "service→foreign:service": "読みなら route から、2 つ以上の feature に書くなら usecases/ を作る",
-  "service→foreign:repository": "読みなら自分の repository の join で、2 つ以上の feature に書くなら usecases/ を作る",
-  "repository→foreign:repository": "読みは自分の repository の join で（相手の table を import してよい）",
-  "route→repository": "route は保存を知らない。service を deps から受け取って呼ぶ",
-  "route→table": "行の形は presenter が知っている。route は presenter を呼ぶ",
-  "route→zod": "入出力の形は contract の schema に置く",
-  "service→zod": "ルールを service で使うなら contract の model に置く",
-  "service→hnk": "service が hnk から使ってよいのは Result だけ。hnk/result から import する",
+  "domain→repo": "必要な保存の形は domain に type で宣言し、repo がそれを満たす",
+  "domain→routes": "domain は HTTP を知らない。失敗は Result のコードで返し、番号は routes が決める",
+  "domain→hnk": "domain が hnk から使ってよいのは Result だけ。hnk/result から import する",
+  "domain→foreign:domain": "2 つ以上の module にまたがる操作は usecases/ に置く",
+  "routes→repo": "routes は保存を知らない。domain の service を deps から受け取って呼ぶ",
+  "routes→foreign:domain": "2 つ以上の module にまたがる操作は usecases/ に置く",
+  "repo→foreign:domain": "読みは自分の repo の join で（相手の repo からテーブルを import してよい）",
 };
 
-/** foreign:service → 他 feature の service */
-const show = (name) => name.replace(/^foreign:/, "他 feature の ");
+/** foreign:domain → 他 module の domain */
+const show = (name) => name.replace(/^foreign:/, "他 module の ");
 
 const isTypeOnly = (node) =>
   node.importKind === "type" || (node.specifiers?.length > 0 && node.specifiers.every((s) => s.importKind === "type"));
@@ -178,7 +159,7 @@ const plugin = {
   rules: {
     /**
      * 役割ごとの依存の向きを、許可の表（LAYERS）で守らせる。
-     * Go は package の境界が向きを強制するが、ここでは 1 つの feature フォルダに
+     * Go は package の境界が向きを強制するが、ここでは 1 つの module フォルダに
      * 役割が同居しているので、ファイル名の約束を機械で止める
      */
     "layer-imports": {
@@ -199,9 +180,7 @@ const plugin = {
           if (resolved === null) target = packageOf(specifier);
           else {
             const place = placeOf(resolved, project.root);
-            // 自分の feature 名。contract/invoices も features/invoices と同じ持ち主として見る
-            const own = self.feature ?? self.contract;
-            const foreign = (place.feature && place.feature !== own) || (place.contract && place.contract !== own);
+            const foreign = place.module && place.module !== self.module;
             target = foreign ? `foreign:${place.role}` : place.role;
           }
           const kind = allowed[target];
@@ -231,8 +210,8 @@ const plugin = {
     },
 
     /**
-     * route.ts の公開面は mount する 1 本だけ。ヘルパを export すると
-     * 他 feature がそこから掴めてしまい、mount チェーンが公開 API の一覧でなくなる
+     * routes.ts の公開面は mount する 1 本だけ。ヘルパを export すると
+     * 他 module がそこから掴めてしまい、mount チェーンが公開 API の一覧でなくなる
      */
     "route-exports-only-the-router": {
       create(context) {
@@ -241,7 +220,7 @@ const plugin = {
         const report = (node) =>
           context.report({
             node,
-            message: "route.ts が createRouter() の束以外を export している。組み立てヘルパはこのファイル内に留める",
+            message: "routes.ts が createRouter() の束以外を export している。組み立てヘルパはこのファイル内に留める",
           });
 
         return {

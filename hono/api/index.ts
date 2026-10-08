@@ -1,7 +1,7 @@
 import { createRouter, onError, provideDeps } from "hnk";
 import { makeDeps, type Deps } from "./deps";
 import type { AppEnv } from "./env";
-import { invoicesRouter } from "./features/invoices/route";
+import { invoicesRouter } from "./modules/invoices/routes";
 import { withViewer } from "./middleware/auth";
 
 /**
