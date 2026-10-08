@@ -3,6 +3,7 @@
  * 手順も HTTP も DB も知らない。他のファイルは全部ここに向かう
  */
 import { z } from "zod";
+import type { Viewer } from "../users/domain";
 
 /** 請求書の状態。下書き → 送付済み → 支払い済み */
 export const invoiceStatuses = ["draft", "sent", "paid"] as const;
@@ -39,4 +40,18 @@ export const invoiceInputSchema = z
 export type InvoiceInput = z.infer<typeof invoiceInputSchema>;
 
 /** 書き換えてよいもの。id や ownerId は変えられない */
-export type InvoiceChanges = Pick<Invoice, "title" | "body" | "updatedAt">;
+export type InvoiceChanges = Partial<Pick<Invoice, "title" | "body" | "status">> &
+  Pick<Invoice, "updatedAt">;
+
+/** 閲覧者が触れる請求書の範囲 */
+export type InvoiceReach = { kind: "all" } | { kind: "own"; ownerId: string };
+
+/** admin は全員のものに、member は自分のものだけに触れる */
+export const reachOf = (viewer: Viewer): InvoiceReach =>
+  viewer.role === "admin" ? { kind: "all" } : { kind: "own", ownerId: viewer.id };
+
+/** 送付できるのは admin だけ */
+export const canSend = (viewer: Viewer) => viewer.role === "admin";
+
+/** 送付できるのは下書きだけ */
+export const isSendable = (invoice: Invoice) => invoice.status === "draft";

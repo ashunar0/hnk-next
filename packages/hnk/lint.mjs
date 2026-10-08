@@ -115,8 +115,8 @@ const isGuardName = (node) => node?.type === "Identifier" && /^(require|allow)[A
  *   アプリの決めごと（errors, middleware, db）
  */
 const LAYERS = {
-  domain: { zod: "value" },
-  service: { "hnk/result": "value", domain: "type" },
+  domain: { zod: "value", "foreign:domain": "type" },
+  service: { "hnk/result": "value", domain: "value", "foreign:domain": "type" },
   routes: { hnk: "value", zod: "value", errors: "value", middleware: "value", domain: "value" },
   repo: { "drizzle-orm": "value", db: "type", domain: "value", service: "type", "foreign:repo": "value" },
 };

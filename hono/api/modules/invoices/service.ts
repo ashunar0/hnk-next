@@ -2,7 +2,17 @@
  * 請求書の手順（How）。domain のモノを使って、何をどの順でやるか
  */
 import { err, ok, type Result } from "hnk/result";
-import type { Invoice, InvoiceChanges, InvoiceInput, InvoiceStatus } from "./domain";
+import type { Viewer } from "../users/domain";
+import {
+  canSend,
+  isSendable,
+  reachOf,
+  type Invoice,
+  type InvoiceChanges,
+  type InvoiceInput,
+  type InvoiceReach,
+  type InvoiceStatus,
+} from "./domain";
 
 /** 一覧の中の位置。更新の新しい順に並べるので、updatedAt と id で決まる */
 export type InvoiceCursor = Pick<Invoice, "updatedAt" | "id">;
@@ -26,36 +36,45 @@ export type InvoicePage = {
  * service は保存の実装を知らないので、テストでは同じ形の偽物を渡せる
  */
 export type InvoicesRepository = {
-  /** 自分のものを、更新の新しい順に 1 ページ */
-  listByOwnerId(ownerId: string, query: InvoiceListQuery): Promise<InvoicePage>;
-  findById(id: string): Promise<Invoice | null>;
+  /** 範囲の中のものを、更新の新しい順に 1 ページ */
+  listWithin(reach: InvoiceReach, query: InvoiceListQuery): Promise<InvoicePage>;
+  /** 範囲の中に無ければ null */
+  findWithin(id: string, reach: InvoiceReach): Promise<Invoice | null>;
   insert(invoice: Omit<Invoice, "createdAt" | "updatedAt">): Promise<Invoice>;
-  /** 所有者が一致するものだけを書き換える。無ければ null */
-  updateOwned(id: string, ownerId: string, changes: InvoiceChanges): Promise<Invoice | null>;
-  /** 所有者が一致するものだけを消す。消せたら true */
-  deleteOwned(id: string, ownerId: string): Promise<boolean>;
+  /**
+   * 範囲の中のものだけを書き換える。無ければ null。
+   * from を渡すと、その状態のときだけ書き換える（確認と書き込みの間に状態が変わっても壊れない）
+   */
+  updateWithin(
+    id: string,
+    reach: InvoiceReach,
+    changes: InvoiceChanges,
+    from?: InvoiceStatus,
+  ): Promise<Invoice | null>;
+  /** 範囲の中のものだけを消す。消せたら true */
+  deleteWithin(id: string, reach: InvoiceReach): Promise<boolean>;
 };
 
 export function invoicesService(repo: InvoicesRepository) {
   return {
-    // 一覧。自分のものだけ、更新の新しい順
-    async listMine(ownerId: string, query: InvoiceListQuery): Promise<InvoicePage> {
-      return repo.listByOwnerId(ownerId, query);
+    // 一覧。触れる範囲のものだけ、更新の新しい順
+    async list(viewer: Viewer, query: InvoiceListQuery): Promise<InvoicePage> {
+      return repo.listWithin(reachOf(viewer), query);
     },
 
-    /** 他人のものは、在ることも知らせない */
-    async get(id: string, viewerId: string): Promise<Result<Invoice, "NOT_FOUND">> {
-      const invoice = await repo.findById(id);
-      if (invoice === null || invoice.ownerId !== viewerId) return err("NOT_FOUND");
+    /** 範囲の外のものは、在ることも知らせない */
+    async get(id: string, viewer: Viewer): Promise<Result<Invoice, "NOT_FOUND">> {
+      const invoice = await repo.findWithin(id, reachOf(viewer));
+      if (invoice === null) return err("NOT_FOUND");
 
       return ok(invoice);
     },
 
-    // 作成
-    async create(ownerId: string, input: InvoiceInput): Promise<Invoice> {
+    // 作成。作った人が所有者になる
+    async create(viewer: Viewer, input: InvoiceInput): Promise<Invoice> {
       return repo.insert({
         id: crypto.randomUUID(),
-        ownerId,
+        ownerId: viewer.id,
         title: input.title,
         body: input.body,
         // 作った直後は下書き
@@ -63,13 +82,13 @@ export function invoicesService(repo: InvoicesRepository) {
       });
     },
 
-    /** 書き換えられるのは所有者だけ。他人のものは、在ることも知らせない */
+    /** 書き換えられるのは範囲の中のものだけ */
     async update(
       id: string,
-      viewerId: string,
+      viewer: Viewer,
       input: InvoiceInput,
     ): Promise<Result<Invoice, "NOT_FOUND">> {
-      const invoice = await repo.updateOwned(id, viewerId, {
+      const invoice = await repo.updateWithin(id, reachOf(viewer), {
         title: input.title,
         body: input.body,
         updatedAt: new Date(),
@@ -79,9 +98,33 @@ export function invoicesService(repo: InvoicesRepository) {
       return ok(invoice);
     },
 
-    /** 消せるのは所有者だけ。他人のものは、在ることも知らせない */
-    async remove(id: string, viewerId: string): Promise<Result<void, "NOT_FOUND">> {
-      const deleted = await repo.deleteOwned(id, viewerId);
+    /** 送付する。admin だけが、下書きだけを送れる */
+    async send(
+      id: string,
+      viewer: Viewer,
+    ): Promise<Result<Invoice, "NOT_FOUND" | "FORBIDDEN" | "NOT_DRAFT">> {
+      const reach = reachOf(viewer);
+
+      const invoice = await repo.findWithin(id, reach);
+      if (invoice === null) return err("NOT_FOUND");
+      if (!canSend(viewer)) return err("FORBIDDEN");
+      if (!isSendable(invoice)) return err("NOT_DRAFT");
+
+      const sent = await repo.updateWithin(
+        id,
+        reach,
+        { status: "sent", updatedAt: new Date() },
+        "draft",
+      );
+      // 読んだ後に、別の誰かが先に状態を変えた
+      if (sent === null) return err("NOT_DRAFT");
+
+      return ok(sent);
+    },
+
+    /** 消せるのは範囲の中のものだけ */
+    async remove(id: string, viewer: Viewer): Promise<Result<void, "NOT_FOUND">> {
+      const deleted = await repo.deleteWithin(id, reachOf(viewer));
       if (!deleted) return err("NOT_FOUND");
 
       return ok(undefined);

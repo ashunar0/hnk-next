@@ -5,7 +5,7 @@
 import { and, desc, eq, lt, or, sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import type { Scope } from "../../db";
-import { invoiceStatuses, type Invoice } from "./domain";
+import { invoiceStatuses, type Invoice, type InvoiceReach } from "./domain";
 import type { InvoicesRepository } from "./service";
 
 const now = sql`(cast(unixepoch('subsecond') * 1000 as integer))`;
@@ -26,6 +26,8 @@ export const invoicesTable = sqliteTable(
   (table) => [
     // 一覧の並び（自分のもの、更新の新しい順）をそのまま辿る
     index("invoices_owner_updated_idx").on(table.ownerId, table.updatedAt, table.id),
+    // admin が全員のものを見るときの並び
+    index("invoices_updated_idx").on(table.updatedAt, table.id),
   ],
 );
 
@@ -42,16 +44,20 @@ const toInvoice = (row: InvoiceRow): Invoice => ({
   updatedAt: row.updatedAt,
 });
 
+/** 範囲を WHERE の条件にする。all なら絞らない */
+const within = (reach: InvoiceReach) =>
+  reach.kind === "all" ? undefined : eq(invoicesTable.ownerId, reach.ownerId);
+
 export function invoicesRepository(scope: Scope<typeof invoicesTable>): InvoicesRepository {
   return {
-    async listByOwnerId(ownerId, { status, after, limit }) {
+    async listWithin(reach, { status, after, limit }) {
       // 1 件多く読んで、続きがあるかを知る
       const rows = await scope.reads
         .select()
         .from(invoicesTable)
         .where(
           and(
-            eq(invoicesTable.ownerId, ownerId),
+            within(reach),
             status ? eq(invoicesTable.status, status) : undefined,
             after
               ? or(
@@ -71,11 +77,11 @@ export function invoicesRepository(scope: Scope<typeof invoicesTable>): Invoices
       return { items, next };
     },
 
-    async findById(id) {
+    async findWithin(id, reach) {
       const [row] = await scope.reads
         .select()
         .from(invoicesTable)
-        .where(eq(invoicesTable.id, id))
+        .where(and(eq(invoicesTable.id, id), within(reach)))
         .limit(1);
 
       return row ? toInvoice(row) : null;
@@ -88,20 +94,26 @@ export function invoicesRepository(scope: Scope<typeof invoicesTable>): Invoices
       return toInvoice(row);
     },
 
-    // 所有者の条件を WHERE に入れて 1 文で書く。確認と書き込みの間に割り込まれない
-    async updateOwned(id, ownerId, changes) {
+    // 範囲（と状態）の条件を WHERE に入れて 1 文で書く。確認と書き込みの間に割り込まれない
+    async updateWithin(id, reach, changes, from) {
       const [row] = await scope
         .update(changes)
-        .where(and(eq(invoicesTable.id, id), eq(invoicesTable.ownerId, ownerId)))
+        .where(
+          and(
+            eq(invoicesTable.id, id),
+            within(reach),
+            from ? eq(invoicesTable.status, from) : undefined,
+          ),
+        )
         .returning();
 
       return row ? toInvoice(row) : null;
     },
 
-    async deleteOwned(id, ownerId) {
+    async deleteWithin(id, reach) {
       const rows = await scope
         .delete()
-        .where(and(eq(invoicesTable.id, id), eq(invoicesTable.ownerId, ownerId)))
+        .where(and(eq(invoicesTable.id, id), within(reach)))
         .returning({ id: invoicesTable.id });
 
       return rows.length > 0;

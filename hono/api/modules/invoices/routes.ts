@@ -3,7 +3,7 @@
  */
 import { createEndpoint, createRoute, createRouter, errorResponses, json, jsonBody } from "hnk";
 import { z } from "zod";
-import { NotFound } from "../../errors";
+import { Forbidden, NotDraft, NotFound } from "../../errors";
 import { requireAuth } from "../../middleware/auth";
 import { invoiceInputSchema, invoiceStatuses, type Invoice } from "./domain";
 
@@ -96,14 +96,14 @@ export const invoicesRouter = createRouter()
         middleware: [requireAuth] as const,
         request: { query: listInvoicesQuerySchema },
         responses: {
-          200: json(listInvoicesResponseSchema, "自分の請求書の一覧"),
+          200: json(listInvoicesResponseSchema, "触れる範囲の請求書の一覧"),
         },
       }),
       async (c, reply, { invoices }) => {
         const { status, cursor, limit } = c.req.valid("query");
-        const viewerId = c.get("authUserId");
+        const viewer = c.get("authViewer");
 
-        const page = await invoices.listMine(viewerId, { status, after: cursor, limit });
+        const page = await invoices.list(viewer, { status, after: cursor, limit });
 
         return reply(200, listInvoicesResponse(page));
       },
@@ -124,9 +124,9 @@ export const invoicesRouter = createRouter()
       }),
       async (c, reply, { invoices }) => {
         const { id } = c.req.valid("param");
-        const viewerId = c.get("authUserId");
+        const viewer = c.get("authViewer");
 
-        const result = await invoices.get(id, viewerId);
+        const result = await invoices.get(id, viewer);
         if (!result.ok) return reply.failure(result.error);
 
         return reply(200, invoiceResponse(result.value));
@@ -147,9 +147,9 @@ export const invoicesRouter = createRouter()
       }),
       async (c, reply, { invoices }) => {
         const input = c.req.valid("json");
-        const viewerId = c.get("authUserId");
+        const viewer = c.get("authViewer");
 
-        const row = await invoices.create(viewerId, input);
+        const row = await invoices.create(viewer, input);
 
         return reply(200, invoiceResponse(row));
       },
@@ -171,9 +171,33 @@ export const invoicesRouter = createRouter()
       async (c, reply, { invoices }) => {
         const { id } = c.req.valid("param");
         const input = c.req.valid("json");
-        const viewerId = c.get("authUserId");
+        const viewer = c.get("authViewer");
 
-        const result = await invoices.update(id, viewerId, input);
+        const result = await invoices.update(id, viewer, input);
+        if (!result.ok) return reply.failure(result.error);
+
+        return reply(200, invoiceResponse(result.value));
+      },
+    ),
+  )
+  // 送付
+  .openapi(
+    ...createEndpoint(
+      createRoute({
+        method: "post",
+        path: "/{id}/send",
+        middleware: [requireAuth] as const,
+        request: { params: invoiceParamsSchema },
+        responses: {
+          200: json(invoiceResponseSchema, "送付した請求書"),
+          ...errorResponses(NotFound, Forbidden, NotDraft),
+        },
+      }),
+      async (c, reply, { invoices }) => {
+        const { id } = c.req.valid("param");
+        const viewer = c.get("authViewer");
+
+        const result = await invoices.send(id, viewer);
         if (!result.ok) return reply.failure(result.error);
 
         return reply(200, invoiceResponse(result.value));
@@ -195,9 +219,9 @@ export const invoicesRouter = createRouter()
       }),
       async (c, reply, { invoices }) => {
         const { id } = c.req.valid("param");
-        const viewerId = c.get("authUserId");
+        const viewer = c.get("authViewer");
 
-        const result = await invoices.remove(id, viewerId);
+        const result = await invoices.remove(id, viewer);
         if (!result.ok) return reply.failure(result.error);
 
         return reply(200, { ok: true });

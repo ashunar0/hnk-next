@@ -53,3 +53,20 @@ export async function list() {
   // @ts-expect-error 状態は draft / sent / paid だけ
   await client.invoices.$get({ query: { status: "unknown" } });
 }
+
+export async function send() {
+  const res = await client.invoices[":id"].send.$post({ param: { id: "x" } });
+
+  if (res.status === 403) {
+    const body = await res.json();
+    body.error.code satisfies "FORBIDDEN";
+  }
+  if (res.status === 409) {
+    const body = await res.json();
+    body.error.code satisfies "NOT_DRAFT";
+  }
+  if (res.status === 200) {
+    const body = await res.json();
+    body.status satisfies "draft" | "sent" | "paid";
+  }
+}
