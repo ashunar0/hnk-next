@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import type { Scope } from "../../db";
 import type { InvoicesRepository } from "./service";
 import { invoices } from "./table";
@@ -21,15 +21,29 @@ export function invoicesRepository(scope: Scope<typeof invoices>): InvoicesRepos
     },
 
     async insert(row) {
-      await scope.insert(row);
+      const [inserted] = await scope.insert(row).returning();
+      if (!inserted) throw new Error(`invoice ${row.id} was not returned after insert`);
+
+      return inserted;
     },
 
-    async update(id, values) {
-      await scope.update(values).where(eq(invoices.id, id));
+    // 所有者の条件を WHERE に入れて 1 文で書く。確認と書き込みの間に割り込まれない
+    async updateOwned(id, ownerId, values) {
+      const [row] = await scope
+        .update(values)
+        .where(and(eq(invoices.id, id), eq(invoices.ownerId, ownerId)))
+        .returning();
+
+      return row ?? null;
     },
 
-    async deleteById(id) {
-      await scope.delete().where(eq(invoices.id, id));
+    async deleteOwned(id, ownerId) {
+      const rows = await scope
+        .delete()
+        .where(and(eq(invoices.id, id), eq(invoices.ownerId, ownerId)))
+        .returning({ id: invoices.id });
+
+      return rows.length > 0;
     },
   };
 }

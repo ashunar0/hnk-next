@@ -26,4 +26,5 @@ export type InvoiceRow = typeof invoices.$inferSelect;
 
 export type NewInvoiceRow = typeof invoices.$inferInsert;
 
-export type InvoiceUpdateValues = Partial<NewInvoiceRow>;
+/** 書き換えてよい列。id や ownerId は変えられない */
+export type InvoiceUpdateValues = Pick<NewInvoiceRow, "title" | "body" | "updatedAt">;

@@ -29,7 +29,7 @@ export const invoicesRouter = createRouter()
         request: { params: invoiceParamsSchema, body: jsonBody(invoiceInputSchema) },
         responses: {
           200: json(invoiceResponseSchema, "更新した請求書"),
-          ...errorResponses(NotFound, NotOwner),
+          ...errorResponses(NotFound),
         },
       }),
       async (c, reply, { invoices }) => {
@@ -52,15 +52,16 @@ export const invoicesRouter = createRouter()
 
 ```ts
 // hono/api/features/invoices/service.ts
-async update(id, viewerId, input: InvoiceInput): Promise<Result<InvoiceRow, "NOT_FOUND" | "NOT_OWNER">> {
-  const current = await repo.findById(id);
-  if (current === null) return err("NOT_FOUND");
-  if (current.ownerId !== viewerId) return err("NOT_OWNER");
-  ...
+async update(id, viewerId, input: InvoiceInput): Promise<Result<InvoiceRow, "NOT_FOUND">> {
+  const row = await repo.updateOwned(id, viewerId, { ...input, updatedAt: new Date() });
+  if (row === null) return err("NOT_FOUND");
+
+  return ok(row);
 }
 ```
 
 - 想定内の失敗は Result で返す。service は HTTP のステータスを知らない
+- 所有者の条件は repository の WHERE に入れて 1 文で書く。他人のものは在ることも知らせず NOT_FOUND
 - `InvoiceInput` は service が自分で宣言する普通の型。検査は route が済ませている
 
 ## 毎回あるものは最初から、規模で出てくるものは後から

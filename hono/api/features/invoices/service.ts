@@ -11,9 +11,11 @@ export type InvoiceInput = { title: string; body: string };
 export type InvoicesRepository = {
   listByOwnerId(ownerId: string): Promise<InvoiceRow[]>;
   findById(id: string): Promise<InvoiceRow | null>;
-  insert(row: NewInvoiceRow): Promise<void>;
-  update(id: string, values: InvoiceUpdateValues): Promise<void>;
-  deleteById(id: string): Promise<void>;
+  insert(row: NewInvoiceRow): Promise<InvoiceRow>;
+  /** 所有者が一致する行だけを書き換える。無ければ null */
+  updateOwned(id: string, ownerId: string, values: InvoiceUpdateValues): Promise<InvoiceRow | null>;
+  /** 所有者が一致する行だけを消す。消せたら true */
+  deleteOwned(id: string, ownerId: string): Promise<boolean>;
 };
 
 export function invoicesService(repo: InvoicesRepository) {
@@ -33,46 +35,34 @@ export function invoicesService(repo: InvoicesRepository) {
 
     // 作成
     async create(ownerId: string, input: InvoiceInput): Promise<InvoiceRow> {
-      const id = crypto.randomUUID();
-
-      await repo.insert({
-        id,
+      return repo.insert({
+        id: crypto.randomUUID(),
         ownerId,
         title: input.title,
         body: input.body,
       });
-
-      return mustFind(repo, id);
     },
 
-    /** 書き換えられるのは所有者だけ */
+    /** 書き換えられるのは所有者だけ。他人のものは、在ることも知らせない */
     async update(
       id: string,
       viewerId: string,
       input: InvoiceInput,
-    ): Promise<Result<InvoiceRow, "NOT_FOUND" | "NOT_OWNER">> {
-      const current = await repo.findById(id);
-      if (current === null) return err("NOT_FOUND");
-      if (current.ownerId !== viewerId) return err("NOT_OWNER");
-
-      const values: InvoiceUpdateValues = {
+    ): Promise<Result<InvoiceRow, "NOT_FOUND">> {
+      const row = await repo.updateOwned(id, viewerId, {
         title: input.title,
         body: input.body,
         updatedAt: new Date(),
-      };
+      });
+      if (row === null) return err("NOT_FOUND");
 
-      await repo.update(id, values);
-
-      return ok(await mustFind(repo, id));
+      return ok(row);
     },
 
-    /** 消せるのは所有者だけ */
-    async remove(id: string, viewerId: string): Promise<Result<void, "NOT_FOUND" | "NOT_OWNER">> {
-      const current = await repo.findById(id);
-      if (current === null) return err("NOT_FOUND");
-      if (current.ownerId !== viewerId) return err("NOT_OWNER");
-
-      await repo.deleteById(id);
+    /** 消せるのは所有者だけ。他人のものは、在ることも知らせない */
+    async remove(id: string, viewerId: string): Promise<Result<void, "NOT_FOUND">> {
+      const deleted = await repo.deleteOwned(id, viewerId);
+      if (!deleted) return err("NOT_FOUND");
 
       return ok(undefined);
     },
@@ -80,11 +70,3 @@ export function invoicesService(repo: InvoicesRepository) {
 }
 
 export type InvoicesService = ReturnType<typeof invoicesService>;
-
-/** 書いた直後に読み直す。無ければ想定外なので throw する */
-async function mustFind(repo: InvoicesRepository, id: string): Promise<InvoiceRow> {
-  const row = await repo.findById(id);
-  if (row === null) throw new Error(`invoice ${id} disappeared right after write`);
-
-  return row;
-}

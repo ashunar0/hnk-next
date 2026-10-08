@@ -5,7 +5,7 @@ import {
   invoiceResponseSchema,
   listInvoicesResponseSchema,
 } from "@contract/invoices/schema";
-import { NotFound, NotOwner } from "../../errors";
+import { NotFound } from "../../errors";
 import { createEndpoint, createRoute, createRouter, errorResponses, json, jsonBody } from "hnk";
 import { requireAuth } from "../../middleware/auth";
 import { invoiceResponse, listInvoicesResponse } from "./presenter";
@@ -87,7 +87,7 @@ export const invoicesRouter = createRouter()
         request: { params: invoiceParamsSchema, body: jsonBody(invoiceInputSchema) },
         responses: {
           200: json(invoiceResponseSchema, "更新した請求書"),
-          ...errorResponses(NotFound, NotOwner),
+          ...errorResponses(NotFound),
         },
       }),
       async (c, reply, { invoices }) => {
@@ -112,7 +112,7 @@ export const invoicesRouter = createRouter()
         request: { params: invoiceParamsSchema },
         responses: {
           200: json(deleteInvoiceResponseSchema, "削除した"),
-          ...errorResponses(NotFound, NotOwner),
+          ...errorResponses(NotFound),
         },
       }),
       async (c, reply, { invoices }) => {
