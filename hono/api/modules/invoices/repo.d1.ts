@@ -16,15 +16,16 @@ import {
 } from "./domain";
 import type { InvoicesRepository } from "./service";
 
-const now = sql`(cast(unixepoch('subsecond') * 1000 as integer))`;
+/** 列の既定値: 今の時刻（ミリ秒）。SQL の式で、JS の Date ではない */
+const nowMs = sql`(cast(unixepoch('subsecond') * 1000 as integer))`;
 
-/** TODO: この表が何を保存するのか、1 行で書く */
+/** 請求書。組織と所有者を持ち、下書き → 送付済み → 支払い済みと進む。共有は invoice_shares */
 export const invoicesTable = sqliteTable(
   "invoices",
   {
     id: text("id").primaryKey(),
     orgId: text("org_id").notNull(),
-    /** TODO: 所有者の表へ外部キーを張る。.references(() => profiles.userId, { onDelete: "cascade" }) */
+    /** 所有者の利用者 id。利用者の表がまだ無い（認証の提供元を決めたら外部キーを張る）ので、外部キーは無い */
     ownerId: text("owner_id").notNull(),
     title: text("title").notNull(),
     body: text("body").notNull(),
@@ -32,8 +33,8 @@ export const invoicesTable = sqliteTable(
     customerEmail: text("customer_email").notNull(),
     dueAt: integer("due_at", { mode: "timestamp_ms" }).notNull(),
     status: text("status", { enum: invoiceStatuses }).default("draft").notNull(),
-    createdAt: integer("created_at", { mode: "timestamp_ms" }).default(now).notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).default(now).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).default(nowMs).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).default(nowMs).notNull(),
   },
   (table) => [
     // 一覧の並び（自分のもの、更新の新しい順）をそのまま辿る
@@ -57,7 +58,7 @@ export const invoiceSharesTable = sqliteTable(
       .references(() => invoicesTable.id, { onDelete: "cascade" }),
     userId: text("user_id").notNull(),
     level: text("level", { enum: shareLevels }).notNull(),
-    createdAt: integer("created_at", { mode: "timestamp_ms" }).default(now).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).default(nowMs).notNull(),
   },
   (table) => [primaryKey({ columns: [table.invoiceId, table.userId] })],
 );

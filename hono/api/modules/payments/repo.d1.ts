@@ -9,7 +9,8 @@ import { invoicesTable, invoicesWithin } from "../invoices/repo.d1";
 import { paymentStatuses, type Payment } from "./domain";
 import type { PaymentsRepository } from "./service";
 
-const now = sql`(cast(unixepoch('subsecond') * 1000 as integer))`;
+/** 列の既定値: 今の時刻（ミリ秒）。SQL の式で、JS の Date ではない */
+const nowMs = sql`(cast(unixepoch('subsecond') * 1000 as integer))`;
 
 /** 請求書ごとの、支払いの試み */
 export const paymentsTable = sqliteTable(
@@ -23,8 +24,8 @@ export const paymentsTable = sqliteTable(
     status: text("status", { enum: paymentStatuses }).default("pending").notNull(),
     providerRef: text("provider_ref").unique(),
     checkoutUrl: text("checkout_url"),
-    createdAt: integer("created_at", { mode: "timestamp_ms" }).default(now).notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).default(now).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).default(nowMs).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).default(nowMs).notNull(),
   },
   (table) => [
     index("payments_invoice_id_idx").on(table.invoiceId),

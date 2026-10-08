@@ -121,6 +121,7 @@ cd hono
 pnpm typecheck   # 型検査（型テストを含む）
 pnpm lint        # hnk/lint のルール
 pnpm test        # ローカルの D1 で動かすテスト（vitest + @cloudflare/vitest-plugin）
+pnpm check       # 上の 3 つと format:check を順に回す。AI には「これを通して」と言う 1 つのコマンド
 
 cd ../go
 go build ./cmd/api

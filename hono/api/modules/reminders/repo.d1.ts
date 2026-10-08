@@ -8,7 +8,8 @@ import { invoicesTable } from "../invoices/repo.d1";
 import { reminderStatuses } from "./domain";
 import type { RemindersRepository } from "./service";
 
-const now = sql`(cast(unixepoch('subsecond') * 1000 as integer))`;
+/** 列の既定値: 今の時刻（ミリ秒）。SQL の式で、JS の Date ではない */
+const nowMs = sql`(cast(unixepoch('subsecond') * 1000 as integer))`;
 
 /** 送った督促。請求書と日で 1 行 */
 export const remindersTable = sqliteTable(
@@ -19,7 +20,7 @@ export const remindersTable = sqliteTable(
       .references(() => invoicesTable.id, { onDelete: "cascade" }),
     sentOn: text("sent_on").notNull(),
     status: text("status", { enum: reminderStatuses }).default("claimed").notNull(),
-    createdAt: integer("created_at", { mode: "timestamp_ms" }).default(now).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).default(nowMs).notNull(),
   },
   (table) => [primaryKey({ columns: [table.invoiceId, table.sentOn] })],
 );
