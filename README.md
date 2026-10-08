@@ -165,21 +165,29 @@ go build ./cmd/api
   相対 import も tsconfig の paths 経由も同じに見る。HTTP の inbound（routes と webhook）には、export は束 1 本、
   `createRoute` に認証の指定、`c.json` 禁止、引数の中で await しない、を求める。どこでも、モジュールの一番上に変わる状態を置かない
 
-| 側       | 役割     | import してよいもの                                                                                                       |
-| -------- | -------- | ------------------------------------------------------------------------------------------------------------------------- |
-| core     | domain   | zod, 他 module の domain（型だけ）                                                                                        |
-| core     | service  | hnk/result, domain, 他 module の domain（型だけ）                                                                         |
-| core     | commands | hnk/result, domain, service（型だけ）, 他 module の domain（型だけ）                                                      |
-| inbound  | routes   | hnk, zod, errors, middleware, domain                                                                                      |
-| inbound  | webhook  | routes と同じ ＋ 他 module の domain（systemViewer）                                                                      |
-| inbound  | cron     | deps（型だけ）, domain（型だけ）, 他 module の domain（systemViewer）                                                     |
-| inbound  | queue    | cron と同じ                                                                                                               |
-| outbound | repo     | drizzle-orm, db（型だけ）, domain, service（型だけ）, 他 module の repo（join のため）, 他 module の domain（SQL の定数） |
-| outbound | gateway  | hnk/result, domain（型だけ）, service（型だけ）                                                                           |
-| outbound | mailer   | gateway と同じ                                                                                                            |
-| outbound | jobs     | domain（型だけ）, service（型だけ）                                                                                       |
+| 側       | 役割     | import してよいもの                                                                                                                                          |
+| -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| core     | domain   | zod, 他 module の domain（型だけ）                                                                                                                           |
+| core     | service  | hnk/result, domain, 他 module の domain（型だけ）                                                                                                            |
+| core     | commands | hnk/result, domain, service（型だけ）, 他 module の domain（型だけ）                                                                                         |
+| inbound  | routes   | hnk, zod, errors, middleware, domain                                                                                                                         |
+| inbound  | webhook  | routes と同じ ＋ 他 module の domain（systemViewer）                                                                                                         |
+| inbound  | cron     | deps（型だけ）, domain（型だけ）, 他 module の domain（systemViewer）                                                                                        |
+| inbound  | queue    | cron と同じ                                                                                                                                                  |
+| outbound | repo     | drizzle-orm, db（型だけ）, domain, service（型だけ）, 他 module の repo（範囲付きの読みと、外部キーの references() だけ）, 他 module の domain（SQL の定数） |
+| outbound | gateway  | hnk/result, domain（型だけ）, service（型だけ）                                                                                                              |
+| outbound | mailer   | gateway と同じ                                                                                                                                               |
+| outbound | jobs     | domain（型だけ）, service（型だけ）                                                                                                                          |
 
 - **名前は Hono に合わせて `create〜`**。束は `invoicesRouter`
+- **組織は User が持ち、範囲（Reach）がデータで運ぶ**。システムは全組織、admin は自分の組織の全員分、member は自分の分だけ。
+  どの範囲も組織の線を越えない。共有（行ごとの関係）は組織とは別に、次のステップで足す
+- **他の module に見せる読みは、範囲付きの入口（`invoicesWithin(db, reach)` など）だけ**。範囲が必須引数なので、付け忘れが書けない。
+  生の表は読みに使わせない（lint `no-foreign-table-reads`。外部キーの `references()` の中だけ許す）。
+  `〜Within` は repo の export から自動で拾い、`test/reads-contract.test.ts` が「他の組織のデータが出ない」を全部に当てる。
+  読みを足したら、その表の行を seed に足さないとテストが落ちる
+- **読みの線引き**: 状態の意味や業務のルールが入るもの（期限切れ、請求済みなど）は持ち主が答える（`isRemindable`、`billedStatuses`）。
+  形を変えるだけの集計（月ごとにまとめる）は読み側が、範囲付きの入口から書く。ここは機械で止められないので、レビューで見る
 
 ## 未決
 
