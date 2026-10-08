@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["import"],
+  "jsPlugins": ["./hnk-lint-plugin.mjs"],
+  "rules": {
+    "import/no-cycle": "error"
+  },
+  "overrides": [
+    {
+      "files": ["api/**/*.ts"],
+      "rules": {
+        "hnk/no-foreign-repository": "error",
+        "hnk/no-foreign-service-from-service": "error",
+        "hnk/lib-stays-portable": "error",
+        "hnk/route-exports-only-the-route": "error",
+        "hnk/no-await-in-call-arguments": "error",
+        "hnk/one-c-json-per-handler": "error",
+        "hnk/let-needs-a-contract-type": "error",
+        "hnk/route-declares-auth": "error"
+      }
+    }
+  ]
+}
