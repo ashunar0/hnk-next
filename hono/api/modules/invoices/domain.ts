@@ -49,7 +49,7 @@ export const invoiceInputSchema = z
       .trim()
       .min(1, "タイトルを入力してください")
       .max(100, "タイトルは100文字以内です"),
-    body: z.string().min(1, "本文を入力してください").max(20000, "本文は20000文字以内です"),
+    body: z.string().trim().min(1, "本文を入力してください").max(20000, "本文は20000文字以内です"),
     customerEmail: z.email("メールアドレスの形で入力してください"),
     dueAt: z.coerce.date("期限を日付で入力してください"),
     amount: z
