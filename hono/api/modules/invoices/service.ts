@@ -137,6 +137,29 @@ export function invoicesService(repo: InvoicesRepository) {
       return ok(sent);
     },
 
+    /**
+     * 支払い済みにする。決済の結果を受けて、システムが行う操作なので閲覧者を取らない。
+     * 何度呼んでも同じ結果になる（すでに支払い済みなら、そのまま返す）
+     */
+    async markPaid(id: string): Promise<Result<Invoice, "NOT_FOUND" | "NOT_PAYABLE">> {
+      const all = { kind: "all" } as const;
+
+      const paid = await repo.updateWithin(
+        id,
+        all,
+        { status: "paid", updatedAt: new Date() },
+        "sent",
+      );
+      if (paid !== null) return ok(paid);
+
+      // 書き換わらなかった。無いのか、もう支払い済みなのか、送付前なのか
+      const invoice = await repo.findWithin(id, all);
+      if (invoice === null) return err("NOT_FOUND");
+      if (invoice.status === "paid") return ok(invoice);
+
+      return err("NOT_PAYABLE");
+    },
+
     /** 消せるのは範囲の中のものだけ */
     async remove(id: string, viewer: Viewer): Promise<Result<void, "NOT_FOUND">> {
       const deleted = await repo.deleteWithin(id, reachOf(viewer));

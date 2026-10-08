@@ -15,3 +15,5 @@ export const NotDraft = httpError("NOT_DRAFT", 409, "下書きの請求書だけ
 export const NotPayable = httpError("NOT_PAYABLE", 409, "送付済みの請求書だけを支払えます");
 
 export const GatewayFailed = httpError("GATEWAY_FAILED", 502, "決済サービスに接続できませんでした");
+
+export const InvalidSignature = httpError("INVALID_SIGNATURE", 400, "通知の署名が正しくありません");

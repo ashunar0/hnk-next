@@ -1,13 +1,18 @@
 /**
  * 支払いの手順（How）。請求書を確かめ、決済サービスの画面を作り、支払いを記録する
  */
-import { ok, type Result } from "hnk/result";
+import { err, ok, type Result } from "hnk/result";
 import type { Viewer } from "../users/domain";
-import type { Payment } from "./domain";
+import type { Payment, PaymentEvent } from "./domain";
 
 /** 手順が必要とする保存の形。repo.d1.ts が満たす */
 export type PaymentsRepository = {
   insert(payment: Omit<Payment, "createdAt" | "updatedAt">): Promise<Payment>;
+  /** 決済サービス側の識別子で状態を書き換える。無ければ null */
+  updateStatusByProviderRef(
+    providerRef: string,
+    status: Payment["status"],
+  ): Promise<Payment | null>;
 };
 
 /**
@@ -21,6 +26,11 @@ export type PaymentGateway = {
     amount: number;
     description: string;
   }): Promise<Result<{ checkoutUrl: string; providerRef: string }, "GATEWAY_FAILED">>;
+  /** 届いた通知が本物か確かめ、支払いの結果として読む。支払いに関係ない通知は null */
+  verifyEvent(
+    payload: string,
+    signature: string,
+  ): Promise<Result<PaymentEvent | null, "INVALID_SIGNATURE">>;
 };
 
 /**
@@ -72,6 +82,29 @@ export function paymentsService(
       });
 
       return ok({ payment, checkoutUrl: checkout.value.checkoutUrl });
+    },
+
+    /** 届いた通知を確かめる */
+    async verifyEvent(payload: string, signature: string) {
+      return gateway.verifyEvent(payload, signature);
+    },
+
+    /**
+     * 支払いを成功にする。何度呼んでも同じ結果になる（通知は再送されることがある）
+     */
+    async markSucceeded(providerRef: string): Promise<Result<Payment, "NOT_FOUND">> {
+      const payment = await repo.updateStatusByProviderRef(providerRef, "succeeded");
+      if (payment === null) return err("NOT_FOUND");
+
+      return ok(payment);
+    },
+
+    /** 支払いを失敗にする。何度呼んでも同じ結果になる */
+    async markFailed(providerRef: string): Promise<Result<Payment, "NOT_FOUND">> {
+      const payment = await repo.updateStatusByProviderRef(providerRef, "failed");
+      if (payment === null) return err("NOT_FOUND");
+
+      return ok(payment);
     },
   };
 }

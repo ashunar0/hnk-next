@@ -19,3 +19,10 @@ export type Payment = {
   createdAt: Date;
   updatedAt: Date;
 };
+
+/** 決済サービスから届いた、支払いの結果 */
+export type PaymentEvent = {
+  kind: "succeeded" | "failed";
+  /** どの支払いの結果か。Payment.providerRef と突き合わせる */
+  providerRef: string;
+};

@@ -1,7 +1,7 @@
 /**
  * payments の保存。service.ts が宣言した PaymentsRepository を、D1 で満たす
  */
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import type { Scope } from "../../db";
 import { invoicesTable } from "../invoices/repo.d1";
@@ -47,6 +47,15 @@ export function paymentsRepository(scope: Scope<typeof paymentsTable>): Payments
       if (!row) throw new Error(`payment ${payment.id} was not returned after insert`);
 
       return toPayment(row);
+    },
+
+    async updateStatusByProviderRef(providerRef, status) {
+      const [row] = await scope
+        .update({ status, updatedAt: new Date() })
+        .where(eq(paymentsTable.providerRef, providerRef))
+        .returning();
+
+      return row ? toPayment(row) : null;
     },
   };
 }

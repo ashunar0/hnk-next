@@ -3,12 +3,43 @@
  * Stripe の API の形と認証はこのファイルの外に出さない
  */
 import { err, ok } from "hnk/result";
+import type { PaymentEvent } from "./domain";
 import type { PaymentGateway } from "./service";
 
 type StripeCheckoutSession = { id: string; url: string };
 
+type StripeEvent = { type: string; data: { object: { id: string } } };
+
+/** Stripe の通知の種類を、支払いの結果に読み替える。関係ない通知は null */
+const KINDS: Record<string, PaymentEvent["kind"]> = {
+  "checkout.session.completed": "succeeded",
+  "checkout.session.expired": "failed",
+};
+
+/** Stripe-Signature（t=...,v1=...）を確かめる。HMAC-SHA256 で `${t}.${payload}` を署名している */
+async function isSigned(payload: string, header: string, secret: string) {
+  const parts = new Map(header.split(",").map((kv) => kv.split("=") as [string, string]));
+  const t = parts.get("t");
+  const v1 = parts.get("v1");
+  if (!t || !v1) return false;
+
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`${t}.${payload}`));
+  const hex = [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, "0")).join("");
+
+  // TODO: 本物では、時間差の出ない比較と、t が古すぎないかの確認をする
+  return hex === v1;
+}
+
 export function stripeGateway(config: {
   secretKey: string;
+  webhookSecret: string;
   successUrl: string;
   cancelUrl: string;
 }): PaymentGateway {
@@ -39,6 +70,17 @@ export function stripeGateway(config: {
       const session = (await res.json()) as StripeCheckoutSession;
 
       return ok({ checkoutUrl: session.url, providerRef: session.id });
+    },
+
+    async verifyEvent(payload, signature) {
+      if (!(await isSigned(payload, signature, config.webhookSecret)))
+        return err("INVALID_SIGNATURE");
+
+      const event = JSON.parse(payload) as StripeEvent;
+      const kind = KINDS[event.type];
+      if (!kind) return ok(null);
+
+      return ok({ kind, providerRef: event.data.object.id });
     },
   };
 }

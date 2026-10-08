@@ -3,6 +3,7 @@ import { makeDeps, type Deps } from "./deps";
 import type { AppEnv } from "./env";
 import { invoicesRouter } from "./modules/invoices/routes";
 import { paymentsRouter } from "./modules/payments/routes";
+import { stripeWebhookRouter } from "./modules/payments/webhook.stripe";
 import { withViewer } from "./middleware/auth";
 
 /**
@@ -23,6 +24,7 @@ export const buildApp = (makeDeps: (env: AppEnv["Bindings"]) => Deps) => {
     .use("*", withViewer)
     .route("/invoices", invoicesRouter)
     .route("/payments", paymentsRouter)
+    .route("/webhooks/stripe", stripeWebhookRouter)
     .onError(onError);
 };
 
