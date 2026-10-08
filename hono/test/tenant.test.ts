@@ -1,14 +1,13 @@
 import { expect, it } from "vitest";
 import { scopeTo } from "../api/db";
-import { invoicesRepository, invoicesTable } from "../api/modules/invoices/repo.d1";
 import { invoicesService } from "../api/modules/invoices/service";
 import { paymentsTable } from "../api/modules/payments/repo.d1";
 import { reportsRepository } from "../api/modules/reports/repo.d1";
 import { reportsService } from "../api/modules/reports/service";
 import { systemViewer } from "../api/modules/users/domain";
-import { admin, admin2, alice, carol, db, insertInvoices, invoice } from "./fixtures";
+import { admin, admin2, alice, carol, db, insertInvoices, invoice, invoicesRepo } from "./fixtures";
 
-const service = () => invoicesService(invoicesRepository(scopeTo(db(), invoicesTable)));
+const service = () => invoicesService(invoicesRepo());
 
 /** テスト同士で id が重ならないよう、prefix を付けて 2 つの組織に 1 件ずつ入れる */
 const seed = (prefix: string) =>

@@ -2,7 +2,7 @@ import { scopeTo, wireDb } from "./db";
 import type { AppEnv } from "./env";
 import { invoicesService } from "./modules/invoices/service";
 import { markPaid } from "./modules/invoices/commands/markPaid";
-import { invoicesRepository, invoicesTable } from "./modules/invoices/repo.d1";
+import { invoicesRepository, invoiceSharesTable, invoicesTable } from "./modules/invoices/repo.d1";
 import { stripeGateway } from "./modules/payments/gateway.stripe";
 import { paymentsRepository, paymentsTable } from "./modules/payments/repo.d1";
 import { paymentsService } from "./modules/payments/service";
@@ -28,7 +28,9 @@ export const makeDeps = (env: AppEnv["Bindings"]) => {
 
   return {
     get invoices() {
-      return invoicesService(invoicesRepository(scopeTo(db, invoicesTable)));
+      return invoicesService(
+        invoicesRepository(scopeTo(db, invoicesTable), scopeTo(db, invoiceSharesTable)),
+      );
     },
     get payments() {
       return paymentsService(
@@ -42,7 +44,9 @@ export const makeDeps = (env: AppEnv["Bindings"]) => {
         // payments が宣言した PayableInvoices を、読みは invoices の service、書きは commands が満たす
         {
           getPayable: this.invoices.getPayable,
-          markPaid: markPaid(invoicesRepository(scopeTo(db, invoicesTable))),
+          markPaid: markPaid(
+            invoicesRepository(scopeTo(db, invoicesTable), scopeTo(db, invoiceSharesTable)),
+          ),
         },
       );
     },

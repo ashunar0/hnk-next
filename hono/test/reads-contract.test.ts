@@ -49,7 +49,7 @@ describe.each(reads)("$name", ({ read }) => {
   });
 
   it("自分の範囲では、自分のものだけが出る", async () => {
-    const result = await rows({ kind: "own", orgId: "org1", ownerId: "alice" });
+    const result = await rows({ kind: "member", orgId: "org1", userId: "alice" });
 
     expect(result).toContain("ct1-alice");
     expect(result).not.toContain("ct1-bob");

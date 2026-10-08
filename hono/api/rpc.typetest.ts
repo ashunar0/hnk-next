@@ -31,8 +31,11 @@ export async function update() {
     const body = await res.json();
     body.error.code satisfies "NOT_FOUND";
   }
-  // @ts-expect-error 他人のものは NOT_FOUND に揃えたので 403 は出てこない
-  if (res.status === 403) return;
+  // 他人のものは NOT_FOUND に揃えたまま。403 は、見えているが編集できない（閲覧だけを共有された）とき
+  if (res.status === 403) {
+    const body = await res.json();
+    body.error.code satisfies "FORBIDDEN";
+  }
   // @ts-expect-error 409 は宣言していないので比べられない
   if (res.status === 409) return;
 }

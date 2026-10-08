@@ -4,16 +4,20 @@
 import { err, ok, type Result } from "hnk/result";
 import type { User, Viewer } from "../users/domain";
 import {
+  canEdit,
+  canManage,
   canSend,
   isPayable,
   isRemindable,
   isSendable,
   reachOf,
   type Invoice,
+  type InvoiceAccess,
   type InvoiceChanges,
   type InvoiceInput,
   type InvoiceReach,
   type InvoiceStatus,
+  type ShareLevel,
 } from "./domain";
 
 /** 一覧の中の位置。更新の新しい順に並べるので、updatedAt と id で決まる */
@@ -42,8 +46,11 @@ export type InvoicesRepository = {
   listWithin(reach: InvoiceReach, query: InvoiceListQuery): Promise<InvoicePage>;
   /** 範囲の中の、送付済みで期限を過ぎたもの */
   listOverdueWithin(reach: InvoiceReach, now: Date): Promise<Invoice[]>;
-  /** 範囲の中に無ければ null */
-  findWithin(id: string, reach: InvoiceReach): Promise<Invoice | null>;
+  /** 範囲の中に無ければ null。あれば、閲覧者がどの関係で触れているか（access）と一緒に返す */
+  findWithin(
+    id: string,
+    reach: InvoiceReach,
+  ): Promise<{ invoice: Invoice; access: InvoiceAccess } | null>;
   insert(invoice: Omit<Invoice, "createdAt" | "updatedAt">): Promise<Invoice>;
   /**
    * 範囲の中のものだけを書き換える。無ければ null。
@@ -57,6 +64,10 @@ export type InvoicesRepository = {
   ): Promise<Invoice | null>;
   /** 範囲の中のものだけを消す。消せたら true */
   deleteWithin(id: string, reach: InvoiceReach): Promise<boolean>;
+  /** 共有する。同じ相手にもう共有していれば、権限を置き換える */
+  upsertShare(share: { invoiceId: string; userId: string; level: ShareLevel }): Promise<void>;
+  /** 共有をやめる。無ければ何もしない */
+  deleteShare(invoiceId: string, userId: string): Promise<void>;
 };
 
 export function invoicesService(repo: InvoicesRepository) {
@@ -77,19 +88,19 @@ export function invoicesService(repo: InvoicesRepository) {
       viewer: Viewer,
       now: Date,
     ): Promise<Result<Invoice, "NOT_FOUND" | "NOT_REMINDABLE">> {
-      const invoice = await repo.findWithin(id, reachOf(viewer));
-      if (invoice === null) return err("NOT_FOUND");
-      if (!isRemindable(invoice, now)) return err("NOT_REMINDABLE");
+      const found = await repo.findWithin(id, reachOf(viewer));
+      if (found === null) return err("NOT_FOUND");
+      if (!isRemindable(found.invoice, now)) return err("NOT_REMINDABLE");
 
-      return ok(invoice);
+      return ok(found.invoice);
     },
 
     /** 範囲の外のものは、在ることも知らせない */
     async get(id: string, viewer: Viewer): Promise<Result<Invoice, "NOT_FOUND">> {
-      const invoice = await repo.findWithin(id, reachOf(viewer));
-      if (invoice === null) return err("NOT_FOUND");
+      const found = await repo.findWithin(id, reachOf(viewer));
+      if (found === null) return err("NOT_FOUND");
 
-      return ok(invoice);
+      return ok(found.invoice);
     },
 
     // 作成。作った人が所有者になる
@@ -108,13 +119,22 @@ export function invoicesService(repo: InvoicesRepository) {
       });
     },
 
-    /** 書き換えられるのは範囲の中のものだけ */
+    /**
+     * 書き換えられるのは、範囲の中で、編集できる関係のものだけ。
+     * 見た後に共有が取り消されても、書き込みは範囲（組織）の中に留まる
+     */
     async update(
       id: string,
       viewer: Viewer,
       input: InvoiceInput,
-    ): Promise<Result<Invoice, "NOT_FOUND">> {
-      const invoice = await repo.updateWithin(id, reachOf(viewer), {
+    ): Promise<Result<Invoice, "NOT_FOUND" | "FORBIDDEN">> {
+      const reach = reachOf(viewer);
+
+      const found = await repo.findWithin(id, reach);
+      if (found === null) return err("NOT_FOUND");
+      if (!canEdit(found.access)) return err("FORBIDDEN");
+
+      const invoice = await repo.updateWithin(id, reach, {
         title: input.title,
         body: input.body,
         amount: input.amount,
@@ -132,11 +152,11 @@ export function invoicesService(repo: InvoicesRepository) {
       id: string,
       viewer: Viewer,
     ): Promise<Result<Invoice, "NOT_FOUND" | "NOT_PAYABLE">> {
-      const invoice = await repo.findWithin(id, reachOf(viewer));
-      if (invoice === null) return err("NOT_FOUND");
-      if (!isPayable(invoice)) return err("NOT_PAYABLE");
+      const found = await repo.findWithin(id, reachOf(viewer));
+      if (found === null) return err("NOT_FOUND");
+      if (!isPayable(found.invoice)) return err("NOT_PAYABLE");
 
-      return ok(invoice);
+      return ok(found.invoice);
     },
 
     /** 送付する。admin だけが、下書きだけを送れる */
@@ -146,10 +166,10 @@ export function invoicesService(repo: InvoicesRepository) {
     ): Promise<Result<Invoice, "NOT_FOUND" | "FORBIDDEN" | "NOT_DRAFT">> {
       const reach = reachOf(viewer);
 
-      const invoice = await repo.findWithin(id, reach);
-      if (invoice === null) return err("NOT_FOUND");
+      const found = await repo.findWithin(id, reach);
+      if (found === null) return err("NOT_FOUND");
       if (!canSend(viewer)) return err("FORBIDDEN");
-      if (!isSendable(invoice)) return err("NOT_DRAFT");
+      if (!isSendable(found.invoice)) return err("NOT_DRAFT");
 
       const sent = await repo.updateWithin(
         id,
@@ -163,10 +183,51 @@ export function invoicesService(repo: InvoicesRepository) {
       return ok(sent);
     },
 
-    /** 消せるのは範囲の中のものだけ */
-    async remove(id: string, viewer: Viewer): Promise<Result<void, "NOT_FOUND">> {
-      const deleted = await repo.deleteWithin(id, reachOf(viewer));
+    /** 消せるのは、範囲の中で、所有者側の関係のものだけ */
+    async remove(id: string, viewer: Viewer): Promise<Result<void, "NOT_FOUND" | "FORBIDDEN">> {
+      const reach = reachOf(viewer);
+
+      const found = await repo.findWithin(id, reach);
+      if (found === null) return err("NOT_FOUND");
+      if (!canManage(found.access)) return err("FORBIDDEN");
+
+      const deleted = await repo.deleteWithin(id, reach);
       if (!deleted) return err("NOT_FOUND");
+
+      return ok(undefined);
+    },
+
+    /**
+     * 同じ組織の誰かに共有する。所有者側（所有者・admin）だけが共有できる。
+     * 相手が同じ組織かは、ここでは確かめない（利用者の一覧がまだ無い）。
+     * 違う組織の相手に共有しても、範囲が組織で絞るので、その人には見えない
+     */
+    async share(
+      id: string,
+      viewer: Viewer,
+      userId: string,
+      level: ShareLevel,
+    ): Promise<Result<void, "NOT_FOUND" | "FORBIDDEN">> {
+      const found = await repo.findWithin(id, reachOf(viewer));
+      if (found === null) return err("NOT_FOUND");
+      if (!canManage(found.access)) return err("FORBIDDEN");
+
+      await repo.upsertShare({ invoiceId: id, userId, level });
+
+      return ok(undefined);
+    },
+
+    /** 共有をやめる。共有できる人だけ */
+    async unshare(
+      id: string,
+      viewer: Viewer,
+      userId: string,
+    ): Promise<Result<void, "NOT_FOUND" | "FORBIDDEN">> {
+      const found = await repo.findWithin(id, reachOf(viewer));
+      if (found === null) return err("NOT_FOUND");
+      if (!canManage(found.access)) return err("FORBIDDEN");
+
+      await repo.deleteShare(id, userId);
 
       return ok(undefined);
     },

@@ -2,10 +2,17 @@
  * invoices の保存。service.ts が宣言した InvoicesRepository を、D1 で満たす。
  * 行の形はこのファイルの外に出さず、domain の Invoice に詰め替えて返す
  */
-import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { and, desc, eq, getTableColumns, inArray, lt, or, sql, type SQL } from "drizzle-orm";
+import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import type { ReadDb, Scope } from "../../db";
-import { invoiceStatuses, unpaidStatuses, type Invoice, type InvoiceReach } from "./domain";
+import {
+  invoiceStatuses,
+  shareLevels,
+  unpaidStatuses,
+  type Invoice,
+  type InvoiceAccess,
+  type InvoiceReach,
+} from "./domain";
 import type { InvoicesRepository } from "./service";
 
 const now = sql`(cast(unixepoch('subsecond') * 1000 as integer))`;
@@ -37,6 +44,23 @@ export const invoicesTable = sqliteTable(
   ],
 );
 
+/**
+ * 請求書の共有。誰に、どの権限で見せているか。
+ * 組織の線は持たない——相手の組織が違っても、範囲（within）が組織で絞るので、行は見えない
+ */
+export const invoiceSharesTable = sqliteTable(
+  "invoice_shares",
+  {
+    invoiceId: text("invoice_id")
+      .notNull()
+      .references(() => invoicesTable.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull(),
+    level: text("level", { enum: shareLevels }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).default(now).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.invoiceId, table.userId] })],
+);
+
 type InvoiceRow = typeof invoicesTable.$inferSelect;
 
 /** 行 → モノ。今は同じ形だが、列が増えても domain に漏らさないための関所 */
@@ -61,10 +85,22 @@ const within = (reach: InvoiceReach) => {
       return undefined;
     case "org":
       return eq(invoicesTable.orgId, reach.orgId);
-    case "own":
-      return and(eq(invoicesTable.orgId, reach.orgId), eq(invoicesTable.ownerId, reach.ownerId));
+    case "member":
+      return and(
+        eq(invoicesTable.orgId, reach.orgId),
+        or(
+          eq(invoicesTable.ownerId, reach.userId),
+          sql`exists (select 1 from ${invoiceSharesTable} where ${invoiceSharesTable.invoiceId} = ${invoicesTable.id} and ${invoiceSharesTable.userId} = ${reach.userId})`,
+        ),
+      );
   }
 };
+
+/** その範囲の閲覧者が、各行にどの関係で触れているか。within と同じ範囲の読みと一緒に使う */
+const accessIn = (reach: InvoiceReach): SQL<InvoiceAccess> =>
+  reach.kind === "member"
+    ? sql<InvoiceAccess>`case when ${invoicesTable.ownerId} = ${reach.userId} then 'manage' else (select ${invoiceSharesTable.level} from ${invoiceSharesTable} where ${invoiceSharesTable.invoiceId} = ${invoicesTable.id} and ${invoiceSharesTable.userId} = ${reach.userId}) end`
+    : sql<InvoiceAccess>`'manage'`;
 
 /**
  * 他の module が読むための入口。範囲の中の請求書だけが入った副問い合わせを返す。
@@ -73,7 +109,10 @@ const within = (reach: InvoiceReach) => {
 export const invoicesWithin = (db: ReadDb, reach: InvoiceReach) =>
   db.select().from(invoicesTable).where(within(reach)).as("invoices_within");
 
-export function invoicesRepository(scope: Scope<typeof invoicesTable>): InvoicesRepository {
+export function invoicesRepository(
+  scope: Scope<typeof invoicesTable>,
+  shares: Scope<typeof invoiceSharesTable>,
+): InvoicesRepository {
   return {
     async listWithin(reach, { status, after, limit }) {
       // 1 件多く読んで、続きがあるかを知る
@@ -119,12 +158,12 @@ export function invoicesRepository(scope: Scope<typeof invoicesTable>): Invoices
 
     async findWithin(id, reach) {
       const [row] = await scope.reads
-        .select()
+        .select({ invoice: getTableColumns(invoicesTable), access: accessIn(reach) })
         .from(invoicesTable)
         .where(and(eq(invoicesTable.id, id), within(reach)))
         .limit(1);
 
-      return row ? toInvoice(row) : null;
+      return row ? { invoice: toInvoice(row.invoice), access: row.access } : null;
     },
 
     async insert(invoice) {
@@ -157,6 +196,21 @@ export function invoicesRepository(scope: Scope<typeof invoicesTable>): Invoices
         .returning({ id: invoicesTable.id });
 
       return rows.length > 0;
+    },
+
+    async upsertShare(share) {
+      await shares.insert(share).onConflictDoUpdate({
+        target: [invoiceSharesTable.invoiceId, invoiceSharesTable.userId],
+        set: { level: share.level },
+      });
+    },
+
+    async deleteShare(invoiceId, userId) {
+      await shares
+        .delete()
+        .where(
+          and(eq(invoiceSharesTable.invoiceId, invoiceId), eq(invoiceSharesTable.userId, userId)),
+        );
     },
   };
 }

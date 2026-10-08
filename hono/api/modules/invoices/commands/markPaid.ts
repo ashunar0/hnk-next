@@ -26,9 +26,9 @@ export function markPaid(repo: Pick<InvoicesRepository, "updateWithin" | "findWi
     if (paid !== null) return ok(paid);
 
     // 書き換わらなかった。無いのか、もう支払い済みなのか、送付前なのか
-    const invoice = await repo.findWithin(id, all);
-    if (invoice === null) return err("NOT_FOUND");
-    if (invoice.status === "paid") return ok(invoice);
+    const found = await repo.findWithin(id, all);
+    if (found === null) return err("NOT_FOUND");
+    if (found.invoice.status === "paid") return ok(found.invoice);
 
     return err("NOT_PAYABLE");
   };

@@ -1,10 +1,18 @@
 import { env } from "cloudflare:workers";
 import { scopeTo, wireDb } from "../api/db";
 import type { Invoice } from "../api/modules/invoices/domain";
-import { invoicesTable } from "../api/modules/invoices/repo.d1";
+import {
+  invoicesRepository,
+  invoiceSharesTable,
+  invoicesTable,
+} from "../api/modules/invoices/repo.d1";
 import { authenticatedUser } from "../api/modules/users/domain";
 
 export const db = () => wireDb(env.DB);
+
+/** 本物の D1 に繋いだ invoices の repo */
+export const invoicesRepo = () =>
+  invoicesRepository(scopeTo(db(), invoicesTable), scopeTo(db(), invoiceSharesTable));
 
 export const alice = authenticatedUser("alice", "org1", "member");
 export const bob = authenticatedUser("bob", "org1", "member");

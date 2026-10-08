@@ -181,7 +181,10 @@ go build ./cmd/api
 
 - **名前は Hono に合わせて `create〜`**。束は `invoicesRouter`
 - **組織は User が持ち、範囲（Reach）がデータで運ぶ**。システムは全組織、admin は自分の組織の全員分、member は自分の分だけ。
-  どの範囲も組織の線を越えない。共有（行ごとの関係）は組織とは別に、次のステップで足す
+  どの範囲も組織の線を越えない
+- **共有は同じ組織の中で、閲覧と編集の 2 段階**。member の範囲は「自分のもの＋共有されたもの」。
+  repo が範囲を解釈し、行と一緒に access（`manage` / `edit` / `view`）を返す。`canEdit` と `canManage` は access を受け取る純関数。
+  共有できるのは所有者と組織の admin。見えない人には在ることも分からない（NOT_FOUND）、見えるが権限が足りないときは FORBIDDEN
 - **他の module に見せる読みは、範囲付きの入口（`invoicesWithin(db, reach)` など）だけ**。範囲が必須引数なので、付け忘れが書けない。
   生の表は読みに使わせない（lint `no-foreign-table-reads`。外部キーの `references()` の中だけ許す）。
   `〜Within` は repo の export から自動で拾い、`test/reads-contract.test.ts` が「他の組織のデータが出ない」を全部に当てる。
@@ -191,6 +194,10 @@ go build ./cmd/api
 
 ## 未決
 
+- 共有の相手が同じ組織かは確かめていない（利用者の一覧が無い）。違う組織でも、範囲が組織で絞るので見えないだけ
+- 共有の取り消しと書き込みの間の競合: access を見てから書くまでの間に取り消されると、1 回は書ける（書き込みは組織の範囲に留まる）。
+  SQL に access の判定を持たせるとルールが 2 か所になるので、domain の 1 か所を取った
+- 閲覧だけを共有された人も、支払いを始められる（`getPayable` は access を見ない）
 - D1 には対話的なトランザクションが無い（`batch` が基本）。マルチテナントを考えるときに効く
 - テストの方針（service は偽物の repo、HTTP は vitest-pool-workers のローカル D1、偽物は外の API だけ、が候補）
 - `withViewer` が仮実装で、テストからログイン状態を作れない

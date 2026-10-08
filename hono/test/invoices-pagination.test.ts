@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { scopeTo } from "../api/db";
-import { invoicesRepository, invoicesTable } from "../api/modules/invoices/repo.d1";
 import type { InvoiceCursor } from "../api/modules/invoices/service";
-import { alice, bob, db, insertInvoices, invoice } from "./fixtures";
+import { alice, bob, insertInvoices, invoice, invoicesRepo } from "./fixtures";
 
 const at = (iso: string) => new Date(iso);
 
@@ -18,13 +16,13 @@ describe("一覧のキーセットのページ送り", () => {
       // 他人のものは出てこない
       invoice({ id: "b1", ownerId: bob.id, updatedAt: at("2026-03-05T00:00:00Z") }),
     ]);
-    const repo = invoicesRepository(scopeTo(db(), invoicesTable));
+    const repo = invoicesRepo();
 
     const seen: string[] = [];
     let after: InvoiceCursor | undefined;
     for (let pages = 0; pages < 10; pages++) {
       const page = await repo.listWithin(
-        { kind: "own", orgId: alice.orgId, ownerId: alice.id },
+        { kind: "member", orgId: alice.orgId, userId: alice.id },
         { after, limit: 2 },
       );
       seen.push(...page.items.map((i) => i.id));
@@ -41,10 +39,10 @@ describe("一覧のキーセットのページ送り", () => {
       invoice({ id: "s2", status: "draft" }),
       invoice({ id: "s3", status: "paid" }),
     ]);
-    const repo = invoicesRepository(scopeTo(db(), invoicesTable));
+    const repo = invoicesRepo();
 
     const page = await repo.listWithin(
-      { kind: "own", orgId: alice.orgId, ownerId: alice.id },
+      { kind: "member", orgId: alice.orgId, userId: alice.id },
       { status: "sent", limit: 10 },
     );
 

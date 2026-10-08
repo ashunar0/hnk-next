@@ -3,10 +3,8 @@
  * 同じ固定データを両方に通し、同じ答えになることを確かめる
  */
 import { expect, it } from "vitest";
-import { scopeTo } from "../api/db";
 import { isOverdue } from "../api/modules/invoices/domain";
-import { invoicesRepository, invoicesTable } from "../api/modules/invoices/repo.d1";
-import { db, insertInvoices, invoice } from "./fixtures";
+import { insertInvoices, invoice, invoicesRepo } from "./fixtures";
 
 const now = new Date("2026-05-15T12:00:00Z");
 
@@ -22,7 +20,7 @@ const fixtures = [
 
 it("期限切れの判定が、domain の関数と SQL で一致する", async () => {
   await insertInvoices(fixtures);
-  const repo = invoicesRepository(scopeTo(db(), invoicesTable));
+  const repo = invoicesRepo();
 
   const bySql = (await repo.listOverdueWithin({ kind: "all" }, now)).map((i) => i.id).sort();
   const byDomain = fixtures

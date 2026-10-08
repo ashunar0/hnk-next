@@ -69,21 +69,39 @@ export type InvoiceChanges = Partial<
 > &
   Pick<Invoice, "updatedAt">;
 
+/** 共有で渡せる権限。見るだけか、書き換えもできるか */
+export const shareLevels = ["view", "edit"] as const;
+
+export type ShareLevel = (typeof shareLevels)[number];
+
 /**
- * 閲覧者が触れる請求書の範囲。どの範囲も、組織をまたがない（all を除く）
+ * その請求書に、閲覧者がどの関係で触れているか。manage は所有者・組織の admin・システムで、
+ * 書き換え・消す・共有するができる。edit と view は共有されたもの
+ */
+export type InvoiceAccess = "manage" | ShareLevel;
+
+/**
+ * 閲覧者が触れる請求書の範囲。どの範囲も、組織をまたがない（all を除く）。
+ * member は、自分のものと、自分に共有されたもの
  */
 export type InvoiceReach =
   | { kind: "all" }
   | { kind: "org"; orgId: string }
-  | { kind: "own"; orgId: string; ownerId: string };
+  | { kind: "member"; orgId: string; userId: string };
 
-/** システムは全組織に、admin は自分の組織の全員のものに、member は自分のものだけに触れる */
+/** システムは全組織に、admin は自分の組織の全員のものに、member は自分のものと共有されたものに触れる */
 export const reachOf = (viewer: Viewer): InvoiceReach => {
   if (viewer.kind === "system") return { kind: "all" };
   if (viewer.role === "admin") return { kind: "org", orgId: viewer.orgId };
 
-  return { kind: "own", orgId: viewer.orgId, ownerId: viewer.id };
+  return { kind: "member", orgId: viewer.orgId, userId: viewer.id };
 };
+
+/** 書き換えられるのは、所有者側か、編集を共有されたもの */
+export const canEdit = (access: InvoiceAccess) => access === "manage" || access === "edit";
+
+/** 消す・共有するのは、所有者側だけ */
+export const canManage = (access: InvoiceAccess) => access === "manage";
 
 /** 送付できるのは admin だけ */
 export const canSend = (viewer: Viewer) => viewer.kind === "user" && viewer.role === "admin";
