@@ -181,6 +181,9 @@ go build ./cmd/api
 | outbound | jobs     | domain（型だけ）, service（型だけ）                                                                                                                          |
 
 - **名前は Hono に合わせて `create〜`**。束は `invoicesRouter`
+- **ログイン状態は `buildApp(makeDeps, authenticate)` で差し込む**。`authenticate` は viewer（未ログインは null）を文脈に積む middleware で、
+  本番は `withViewer`（認証の提供元ができるまでは仮実装）、テストは `appAs(user)`（`test/fixtures.ts`）で本物の deps と D1 のまま利用者だけ差し替える。
+  route 層は HTTP 越しに試せる（`test/invoices-http.test.ts`）
 - **HTTP 以外の入口は `createWorker` に渡す**（`index.ts` に 1 つ）。deps は呼び出しごとに 1 回組み立て、`system` と `now` を渡す。
   `now` は scheduled なら予定の時刻、queue ならメッセージが積まれた時刻（再送が日をまたいでも同じ日の督促になる）。
   queue の handler は Result を返すだけ: ok で ack、err で retry、想定外の throw はそのメッセージだけ retry にして同じバッチの残りは続ける。
@@ -206,7 +209,6 @@ go build ./cmd/api
 - 閲覧だけを共有された人も、支払いを始められる（`getPayable` は access を見ない）
 - D1 には対話的なトランザクションが無い（`batch` が基本）。マルチテナントを考えるときに効く
 - テストの方針（service は偽物の repo、HTTP は vitest-pool-workers のローカル D1、偽物は外の API だけ、が候補）
-- `withViewer` が仮実装で、テストからログイン状態を作れない
 - ID のブランド型
 - 「育ち方」を lint と生成器にどこまで載せるか
 - queue を複数持つときの振り分け、cron 式ごとの切り替え（今は 1 つずつ）

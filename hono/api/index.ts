@@ -1,3 +1,4 @@
+import type { MiddlewareHandler } from "hono";
 import { createRouter, createWorker, onError, provideDeps } from "hnk";
 import { makeDeps, type Deps } from "./deps";
 import type { AppEnv } from "./env";
@@ -11,10 +12,14 @@ import type { ReminderJob } from "./modules/reminders/domain";
 import { sendReminder } from "./modules/reminders/queue";
 
 /**
- * アプリを組み立てる。依存の組み立て方を外から受け取るので、
- * 本番は makeDeps を、テストは偽物を返す関数を渡す
+ * アプリを組み立てる。依存の組み立て方と、ログイン状態の決め方を外から受け取るので、
+ * 本番は makeDeps と withViewer を、テストは偽物を渡す。
+ * authenticate は viewer（ログインしていなければ null）を文脈に積む middleware。認証の提供元を差し込む場所
  */
-export const buildApp = (makeDeps: (env: AppEnv["Bindings"]) => Deps) => {
+export const buildApp = (
+  makeDeps: (env: AppEnv["Bindings"]) => Deps,
+  authenticate: MiddlewareHandler<AppEnv> = withViewer,
+) => {
   const root = createRouter();
 
   // .use などのチェーンは OpenAPIHono ではなく Hono を返すので、doc は先に呼ぶ
@@ -25,7 +30,7 @@ export const buildApp = (makeDeps: (env: AppEnv["Bindings"]) => Deps) => {
 
   return root
     .use("*", provideDeps(makeDeps))
-    .use("*", withViewer)
+    .use("*", authenticate)
     .route("/invoices", invoicesRouter)
     .route("/payments", paymentsRouter)
     .route("/reports", reportsRouter)

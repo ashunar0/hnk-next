@@ -6,7 +6,9 @@ import {
   invoiceSharesTable,
   invoicesTable,
 } from "../api/modules/invoices/repo.d1";
-import { authenticatedUser } from "../api/modules/users/domain";
+import { makeDeps } from "../api/deps";
+import { buildApp } from "../api/index";
+import { authenticatedUser, type User } from "../api/modules/users/domain";
 
 export const db = () => wireDb(env.DB);
 
@@ -40,3 +42,25 @@ export const insertInvoices = async (invoices: Invoice[]) => {
   await scopeTo(db(), invoicesTable).insert(invoices[0]!);
   for (const row of invoices.slice(1)) await scopeTo(db(), invoicesTable).insert(row);
 };
+
+/**
+ * この利用者としてログインした状態のアプリ（本物の deps と D1）。
+ * null ならログインしていない。認証の提供元の代わりに viewer を積むだけで、あとは本番と同じ
+ */
+export const appAs = (user: User | null) =>
+  buildApp(makeDeps, async (c, next) => {
+    c.set("viewer", user);
+    await next();
+  });
+
+/** appAs で JSON を送る。env は本物の D1 を指す */
+export const request = (user: User | null, method: string, path: string, body?: unknown) =>
+  appAs(user).request(
+    path,
+    {
+      method,
+      headers: body === undefined ? {} : { "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    },
+    env,
+  );
