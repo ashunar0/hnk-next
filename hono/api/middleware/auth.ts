@@ -17,7 +17,7 @@ export const withViewer: MiddlewareHandler<AppEnv> = async (c, next) => {
 };
 
 /**
- * ログインを要求する。createRoute の middleware に置くと、その先の handler で
+ * ログインを要求する。createEndpoint の middleware に置くと、その先の handler で
  * authViewer が User になる（viewer は null を含んだまま）。
  * Unauthorized は responses に自動で足される
  */

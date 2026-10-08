@@ -577,7 +577,7 @@ const plugin = {
           CallExpression(node) {
             if (
               node.callee?.type !== "Identifier" ||
-              node.callee.name !== "createRoute"
+              node.callee.name !== "createEndpoint"
             )
               return;
             const config = unwrap(node.arguments[0]);
@@ -602,7 +602,7 @@ const plugin = {
               context.report({
                 node,
                 message:
-                  "createRoute に認証の指定が無い。middleware: [requireAuth] か、公開なら [allowAnonymous] を置く",
+                  "createEndpoint に認証の指定が無い。middleware: [requireAuth] か、公開なら [allowAnonymous] を置く",
               });
               return;
             }

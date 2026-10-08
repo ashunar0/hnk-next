@@ -1,7 +1,7 @@
 /**
  * payments を HTTP で公開する
  */
-import { createEndpoint, createRoute, createRouter, errorResponses, json, jsonBody } from "hnk";
+import { createEndpoint, createRouter, errorResponses, json, jsonBody } from "hnk";
 import { z } from "zod";
 import { GatewayFailed, NotFound, NotPayable, PaymentStarting } from "../../errors";
 import { requireAuth } from "../../middleware/auth";
@@ -22,7 +22,7 @@ export const paymentsRouter = createRouter()
   // 支払いを始める
   .openapi(
     ...createEndpoint(
-      createRoute({
+      {
         method: "post",
         path: "/",
         middleware: [requireAuth] as const,
@@ -31,7 +31,7 @@ export const paymentsRouter = createRouter()
           200: json(startPaymentResponseSchema, "決済サービスの支払い画面"),
           ...errorResponses(NotFound, NotPayable, PaymentStarting, GatewayFailed),
         },
-      }),
+      },
       async (c, reply, { payments }) => {
         const { invoiceId } = c.req.valid("json");
         const viewer = c.get("authViewer");

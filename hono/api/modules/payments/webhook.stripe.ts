@@ -2,7 +2,7 @@
  * 決済サービスからの通知を受ける入口。routes.ts と並ぶ、2 つ目の入口。
  * 利用者ではなく Stripe が呼ぶので、ログインではなく署名で確かめる
  */
-import { allowSystem, createEndpoint, createRoute, createRouter, errorResponses, json } from "hnk";
+import { allowSystem, createEndpoint, createRouter, errorResponses, json } from "hnk";
 import { z } from "zod";
 import { InvalidSignature, NotFound, NotPayable } from "../../errors";
 
@@ -10,7 +10,7 @@ const receivedSchema = z.object({ received: z.literal(true) });
 
 export const stripeWebhookRouter = createRouter().openapi(
   ...createEndpoint(
-    createRoute({
+    {
       method: "post",
       path: "/",
       middleware: [allowSystem] as const,
@@ -18,7 +18,7 @@ export const stripeWebhookRouter = createRouter().openapi(
         200: json(receivedSchema, "受け取った"),
         ...errorResponses(InvalidSignature, NotFound, NotPayable),
       },
-    }),
+    },
     async (c, reply, { payments }) => {
       // 署名は受け取ったままの本文に対して確かめるので、JSON として読まない
       const payload = await c.req.text();

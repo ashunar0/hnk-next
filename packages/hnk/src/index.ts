@@ -243,7 +243,7 @@ export type Guard<
 };
 
 /**
- * middleware に、それが返しうる失敗を持たせる。createRoute の middleware に置くと、
+ * middleware に、それが返しうる失敗を持たせる。createEndpoint の middleware に置くと、
  * その失敗が responses に自動で足される。`export const requireAuth = guard([Unauthorized], ...)`
  */
 export const guard = <
@@ -289,7 +289,7 @@ type WithAutoErrors<R extends RouteConfig> = Omit<R, "responses"> & {
  * guard が返しうる失敗（requireAuth なら Unauthorized）と、入力があるときの ValidationError は
  * responses に書かなくていい。書くのはドメインの失敗だけ
  */
-export const createRoute = <const R extends RouteConfig>(config: R) => {
+const createRoute = <const R extends RouteConfig>(config: R) => {
   const middleware = [config.middleware ?? []].flat() as {
     [GUARD_ERRORS]?: readonly HttpError[];
   }[];
@@ -322,8 +322,11 @@ type CodeOf<R extends RouteConfig, S> =
 type DeclaredSuccess<R extends RouteConfig> = keyof R["responses"] &
   SuccessStatusCode;
 
+/** createRoute が組み立てた route の型 */
+type Built<C extends RouteConfig> = ReturnType<typeof createRoute<C>>;
+
 /**
- * reply.failure が受け取れる失敗のコード。hnk の createRoute なら手で書いたものだけ
+ * reply.failure が受け取れる失敗のコード。hnk の createEndpoint なら手で書いたものだけ
  * （guard や入力の検査が返す失敗は、handler が返すものではないので除く）
  */
 type DeclaredFailure<R extends RouteConfig> = R extends {
@@ -378,26 +381,30 @@ const findDeclaredFailure = (route: RouteConfig, code: string) => {
 
 /**
  * route の宣言と handler を組にする。
- * `.openapi(...createEndpoint(createRoute({...}), async (c, reply, { invoices }) => ...))`。
+ * `.openapi(...createEndpoint({...}, async (c, reply, { invoices }) => ...))`。
  * 受け取る（c）、返す（reply）、使う（deps）が、引数の位置で決まる
  */
-export const createEndpoint = <const R extends RouteConfig>(
-  route: R,
+export const createEndpoint = <const C extends RouteConfig>(
+  config: C,
   fn: (
-    c: Parameters<RouteHandler<R, RouteConfigToEnv<R> & RegisteredEnv>>[0],
-    reply: Reply<R>,
+    c: Parameters<
+      RouteHandler<Built<C>, RouteConfigToEnv<Built<C>> & RegisteredEnv>
+    >[0],
+    reply: Reply<Built<C>>,
     deps: RegisteredDeps,
-  ) => MaybePromise<RouteConfigToTypedResponse<R>>,
+  ) => MaybePromise<RouteConfigToTypedResponse<Built<C>>>,
 ) => {
-  const handler: RouteHandler<R, RouteConfigToEnv<R> & RegisteredEnv> = (
-    c: Context,
-  ) => {
+  const route = createRoute(config);
+  const handler: RouteHandler<
+    Built<C>,
+    RouteConfigToEnv<Built<C>> & RegisteredEnv
+  > = (c: Context) => {
     const reply = ((status: number, body: unknown) =>
-      c.json(body as never, status as never)) as unknown as Reply<R>;
+      c.json(body as never, status as never)) as unknown as Reply<Built<C>>;
     reply.failure = ((code: string) => {
       const declared = findDeclaredFailure(route, code);
       return c.json(errorBody(code, declared.message), declared.status);
-    }) as unknown as Reply<R>["failure"];
+    }) as unknown as Reply<Built<C>>["failure"];
 
     const resolve = c.get(DEPS_KEY as never) as
       (() => RegisteredDeps) | undefined;

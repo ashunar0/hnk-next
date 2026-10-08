@@ -1,7 +1,7 @@
 /**
  * reports を HTTP で公開する
  */
-import { createEndpoint, createRoute, createRouter, errorResponses, json } from "hnk";
+import { createEndpoint, createRouter, errorResponses, json } from "hnk";
 import { z } from "zod";
 import { Forbidden } from "../../errors";
 import { requireAuth } from "../../middleware/auth";
@@ -39,7 +39,7 @@ export const reportsRouter = createRouter()
   // 月ごとの請求と入金
   .openapi(
     ...createEndpoint(
-      createRoute({
+      {
         method: "get",
         path: "/monthly",
         middleware: [requireAuth] as const,
@@ -48,7 +48,7 @@ export const reportsRouter = createRouter()
           200: json(monthlyResponseSchema, "月ごとの請求額と入金額"),
           ...errorResponses(Forbidden),
         },
-      }),
+      },
       async (c, reply, { reports }) => {
         const { from, to } = c.req.valid("query");
         const viewer = c.get("authViewer");

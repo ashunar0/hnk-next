@@ -1,12 +1,17 @@
-import { createRoute, createRouter } from "hnk";
+import { createEndpoint, createRouter } from "hnk";
 import { requireAuth } from "../../middleware/auth";
 
 export const okRouter = createRouter();
 
-const route = createRoute({
-  method: "get",
-  path: "/",
-  middleware: [requireAuth] as const,
-  responses: {},
-});
-void route;
+const endpoint = createEndpoint(
+  {
+    method: "get",
+    path: "/",
+    middleware: [requireAuth] as const,
+    responses: {},
+  },
+  async () => {
+    throw new Error("fixture");
+  },
+);
+void endpoint;

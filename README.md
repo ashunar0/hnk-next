@@ -22,7 +22,7 @@ export const invoicesRouter = createRouter()
   // 更新
   .openapi(
     ...createEndpoint(
-      createRoute({
+      {
         method: "put",
         path: "/{id}",
         middleware: [requireAuth] as const,
@@ -34,7 +34,7 @@ export const invoicesRouter = createRouter()
           200: json(invoiceResponseSchema, "更新した請求書"),
           ...errorResponses(NotFound),
         },
-      }),
+      },
       async (c, reply, { invoices }) => {
         const { id } = c.req.valid("param");
         const input = c.req.valid("json");
@@ -150,7 +150,7 @@ go build ./cmd/api
 - **module の依存は一方向**。users ← invoices ← payments、invoices ← reminders、invoices と payments ← reports。
   deps.ts は上から順に const で組み立てる（Go の main と同じ）。依存する相手を先に書かないと、tsc が「宣言の前に使っている」で止めるので、輪はコンパイルが通らない。
   getter で遅延する案は、宣言順の保証を失うので外した（組み立ては関数を返すだけで軽い）。deps.ts は何を import してもよい場所で、lint の表には入れていない
-- **route は `createRoute` ＋ `createEndpoint`**（@hono/zod-openapi の上）。`c.json` だとずれたときの赤線が handler の頭に付くので、`reply` で返す
+- **route は `createEndpoint(設定, handler)` 1 つで書く**（@hono/zod-openapi の上）。設定は zod-openapi の route の宣言と同じ形で、guard が持つ失敗と ValidationError を hnk が足す。`c.json` だとずれたときの赤線が handler の頭に付くので、`reply` で返す。`createRoute` は公開しない（書き方を 1 つにするため）
 - **失敗は値で、番号と文言を持つ**（`httpError("NOT_FOUND", 404, "…")`）。guard が持つ失敗と ValidationError は自動で宣言する。
   `reply.failure` が受け取れるのは、route に手で書いたドメインの失敗だけ。同じ番号の失敗が複数あっても 1 つの応答にまとめ、コードごとの文言で返す
 - **利用者とシステムには印を付ける**（`unique symbol`）。`{ kind: "system" }` のようなリテラルでは書けず、利用者を作れるのは `authenticatedUser` だけ。システムの型と値は hnk が持ち、アプリは作れず受け取るだけ（下の「HTTP 以外の入口」）
@@ -165,7 +165,7 @@ go build ./cmd/api
 - **lint は `hnk/lint` で提供する**。module の中のファイルは、名前の頭（役割）で core / inbound / outbound に分ける。
   役割の分からないファイルは置けない。依存の向きは役割ごとの許可表（`layer-imports`）で守らせ、表に無い import は全部だめ。
   相対 import も tsconfig の paths 経由も同じに見る。HTTP の inbound（routes と webhook）には、export は束 1 本、
-  `createRoute` に認証の指定、`c.json` 禁止、引数の中で await しない、を求める。どこでも、モジュールの一番上に変わる状態を置かない
+  `createEndpoint` に認証の指定、`c.json` 禁止、引数の中で await しない、を求める。どこでも、モジュールの一番上に変わる状態を置かない
 
 | 側       | 役割     | import してよいもの                                                                                                                                          |
 | -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |

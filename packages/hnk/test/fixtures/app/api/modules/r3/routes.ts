@@ -1,7 +1,12 @@
-// expect: hnk(route-declares-auth) | createRoute に認証の指定が無い
-import { createRoute, createRouter } from "hnk";
+// expect: hnk(route-declares-auth) | createEndpoint に認証の指定が無い
+import { createEndpoint, createRouter } from "hnk";
 
 export const r3Router = createRouter();
 
-const route = createRoute({ method: "get", path: "/", responses: {} });
-void route;
+const endpoint = createEndpoint(
+  { method: "get", path: "/", responses: {} },
+  async () => {
+    throw new Error("fixture");
+  },
+);
+void endpoint;

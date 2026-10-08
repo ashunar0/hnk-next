@@ -3,7 +3,6 @@
  */
 import {
   createEndpoint,
-  createRoute,
   createRouter,
   errorResponses,
   json,
@@ -80,7 +79,7 @@ export const invoicesRouter = createRouter()
   // 一覧
   .openapi(
     ...createEndpoint(
-      createRoute({
+      {
         method: "get",
         path: "/",
         middleware: [requireAuth] as const,
@@ -88,7 +87,7 @@ export const invoicesRouter = createRouter()
         responses: {
           200: json(listInvoicesResponseSchema, "触れる範囲の請求書の一覧"),
         },
-      }),
+      },
       async (c, reply, { invoices }) => {
         const { status, cursor, limit } = c.req.valid("query");
         const viewer = c.get("authViewer");
@@ -102,7 +101,7 @@ export const invoicesRouter = createRouter()
   // 1件
   .openapi(
     ...createEndpoint(
-      createRoute({
+      {
         method: "get",
         path: "/{id}",
         middleware: [requireAuth] as const,
@@ -111,7 +110,7 @@ export const invoicesRouter = createRouter()
           200: json(invoiceResponseSchema, "請求書"),
           ...errorResponses(NotFound),
         },
-      }),
+      },
       async (c, reply, { invoices }) => {
         const { id } = c.req.valid("param");
         const viewer = c.get("authViewer");
@@ -126,7 +125,7 @@ export const invoicesRouter = createRouter()
   // 作成
   .openapi(
     ...createEndpoint(
-      createRoute({
+      {
         method: "post",
         path: "/",
         middleware: [requireAuth] as const,
@@ -134,7 +133,7 @@ export const invoicesRouter = createRouter()
         responses: {
           200: json(invoiceResponseSchema, "作成した請求書"),
         },
-      }),
+      },
       async (c, reply, { invoices }) => {
         const input = c.req.valid("json");
         const viewer = c.get("authViewer");
@@ -148,7 +147,7 @@ export const invoicesRouter = createRouter()
   // 更新
   .openapi(
     ...createEndpoint(
-      createRoute({
+      {
         method: "put",
         path: "/{id}",
         middleware: [requireAuth] as const,
@@ -157,7 +156,7 @@ export const invoicesRouter = createRouter()
           200: json(invoiceResponseSchema, "更新した請求書"),
           ...errorResponses(NotFound, Forbidden),
         },
-      }),
+      },
       async (c, reply, { invoices }) => {
         const { id } = c.req.valid("param");
         const input = c.req.valid("json");
@@ -173,7 +172,7 @@ export const invoicesRouter = createRouter()
   // 送付
   .openapi(
     ...createEndpoint(
-      createRoute({
+      {
         method: "post",
         path: "/{id}/send",
         middleware: [requireAuth] as const,
@@ -182,7 +181,7 @@ export const invoicesRouter = createRouter()
           200: json(invoiceResponseSchema, "送付した請求書"),
           ...errorResponses(NotFound, Forbidden, NotDraft),
         },
-      }),
+      },
       async (c, reply, { invoices }) => {
         const { id } = c.req.valid("param");
         const viewer = c.get("authViewer");
@@ -197,7 +196,7 @@ export const invoicesRouter = createRouter()
   // 削除
   .openapi(
     ...createEndpoint(
-      createRoute({
+      {
         method: "delete",
         path: "/{id}",
         middleware: [requireAuth] as const,
@@ -206,7 +205,7 @@ export const invoicesRouter = createRouter()
           200: json(deleteInvoiceResponseSchema, "削除した"),
           ...errorResponses(NotFound, Forbidden),
         },
-      }),
+      },
       async (c, reply, { invoices }) => {
         const { id } = c.req.valid("param");
         const viewer = c.get("authViewer");
@@ -221,7 +220,7 @@ export const invoicesRouter = createRouter()
   // 共有
   .openapi(
     ...createEndpoint(
-      createRoute({
+      {
         method: "put",
         path: "/{id}/shares",
         middleware: [requireAuth] as const,
@@ -230,7 +229,7 @@ export const invoicesRouter = createRouter()
           200: json(okResponseSchema, "共有した"),
           ...errorResponses(NotFound, Forbidden),
         },
-      }),
+      },
       async (c, reply, { invoices }) => {
         const { id } = c.req.valid("param");
         const { userId, level } = c.req.valid("json");
@@ -246,7 +245,7 @@ export const invoicesRouter = createRouter()
   // 共有をやめる
   .openapi(
     ...createEndpoint(
-      createRoute({
+      {
         method: "delete",
         path: "/{id}/shares/{userId}",
         middleware: [requireAuth] as const,
@@ -255,7 +254,7 @@ export const invoicesRouter = createRouter()
           200: json(okResponseSchema, "共有をやめた"),
           ...errorResponses(NotFound, Forbidden),
         },
-      }),
+      },
       async (c, reply, { invoices }) => {
         const { id, userId } = c.req.valid("param");
         const viewer = c.get("authViewer");

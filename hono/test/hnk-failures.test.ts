@@ -2,15 +2,7 @@
  * 同じ番号の失敗を 2 つ宣言しても、どちらも返せること。
  * 宣言の中で番号がぶつかると片方が消え、型は通るのに実行時に 500 になっていた
  */
-import {
-  createEndpoint,
-  createRoute,
-  createRouter,
-  errorResponses,
-  httpError,
-  json,
-  provideDeps,
-} from "hnk";
+import { createEndpoint, createRouter, errorResponses, httpError, json, provideDeps } from "hnk";
 import { z } from "zod";
 import { expect, it } from "vitest";
 import { allowAnonymous } from "../api/middleware/auth";
@@ -22,7 +14,7 @@ const app = createRouter();
 app.use(provideDeps(() => ({}) as never));
 app.openapi(
   ...createEndpoint(
-    createRoute({
+    {
       method: "get",
       path: "/{which}",
       middleware: [allowAnonymous] as const,
@@ -31,7 +23,7 @@ app.openapi(
         200: json(z.object({ ok: z.literal(true) }), "成功"),
         ...errorResponses(First, Second),
       },
-    }),
+    },
     async (c, reply) => {
       const { which } = c.req.valid("param");
 
