@@ -21,6 +21,8 @@ const isUnpaid = (status: InvoiceStatus) =>
 
 export type Invoice = {
   id: string;
+  /** 属する組織。作った人の組織で、変わらない */
+  orgId: string;
   ownerId: string;
   title: string;
   body: string;
@@ -67,14 +69,21 @@ export type InvoiceChanges = Partial<
 > &
   Pick<Invoice, "updatedAt">;
 
-/** 閲覧者が触れる請求書の範囲 */
-export type InvoiceReach = { kind: "all" } | { kind: "own"; ownerId: string };
+/**
+ * 閲覧者が触れる請求書の範囲。どの範囲も、組織をまたがない（all を除く）
+ */
+export type InvoiceReach =
+  | { kind: "all" }
+  | { kind: "org"; orgId: string }
+  | { kind: "own"; orgId: string; ownerId: string };
 
-/** admin とシステムは全員のものに、member は自分のものだけに触れる */
-export const reachOf = (viewer: Viewer): InvoiceReach =>
-  viewer.kind === "system" || viewer.role === "admin"
-    ? { kind: "all" }
-    : { kind: "own", ownerId: viewer.id };
+/** システムは全組織に、admin は自分の組織の全員のものに、member は自分のものだけに触れる */
+export const reachOf = (viewer: Viewer): InvoiceReach => {
+  if (viewer.kind === "system") return { kind: "all" };
+  if (viewer.role === "admin") return { kind: "org", orgId: viewer.orgId };
+
+  return { kind: "own", orgId: viewer.orgId, ownerId: viewer.id };
+};
 
 /** 送付できるのは admin だけ */
 export const canSend = (viewer: Viewer) => viewer.kind === "user" && viewer.role === "admin";

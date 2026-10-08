@@ -1,9 +1,9 @@
 /**
- * 利用者というモノ。今は、ログインしている人が誰で、どのロールかだけ。
+ * 利用者というモノ。今は、ログインしている人が誰で、どの組織の、どのロールかだけ。
  * 他の module の domain は、ここから型だけを借りる。systemViewer の値は inbound だけが使う
  */
 
-/** ロール。admin は全員のものに触れ、member は自分のものだけ */
+/** ロール。admin は自分の組織の全員のものに触れ、member は自分のものだけ */
 export const roles = ["member", "admin"] as const;
 
 export type Role = (typeof roles)[number];
@@ -18,6 +18,8 @@ declare const verified: unique symbol;
 export type User = {
   readonly kind: "user";
   readonly id: string;
+  /** 所属する組織。1 人は 1 つの組織に属する */
+  readonly orgId: string;
   readonly role: Role;
   readonly [verified]: true;
 };
@@ -31,7 +33,8 @@ export type System = { readonly kind: "system"; readonly [verified]: true };
 export const systemViewer = { kind: "system" } as System;
 
 /** 認証を通った利用者を作る。認証の middleware（とテスト）だけが呼ぶ */
-export const authenticatedUser = (id: string, role: Role) => ({ kind: "user", id, role }) as User;
+export const authenticatedUser = (id: string, orgId: string, role: Role) =>
+  ({ kind: "user", id, orgId, role }) as User;
 
 /** いま操作しているのは誰か */
 export type Viewer = User | System;

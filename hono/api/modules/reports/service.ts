@@ -15,11 +15,19 @@ import {
 
 /**
  * 手順が必要とする読みの形。repo.d1.ts が満たす。
- * 期間は [from, to) の時刻で渡す
+ * 期間は [from, to) の時刻で渡す。誰が見るかを渡し、触れる範囲の決め方は読む側（invoices の範囲）に任せる
  */
 export type ReportsRepository = {
-  invoicedByMonth(from: Date, to: Date): Promise<{ month: string; total: number }[]>;
-  receivedByMonth(from: Date, to: Date): Promise<{ month: string; total: number }[]>;
+  invoicedByMonth(
+    viewer: Viewer,
+    from: Date,
+    to: Date,
+  ): Promise<{ month: string; total: number }[]>;
+  receivedByMonth(
+    viewer: Viewer,
+    from: Date,
+    to: Date,
+  ): Promise<{ month: string; total: number }[]>;
 };
 
 export function reportsService(repo: ReportsRepository) {
@@ -36,8 +44,8 @@ export function reportsService(repo: ReportsRepository) {
       const end = startOfMonth(nextMonth(to));
 
       const [invoiced, received] = await Promise.all([
-        repo.invoicedByMonth(start, end),
-        repo.receivedByMonth(start, end),
+        repo.invoicedByMonth(viewer, start, end),
+        repo.receivedByMonth(viewer, start, end),
       ]);
 
       return ok(summarize(monthsBetween(from, to), invoiced, received));

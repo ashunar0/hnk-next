@@ -5,8 +5,8 @@
  */
 import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import type { ReadDb } from "../../db";
-import { billedStatuses } from "../invoices/domain";
-import { invoicesTable } from "../invoices/repo.d1";
+import { billedStatuses, reachOf } from "../invoices/domain";
+import { invoicesTable, within } from "../invoices/repo.d1";
 import { paymentsTable } from "../payments/repo.d1";
 import type { ReportsRepository } from "./service";
 
@@ -16,7 +16,7 @@ const monthOf = (column: typeof invoicesTable.dueAt | typeof paymentsTable.updat
 
 export function reportsRepository(db: ReadDb): ReportsRepository {
   return {
-    async invoicedByMonth(from, to) {
+    async invoicedByMonth(viewer, from, to) {
       const month = monthOf(invoicesTable.dueAt);
 
       return db
@@ -24,6 +24,7 @@ export function reportsRepository(db: ReadDb): ReportsRepository {
         .from(invoicesTable)
         .where(
           and(
+            within(reachOf(viewer)),
             inArray(invoicesTable.status, billedStatuses),
             gte(invoicesTable.dueAt, from),
             lt(invoicesTable.dueAt, to),
@@ -32,20 +33,25 @@ export function reportsRepository(db: ReadDb): ReportsRepository {
         .groupBy(month);
     },
 
-    async receivedByMonth(from, to) {
+    async receivedByMonth(viewer, from, to) {
       const month = monthOf(paymentsTable.updatedAt);
 
-      return db
-        .select({ month, total: sql<number>`sum(${paymentsTable.amount})` })
-        .from(paymentsTable)
-        .where(
-          and(
-            eq(paymentsTable.status, "succeeded"),
-            gte(paymentsTable.updatedAt, from),
-            lt(paymentsTable.updatedAt, to),
-          ),
-        )
-        .groupBy(month);
+      return (
+        db
+          .select({ month, total: sql<number>`sum(${paymentsTable.amount})` })
+          .from(paymentsTable)
+          // 支払いは組織を持たない。請求書を通して、範囲の中のものだけ数える
+          .innerJoin(invoicesTable, eq(invoicesTable.id, paymentsTable.invoiceId))
+          .where(
+            and(
+              within(reachOf(viewer)),
+              eq(paymentsTable.status, "succeeded"),
+              gte(paymentsTable.updatedAt, from),
+              lt(paymentsTable.updatedAt, to),
+            ),
+          )
+          .groupBy(month)
+      );
     },
   };
 }

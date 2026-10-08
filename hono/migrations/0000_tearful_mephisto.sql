@@ -1,5 +1,6 @@
 CREATE TABLE `invoices` (
 	`id` text PRIMARY KEY NOT NULL,
+	`org_id` text NOT NULL,
 	`owner_id` text NOT NULL,
 	`title` text NOT NULL,
 	`body` text NOT NULL,
@@ -11,9 +12,9 @@ CREATE TABLE `invoices` (
 	`updated_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
 );
 --> statement-breakpoint
-CREATE INDEX `invoices_owner_updated_idx` ON `invoices` (`owner_id`,`updated_at`,`id`);--> statement-breakpoint
+CREATE INDEX `invoices_owner_updated_idx` ON `invoices` (`org_id`,`owner_id`,`updated_at`,`id`);--> statement-breakpoint
 CREATE INDEX `invoices_status_due_idx` ON `invoices` (`status`,`due_at`);--> statement-breakpoint
-CREATE INDEX `invoices_updated_idx` ON `invoices` (`updated_at`,`id`);--> statement-breakpoint
+CREATE INDEX `invoices_org_updated_idx` ON `invoices` (`org_id`,`updated_at`,`id`);--> statement-breakpoint
 CREATE TABLE `payments` (
 	`id` text PRIMARY KEY NOT NULL,
 	`invoice_id` text NOT NULL,

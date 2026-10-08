@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "29e94ec6-10e8-4e84-9e9c-1214009872eb",
+  "id": "33fb3230-0c83-4cdc-8cef-5bf9a0f6450e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "invoices": {
@@ -11,6 +11,13 @@
           "name": "id",
           "type": "text",
           "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "text",
+          "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
@@ -84,17 +91,29 @@
       "indexes": {
         "invoices_owner_updated_idx": {
           "name": "invoices_owner_updated_idx",
-          "columns": ["owner_id", "updated_at", "id"],
+          "columns": [
+            "org_id",
+            "owner_id",
+            "updated_at",
+            "id"
+          ],
           "isUnique": false
         },
         "invoices_status_due_idx": {
           "name": "invoices_status_due_idx",
-          "columns": ["status", "due_at"],
+          "columns": [
+            "status",
+            "due_at"
+          ],
           "isUnique": false
         },
-        "invoices_updated_idx": {
-          "name": "invoices_updated_idx",
-          "columns": ["updated_at", "id"],
+        "invoices_org_updated_idx": {
+          "name": "invoices_org_updated_idx",
+          "columns": [
+            "org_id",
+            "updated_at",
+            "id"
+          ],
           "isUnique": false
         }
       },
@@ -169,17 +188,23 @@
       "indexes": {
         "payments_provider_ref_unique": {
           "name": "payments_provider_ref_unique",
-          "columns": ["provider_ref"],
+          "columns": [
+            "provider_ref"
+          ],
           "isUnique": true
         },
         "payments_invoice_id_idx": {
           "name": "payments_invoice_id_idx",
-          "columns": ["invoice_id"],
+          "columns": [
+            "invoice_id"
+          ],
           "isUnique": false
         },
         "payments_one_pending_idx": {
           "name": "payments_one_pending_idx",
-          "columns": ["invoice_id"],
+          "columns": [
+            "invoice_id"
+          ],
           "isUnique": true,
           "where": "\"payments\".\"status\" = 'pending'"
         }
@@ -189,8 +214,12 @@
           "name": "payments_invoice_id_invoices_id_fk",
           "tableFrom": "payments",
           "tableTo": "invoices",
-          "columnsFrom": ["invoice_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "invoice_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -239,15 +268,22 @@
           "name": "reminders_invoice_id_invoices_id_fk",
           "tableFrom": "reminders",
           "tableTo": "invoices",
-          "columnsFrom": ["invoice_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "invoice_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "reminders_invoice_id_sent_on_pk": {
-          "columns": ["invoice_id", "sent_on"],
+          "columns": [
+            "invoice_id",
+            "sent_on"
+          ],
           "name": "reminders_invoice_id_sent_on_pk"
         }
       },

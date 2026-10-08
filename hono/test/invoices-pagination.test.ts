@@ -23,7 +23,10 @@ describe("一覧のキーセットのページ送り", () => {
     const seen: string[] = [];
     let after: InvoiceCursor | undefined;
     for (let pages = 0; pages < 10; pages++) {
-      const page = await repo.listWithin({ kind: "own", ownerId: alice.id }, { after, limit: 2 });
+      const page = await repo.listWithin(
+        { kind: "own", orgId: alice.orgId, ownerId: alice.id },
+        { after, limit: 2 },
+      );
       seen.push(...page.items.map((i) => i.id));
       if (page.next === null) break;
       after = page.next;
@@ -41,7 +44,7 @@ describe("一覧のキーセットのページ送り", () => {
     const repo = invoicesRepository(scopeTo(db(), invoicesTable));
 
     const page = await repo.listWithin(
-      { kind: "own", ownerId: alice.id },
+      { kind: "own", orgId: alice.orgId, ownerId: alice.id },
       { status: "sent", limit: 10 },
     );
 

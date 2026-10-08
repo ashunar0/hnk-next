@@ -15,6 +15,7 @@ export const invoicesTable = sqliteTable(
   "invoices",
   {
     id: text("id").primaryKey(),
+    orgId: text("org_id").notNull(),
     /** TODO: 所有者の表へ外部キーを張る。.references(() => profiles.userId, { onDelete: "cascade" }) */
     ownerId: text("owner_id").notNull(),
     title: text("title").notNull(),
@@ -28,11 +29,11 @@ export const invoicesTable = sqliteTable(
   },
   (table) => [
     // 一覧の並び（自分のもの、更新の新しい順）をそのまま辿る
-    index("invoices_owner_updated_idx").on(table.ownerId, table.updatedAt, table.id),
+    index("invoices_owner_updated_idx").on(table.orgId, table.ownerId, table.updatedAt, table.id),
     // 期限切れを探す
     index("invoices_status_due_idx").on(table.status, table.dueAt),
-    // admin が全員のものを見るときの並び
-    index("invoices_updated_idx").on(table.updatedAt, table.id),
+    // admin が組織の全員のものを見るときの並び
+    index("invoices_org_updated_idx").on(table.orgId, table.updatedAt, table.id),
   ],
 );
 
@@ -41,6 +42,7 @@ type InvoiceRow = typeof invoicesTable.$inferSelect;
 /** 行 → モノ。今は同じ形だが、列が増えても domain に漏らさないための関所 */
 const toInvoice = (row: InvoiceRow): Invoice => ({
   id: row.id,
+  orgId: row.orgId,
   ownerId: row.ownerId,
   title: row.title,
   body: row.body,
@@ -52,9 +54,20 @@ const toInvoice = (row: InvoiceRow): Invoice => ({
   updatedAt: row.updatedAt,
 });
 
-/** 範囲を WHERE の条件にする。all なら絞らない */
-const within = (reach: InvoiceReach) =>
-  reach.kind === "all" ? undefined : eq(invoicesTable.ownerId, reach.ownerId);
+/**
+ * 範囲を WHERE の条件にする。all なら絞らない。
+ * 他の module がこの表を読むときも、これを通す（組織の線を越えて読まないため）
+ */
+export const within = (reach: InvoiceReach) => {
+  switch (reach.kind) {
+    case "all":
+      return undefined;
+    case "org":
+      return eq(invoicesTable.orgId, reach.orgId);
+    case "own":
+      return and(eq(invoicesTable.orgId, reach.orgId), eq(invoicesTable.ownerId, reach.ownerId));
+  }
+};
 
 export function invoicesRepository(scope: Scope<typeof invoicesTable>): InvoicesRepository {
   return {

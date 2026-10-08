@@ -6,12 +6,16 @@ import { authenticatedUser } from "../api/modules/users/domain";
 
 export const db = () => wireDb(env.DB);
 
-export const alice = authenticatedUser("alice", "member");
-export const bob = authenticatedUser("bob", "member");
-export const admin = authenticatedUser("admin", "admin");
+export const alice = authenticatedUser("alice", "org1", "member");
+export const bob = authenticatedUser("bob", "org1", "member");
+export const admin = authenticatedUser("admin", "org1", "admin");
+/** 別の組織の人たち */
+export const carol = authenticatedUser("carol", "org2", "member");
+export const admin2 = authenticatedUser("admin2", "org2", "admin");
 
 /** 請求書を 1 件。テストで気にしない項目は既定値で埋める */
 export const invoice = (over: Partial<Invoice> & Pick<Invoice, "id">): Invoice => ({
+  orgId: alice.orgId,
   ownerId: alice.id,
   title: `title ${over.id}`,
   body: "body",

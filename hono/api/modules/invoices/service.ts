@@ -96,6 +96,7 @@ export function invoicesService(repo: InvoicesRepository) {
     async create(viewer: User, input: InvoiceInput): Promise<Invoice> {
       return repo.insert({
         id: crypto.randomUUID(),
+        orgId: viewer.orgId,
         ownerId: viewer.id,
         title: input.title,
         body: input.body,
