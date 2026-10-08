@@ -191,6 +191,68 @@ const plugin = {
     },
 
     /**
+     * service は、自分が使う repository の形を自分で宣言する（使う側が interface を決める）。
+     * repository.ts を import すると向きが逆になり、service が保存の実装を知ってしまう
+     */
+    "service-declares-its-repository": {
+      create(context) {
+        const file = fileOf(context);
+        if (!/[/\\]features[/\\][^/\\]+[/\\]service\.ts$/.test(file)) return {};
+
+        return {
+          ImportDeclaration(node) {
+            const resolved = resolveRelative(file, node.source.value);
+            if (resolved && /[/\\]repository(\.ts)?$/.test(resolved)) {
+              context.report({
+                node,
+                message:
+                  "service が repository を import している。必要な保存の形は service に type で宣言し、repository がそれを満たす",
+              });
+            }
+          },
+        };
+      },
+    },
+
+    /**
+     * モジュールの一番上に、変わる状態を置かない。Workers では 1 つの isolate が
+     * 同時に複数のリクエストを捌くので、ここに置いたものは全リクエストで共有され、
+     * 別の利用者のデータが混ざる。リクエストごとのものは makeDeps か c に置く
+     */
+    "no-module-scope-state": {
+      create(context) {
+        const MUTABLE = new Set(["Map", "Set", "WeakMap", "WeakSet", "Array"]);
+
+        return {
+          Program(program) {
+            for (const statement of program.body) {
+              const declaration =
+                statement.type === "ExportNamedDeclaration" ? statement.declaration : statement;
+              if (declaration?.type !== "VariableDeclaration") continue;
+
+              if (declaration.kind !== "const") {
+                context.report({
+                  node: declaration,
+                  message: `モジュールの一番上の ${declaration.kind}。同時リクエストで共有されるので、変わる値は置かない`,
+                });
+                continue;
+              }
+              for (const declarator of declaration.declarations) {
+                const init = unwrap(declarator.init);
+                if (init?.type === "NewExpression" && MUTABLE.has(init.callee?.name)) {
+                  context.report({
+                    node: declarator,
+                    message: `モジュールの一番上の new ${init.callee.name}()。同時リクエストで共有されるので、中身が変わる入れ物は置かない`,
+                  });
+                }
+              }
+            }
+          },
+        };
+      },
+    },
+
+    /**
      * 認証について決めたことを宣言に書かせる。
      *
      * guard を落としても、handler が authUserId を読まなければ tsc は通る。

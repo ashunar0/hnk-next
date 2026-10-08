@@ -1,5 +1,5 @@
 import type { InvoiceResponse, ListInvoicesResponse } from "@contract/invoices/type";
-import type { InvoiceRow } from "./repository";
+import type { InvoiceRow } from "./table";
 
 export function invoiceResponse(row: InvoiceRow): InvoiceResponse {
   return {

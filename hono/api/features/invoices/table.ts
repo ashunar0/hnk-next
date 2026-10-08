@@ -20,3 +20,10 @@ export const invoices = sqliteTable(
     index("invoices_updated_at_idx").on(table.updatedAt),
   ],
 );
+
+/** 保存されている 1 行。応答の形とは別 */
+export type InvoiceRow = typeof invoices.$inferSelect;
+
+export type NewInvoiceRow = typeof invoices.$inferInsert;
+
+export type InvoiceUpdateValues = Partial<NewInvoiceRow>;

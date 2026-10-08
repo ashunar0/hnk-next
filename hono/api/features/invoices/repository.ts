@@ -1,21 +1,9 @@
 import { desc, eq } from "drizzle-orm";
 import type { Scope } from "../../db";
+import type { InvoicesRepository } from "./service";
 import { invoices } from "./table";
 
-/** 保存されている 1 行。応答の形とは別 */
-export type InvoiceRow = typeof invoices.$inferSelect;
-
-export type NewInvoiceRow = typeof invoices.$inferInsert;
-export type InvoiceUpdateValues = Partial<NewInvoiceRow>;
-
-export type InvoicesRepository = {
-  listByOwnerId(ownerId: string): Promise<InvoiceRow[]>;
-  findById(id: string): Promise<InvoiceRow | null>;
-  insert(row: NewInvoiceRow): Promise<void>;
-  update(id: string, values: InvoiceUpdateValues): Promise<void>;
-  deleteById(id: string): Promise<void>;
-};
-
+/** service が宣言した InvoicesRepository を、D1 で満たす */
 export function invoicesRepository(scope: Scope<typeof invoices>): InvoicesRepository {
   return {
     async listByOwnerId(ownerId) {

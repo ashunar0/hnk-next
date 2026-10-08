@@ -1,6 +1,18 @@
 import type { InvoiceInput } from "@contract/invoices/model";
 import { err, ok, type Result } from "hnk";
-import type { InvoiceRow, InvoiceUpdateValues, InvoicesRepository } from "./repository";
+import type { InvoiceRow, InvoiceUpdateValues, NewInvoiceRow } from "./table";
+
+/**
+ * この service が必要とする保存の形。使う側のここで宣言し、repository.ts がそれを満たす。
+ * service は repository.ts を知らないので、テストでは同じ形の偽物を渡せる
+ */
+export type InvoicesRepository = {
+  listByOwnerId(ownerId: string): Promise<InvoiceRow[]>;
+  findById(id: string): Promise<InvoiceRow | null>;
+  insert(row: NewInvoiceRow): Promise<void>;
+  update(id: string, values: InvoiceUpdateValues): Promise<void>;
+  deleteById(id: string): Promise<void>;
+};
 
 export function invoicesService(repo: InvoicesRepository) {
   return {
