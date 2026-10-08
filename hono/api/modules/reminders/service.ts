@@ -18,6 +18,8 @@ export type RemindersRepository = {
   claim(reminder: Reminder): Promise<ReminderStatus>;
   /** 送れたことを確定する */
   markSent(reminder: Reminder): Promise<void>;
+  /** 送るべきでなかった（積んだ後に支払われた、消された）ことを残す */
+  markSkipped(reminder: Reminder): Promise<void>;
 };
 
 /** 手順が必要とするメールの形。mailer.resend.ts が満たす */
@@ -72,9 +74,12 @@ export function remindersService(
      * 督促を 1 通送る。同じ請求書には 1 日 1 通まで。
      *
      * 先に押さえ → メールを送る → 確定、の順。キューは同じ中身を 2 回届けることがあり、途中で落ちれば再送される。
-     * - 確定済みなら送らない
+     * - 確定済みか見送り済みなら送らない
      * - 押さえたまま落ちたら、再送で送り直す。冪等キーが同じなので、提供元が 1 通にまとめる
-     * 業務の判断: 督促は欠けても重複してもいけない。冪等キーで両方を防ぐ
+     * - 送るべきでなくなっていたら、見送りとして残す
+     * 業務の判断: 督促は欠けても重複してもいけない。冪等キーで両方を防ぐ。
+     * ただし提供元が冪等キーを覚えているのは 24 時間（Resend）。それより後の再送では 2 通目が出うる。
+     * キーに日付が入っていて、キューの再送も同じ日のうちに終わる前提で成り立つ
      */
     async send(
       job: ReminderJob,
@@ -82,11 +87,14 @@ export function remindersService(
       now: Date,
     ): Promise<Result<"SENT" | "SKIPPED", "MAIL_FAILED">> {
       const reminder = { invoiceId: job.invoiceId, sentOn: dayOf(now) };
-      if ((await repo.claim(reminder)) === "sent") return ok("SKIPPED");
+      if ((await repo.claim(reminder)) !== "claimed") return ok("SKIPPED");
 
       // 積んだ後に支払われたり消されたりしたものは送らない
       const invoice = await invoices.getRemindable(job.invoiceId, viewer, now);
-      if (!invoice.ok) return ok("SKIPPED");
+      if (!invoice.ok) {
+        await repo.markSkipped(reminder);
+        return ok("SKIPPED");
+      }
 
       const sent = await mailer.send({
         to: invoice.value.customerEmail,

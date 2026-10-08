@@ -50,5 +50,11 @@ export function remindersRepository(scope: Scope<typeof remindersTable>): Remind
         .update({ status: "sent" })
         .where(and(eq(remindersTable.invoiceId, invoiceId), eq(remindersTable.sentOn, sentOn)));
     },
+
+    async markSkipped({ invoiceId, sentOn }) {
+      await scope
+        .update({ status: "skipped" })
+        .where(and(eq(remindersTable.invoiceId, invoiceId), eq(remindersTable.sentOn, sentOn)));
+    },
   };
 }

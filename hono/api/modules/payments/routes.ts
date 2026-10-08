@@ -3,7 +3,7 @@
  */
 import { createEndpoint, createRoute, createRouter, errorResponses, json, jsonBody } from "hnk";
 import { z } from "zod";
-import { GatewayFailed, NotFound, NotPayable } from "../../errors";
+import { GatewayFailed, NotFound, NotPayable, PaymentStarting } from "../../errors";
 import { requireAuth } from "../../middleware/auth";
 
 // 受け取る形
@@ -29,7 +29,7 @@ export const paymentsRouter = createRouter()
         request: { body: jsonBody(startPaymentInputSchema) },
         responses: {
           200: json(startPaymentResponseSchema, "決済サービスの支払い画面"),
-          ...errorResponses(NotFound, NotPayable, GatewayFailed),
+          ...errorResponses(NotFound, NotPayable, PaymentStarting, GatewayFailed),
         },
       }),
       async (c, reply, { payments }) => {

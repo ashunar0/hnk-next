@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "701d1a8d-7175-414c-bd45-7b5af78b95a4",
+  "id": "29e94ec6-10e8-4e84-9e9c-1214009872eb",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "invoices": {
@@ -142,6 +142,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "checkout_url": {
+          "name": "checkout_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "integer",
@@ -169,6 +176,12 @@
           "name": "payments_invoice_id_idx",
           "columns": ["invoice_id"],
           "isUnique": false
+        },
+        "payments_one_pending_idx": {
+          "name": "payments_one_pending_idx",
+          "columns": ["invoice_id"],
+          "isUnique": true,
+          "where": "\"payments\".\"status\" = 'pending'"
         }
       },
       "foreignKeys": {

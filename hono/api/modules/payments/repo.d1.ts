@@ -1,8 +1,8 @@
 /**
  * payments の保存。service.ts が宣言した PaymentsRepository を、D1 で満たす
  */
-import { eq, sql } from "drizzle-orm";
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { and, eq, sql } from "drizzle-orm";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import type { Scope } from "../../db";
 import { invoicesTable } from "../invoices/repo.d1";
 import { paymentStatuses, type Payment } from "./domain";
@@ -21,10 +21,17 @@ export const paymentsTable = sqliteTable(
     amount: integer("amount").notNull(),
     status: text("status", { enum: paymentStatuses }).default("pending").notNull(),
     providerRef: text("provider_ref").unique(),
+    checkoutUrl: text("checkout_url"),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).default(now).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).default(now).notNull(),
   },
-  (table) => [index("payments_invoice_id_idx").on(table.invoiceId)],
+  (table) => [
+    index("payments_invoice_id_idx").on(table.invoiceId),
+    // 1 つの請求書に、進行中の支払いは 1 つだけ（domain の ONE_PENDING_PER_INVOICE）
+    uniqueIndex("payments_one_pending_idx")
+      .on(table.invoiceId)
+      .where(sql`${table.status} = 'pending'`),
+  ],
 );
 
 type PaymentRow = typeof paymentsTable.$inferSelect;
@@ -36,21 +43,36 @@ const toPayment = (row: PaymentRow): Payment => ({
   amount: row.amount,
   status: row.status,
   providerRef: row.providerRef,
+  checkoutUrl: row.checkoutUrl,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 });
 
 export function paymentsRepository(scope: Scope<typeof paymentsTable>): PaymentsRepository {
   return {
-    async insert(payment) {
-      const [row] = await scope.insert(payment).returning();
-      if (!row) throw new Error(`payment ${payment.id} was not returned after insert`);
+    async insertPending(payment) {
+      const [row] = await scope
+        .insert({ ...payment, status: "pending" })
+        .onConflictDoNothing()
+        .returning();
 
-      return toPayment(row);
+      return row ? toPayment(row) : null;
     },
 
-    async attachProviderRef(id, providerRef) {
-      await scope.update({ providerRef, updatedAt: new Date() }).where(eq(paymentsTable.id, id));
+    async findPending(invoiceId) {
+      const [row] = await scope.reads
+        .select()
+        .from(paymentsTable)
+        .where(and(eq(paymentsTable.invoiceId, invoiceId), eq(paymentsTable.status, "pending")))
+        .limit(1);
+
+      return row ? toPayment(row) : null;
+    },
+
+    async attachCheckout(id, { providerRef, checkoutUrl }) {
+      await scope
+        .update({ providerRef, checkoutUrl, updatedAt: new Date() })
+        .where(eq(paymentsTable.id, id));
     },
 
     async markFailed(id) {

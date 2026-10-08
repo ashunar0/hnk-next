@@ -9,8 +9,8 @@ export type Reminder = {
   sentOn: string;
 };
 
-/** 督促の状態。送る前に押さえ（claimed）、送れたら確定（sent） */
-export const reminderStatuses = ["claimed", "sent"] as const;
+/** 督促の状態。送る前に押さえ（claimed）、送れたら確定（sent）、送るべきでなかったら見送り（skipped） */
+export const reminderStatuses = ["claimed", "sent", "skipped"] as const;
 
 export type ReminderStatus = (typeof reminderStatuses)[number];
 

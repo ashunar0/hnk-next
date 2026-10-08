@@ -20,6 +20,7 @@ CREATE TABLE `payments` (
 	`amount` integer NOT NULL,
 	`status` text DEFAULT 'pending' NOT NULL,
 	`provider_ref` text,
+	`checkout_url` text,
 	`created_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
 	`updated_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
 	FOREIGN KEY (`invoice_id`) REFERENCES `invoices`(`id`) ON UPDATE no action ON DELETE cascade
@@ -27,6 +28,7 @@ CREATE TABLE `payments` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX `payments_provider_ref_unique` ON `payments` (`provider_ref`);--> statement-breakpoint
 CREATE INDEX `payments_invoice_id_idx` ON `payments` (`invoice_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `payments_one_pending_idx` ON `payments` (`invoice_id`) WHERE "payments"."status" = 'pending';--> statement-breakpoint
 CREATE TABLE `reminders` (
 	`invoice_id` text NOT NULL,
 	`sent_on` text NOT NULL,

@@ -22,7 +22,7 @@ const payable: PayableInvoices = {
 const gateway = (works: boolean): PaymentGateway => ({
   async createCheckout({ paymentId }) {
     return works
-      ? ok({ checkoutUrl: "https://checkout.test/x", providerRef: `cs_${paymentId}` })
+      ? ok({ checkoutUrl: `https://checkout.test/${paymentId}`, providerRef: `cs_${paymentId}` })
       : err("GATEWAY_FAILED");
   },
   async verifyEvent() {
@@ -59,4 +59,20 @@ it("決済画面を作れなかったら、記録した支払いを失敗で閉�
   expect(await payments.start("pay2", alice)).toEqual({ ok: false, error: "GATEWAY_FAILED" });
   const rows = await paymentsOf("pay2");
   expect(rows.map((r) => [r.status, r.providerRef])).toEqual([["failed", null]]);
+});
+
+it("同じ請求書で 2 回始めても、進行中の支払いは 1 つで、同じ決済画面を返す", async () => {
+  await insertInvoices([invoice({ id: "pay3", status: "sent" })]);
+  const payments = paymentsService(
+    paymentsRepository(scopeTo(db(), paymentsTable)),
+    gateway(true),
+    payable,
+  );
+
+  const first = await payments.start("pay3", alice);
+  const second = await payments.start("pay3", alice);
+
+  expect(first.ok && second.ok).toBe(true);
+  if (first.ok && second.ok) expect(second.value.checkoutUrl).toBe(first.value.checkoutUrl);
+  expect((await paymentsOf("pay3")).filter((r) => r.status === "pending")).toHaveLength(1);
 });

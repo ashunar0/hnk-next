@@ -3,13 +3,21 @@
  */
 import { err, ok, type Result } from "hnk/result";
 import type { System, Viewer } from "../users/domain";
-import type { Payment, PaymentEvent } from "./domain";
+import { isStale, type Payment, type PaymentEvent } from "./domain";
 
 /** 手順が必要とする保存の形。repo.d1.ts が満たす */
 export type PaymentsRepository = {
-  insert(payment: Omit<Payment, "createdAt" | "updatedAt">): Promise<Payment>;
-  /** 決済サービスの画面を作れたら、その識別子を結びつける */
-  attachProviderRef(id: string, providerRef: string): Promise<void>;
+  /**
+   * 進行中の支払いを記録する。その請求書に進行中のものがすでにあれば何もせず null を返す
+   * （DB の部分ユニーク索引が、同時に 2 つ記録されるのを止める）
+   */
+  insertPending(
+    payment: Omit<Payment, "status" | "createdAt" | "updatedAt">,
+  ): Promise<Payment | null>;
+  /** その請求書の、進行中の支払い */
+  findPending(invoiceId: string): Promise<Payment | null>;
+  /** 決済サービスの画面を作れたら、その識別子と URL を結びつける */
+  attachCheckout(id: string, checkout: { providerRef: string; checkoutUrl: string }): Promise<void>;
   /** 画面を作れなかった支払いを、失敗で閉じる */
   markFailed(id: string): Promise<void>;
   /** 決済サービス側の識別子で状態を書き換える。無ければ null */
@@ -63,22 +71,34 @@ export function paymentsService(
     ): Promise<
       Result<
         { payment: Payment; checkoutUrl: string },
-        "NOT_FOUND" | "NOT_PAYABLE" | "GATEWAY_FAILED"
+        "NOT_FOUND" | "NOT_PAYABLE" | "GATEWAY_FAILED" | "PAYMENT_STARTING"
       >
     > {
       const invoice = await invoices.getPayable(invoiceId, viewer);
       if (!invoice.ok) return invoice;
 
+      // 1 つの請求書に進行中の支払いは 1 つ。2 回目は、1 回目の決済画面をそのまま返す
+      const existing = await repo.findPending(invoiceId);
+      if (existing !== null) {
+        if (existing.checkoutUrl !== null)
+          return ok({ payment: existing, checkoutUrl: existing.checkoutUrl });
+        // 画面を作っている途中。ただし長く止まっているものは、途中で落ちたとみなして閉じ、作り直す
+        if (!isStale(existing, new Date())) return err("PAYMENT_STARTING");
+        await repo.markFailed(existing.id);
+      }
+
       // 先に記録 → 外へ → 結果で確定。外に出る前に記録があるので、何が起きたかを後から辿れる。
-      // 業務の判断: 画面を作った直後に落ちると、識別子の無い pending が残る（欠けてもよい）。
-      // 利用者はまだ画面を受け取っていないので、もう一度始めれば新しい支払いになる
-      const payment = await repo.insert({
+      // 業務の判断: 画面を作った直後に落ちると、画面の無い pending が残る（欠けてもよい）。
+      // 利用者はまだ画面を受け取っていないので、しばらくして始め直せば、古いものを閉じて新しく作る
+      const payment = await repo.insertPending({
         id: crypto.randomUUID(),
         invoiceId,
         amount: invoice.value.amount,
-        status: "pending",
         providerRef: null,
+        checkoutUrl: null,
       });
+      // 同時に始めた別のリクエストが、先に記録した
+      if (payment === null) return err("PAYMENT_STARTING");
 
       const checkout = await gateway.createCheckout({
         paymentId: payment.id,
@@ -90,10 +110,10 @@ export function paymentsService(
         return checkout;
       }
 
-      await repo.attachProviderRef(payment.id, checkout.value.providerRef);
+      await repo.attachCheckout(payment.id, checkout.value);
 
       return ok({
-        payment: { ...payment, providerRef: checkout.value.providerRef },
+        payment: { ...payment, ...checkout.value },
         checkoutUrl: checkout.value.checkoutUrl,
       });
     },

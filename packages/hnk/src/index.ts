@@ -79,8 +79,7 @@ class HnkError extends HTTPException {
 }
 
 /** HTTP の入口で起きる失敗を作る。middleware など、handler の外で `throw fail(Unauthorized)` */
-export const fail = (error: HttpError, message = error.message) =>
-  new HnkError(error.code, error.status, message);
+export const fail = (error: HttpError, message = error.message) => new HnkError(error.code, error.status, message);
 
 const errorBody = (code: string, message: string) => ({ error: { code, message } });
 
@@ -123,23 +122,54 @@ export const json = <T extends z.ZodType>(schema: T, description: string) => ({
   content: { "application/json": { schema } },
 });
 
-const errorSchema = <K extends string>(code: K) =>
-  z.object({ error: z.object({ code: z.literal(code), message: z.string() }) });
+const errorSchema = <K extends string>(codes: readonly K[]) =>
+  z.object({ error: z.object({ code: z.literal(codes), message: z.string() }) });
+
+/** 応答の宣言に、その番号で返しうる失敗を覚えさせる。OpenAPI には出ない */
+const DECLARED_ERRORS: unique symbol = Symbol("hnk.declaredErrors");
+
+type ErrorResponse = ReturnType<typeof json> & { readonly [DECLARED_ERRORS]: readonly HttpError[] };
+
+/** 同じ番号の失敗を 1 つの応答にまとめる。コードは literal の和、文言はコードごとに覚えておく */
+const errorResponseOf = (errors: readonly HttpError[]): ErrorResponse => ({
+  ...json(errorSchema(errors.map((e) => e.code)), errors.map((e) => e.message).join(" / ")),
+  [DECLARED_ERRORS]: errors,
+});
 
 /**
  * responses の失敗の部分。ステータスは失敗が持っているので、手では書かない。
  * `responses: { 200: json(...), ...errorResponses(Unauthorized, NotFound) }`
+ * 同じ番号の失敗が複数あっても、1 つの応答にまとめるので消えない
  */
-export const errorResponses = <const T extends readonly HttpError[]>(...errors: T) =>
-  Object.fromEntries(errors.map((e) => [e.status, json(errorSchema(e.code), e.message)])) as ErrorResponses<
-    T[number]
-  >;
+export const errorResponses = <const T extends readonly HttpError[]>(...errors: T) => {
+  const byStatus = new Map<number, HttpError[]>();
+  for (const e of errors) byStatus.set(e.status, [...(byStatus.get(e.status) ?? []), e]);
+
+  return Object.fromEntries(
+    [...byStatus].map(([status, group]) => [status, errorResponseOf(group)]),
+  ) as unknown as ErrorResponses<T[number]>;
+};
 
 type ErrorResponses<E extends HttpError> = {
-  [P in E as P["status"]]: {
+  [S in E["status"]]: {
     description: string;
-    content: { "application/json": { schema: ReturnType<typeof errorSchema<P["code"]>> } };
+    content: {
+      "application/json": {
+        schema: ReturnType<typeof errorSchema<Extract<E, { status: S }>["code"]>>;
+      };
+    };
   };
+};
+
+/** 2 つの responses を重ねる。同じ番号の失敗の宣言どうしは、片方で消さずにまとめる */
+const mergeResponses = (a: Record<string, unknown>, b: Record<string, unknown>) => {
+  const merged: Record<string, unknown> = { ...a, ...b };
+  for (const status of Object.keys(a)) {
+    const left = (a[status] as Partial<ErrorResponse>)[DECLARED_ERRORS];
+    const right = (b[status] as Partial<ErrorResponse> | undefined)?.[DECLARED_ERRORS];
+    if (left && right) merged[status] = errorResponseOf([...left, ...right]);
+  }
+  return merged;
 };
 
 // ---- guard と、失敗の自動の宣言 ----
@@ -176,7 +206,9 @@ type HasInput<R> = R extends { request: infer Q }
   : false;
 
 /** 自動で足す失敗。guard が持つものと、入力があれば ValidationError */
-type AutoErrors<R> = GuardErrorsOf<R extends { middleware: infer M } ? M : never> | (HasInput<R> extends true ? typeof ValidationError : never);
+type AutoErrors<R> =
+  | GuardErrorsOf<R extends { middleware: infer M } ? M : never>
+  | (HasInput<R> extends true ? typeof ValidationError : never);
 
 /** 手で書いた失敗のコード。reply.failure が受け取れるのはこれだけ */
 declare const DECLARED_BY_HAND: unique symbol;
@@ -198,7 +230,7 @@ export const createRoute = <const R extends RouteConfig>(config: R) => {
 
   return zodCreateRoute({
     ...config,
-    responses: { ...errorResponses(...auto), ...config.responses },
+    responses: mergeResponses(errorResponses(...auto), config.responses),
   } as WithAutoErrors<R>);
 };
 
@@ -255,16 +287,8 @@ type Reply<R extends RouteConfig> = {
 /** 宣言の中から、そのコードの失敗を探す。何番で、どの文言で返すかは宣言が知っている */
 const findDeclaredFailure = (route: RouteConfig, code: string) => {
   for (const [status, response] of Object.entries(route.responses)) {
-    const { description, content } = response as {
-      description: string;
-      content?: Record<string, { schema?: unknown }>;
-    };
-    const schema = content?.["application/json"]?.schema;
-    const literal = (schema as z.ZodObject | undefined)?.shape?.error;
-    const codeSchema = (literal as z.ZodObject | undefined)?.shape?.code as z.ZodLiteral | undefined;
-    if (codeSchema?.values?.has(code)) {
-      return { status: Number(status) as ContentfulStatusCode, message: description };
-    }
+    const declared = (response as Partial<ErrorResponse>)[DECLARED_ERRORS]?.find((e) => e.code === code);
+    if (declared) return { status: Number(status) as ContentfulStatusCode, message: declared.message };
   }
   throw new Error(`${code} is not declared in the responses of ${route.method.toUpperCase()} ${route.path}`);
 };
@@ -283,15 +307,14 @@ export const createEndpoint = <const R extends RouteConfig>(
   ) => MaybePromise<RouteConfigToTypedResponse<R>>,
 ) => {
   const handler: RouteHandler<R, RouteConfigToEnv<R> & RegisteredEnv> = (c: Context) => {
-    const reply = ((status: number, body: unknown) =>
-      c.json(body as never, status as never)) as unknown as Reply<R>;
+    const reply = ((status: number, body: unknown) => c.json(body as never, status as never)) as unknown as Reply<R>;
     reply.failure = ((code: string) => {
       const declared = findDeclaredFailure(route, code);
       return c.json(errorBody(code, declared.message), declared.status);
     }) as unknown as Reply<R>["failure"];
 
     const resolve = c.get(DEPS_KEY as never) as (() => RegisteredDeps) | undefined;
-    if (resolve === undefined) throw new Error("provideDeps が use されていない。app.use(\"*\", provideDeps(makeDeps))");
+    if (resolve === undefined) throw new Error('provideDeps が use されていない。app.use("*", provideDeps(makeDeps))');
     const deps = resolve();
 
     // R が決まっていないここでは TS が照らし合わせきれないので付け替える。使う側では fn の型で守られる

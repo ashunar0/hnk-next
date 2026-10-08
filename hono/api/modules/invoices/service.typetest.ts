@@ -26,3 +26,11 @@ export async function systemCannotCreate(invoices: InvoicesService, raw: unknown
   // @ts-expect-error create が受け取るのは User だけ
   await invoices.create(systemViewer, invoiceInputSchema.parse(raw));
 }
+
+// 印はリテラルでは作れない。システムは systemViewer、利用者は認証を通ったときだけ現れる
+export async function cannotForgeViewers(invoices: InvoicesService) {
+  // @ts-expect-error { kind: "system" } と書いてもシステムにはなれない
+  await invoices.list({ kind: "system" }, { limit: 10 });
+  // @ts-expect-error { kind: "user", ... } と書いても利用者にはなれない
+  await invoices.list({ kind: "user", id: "x", role: "admin" }, { limit: 10 });
+}

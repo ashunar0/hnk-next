@@ -86,7 +86,8 @@ export async function startPayment() {
   }
   if (res.status === 409) {
     const body = await res.json();
-    body.error.code satisfies "NOT_PAYABLE";
+    // 409 は 2 つ。同じ番号でも両方が型に出る
+    body.error.code satisfies "NOT_PAYABLE" | "PAYMENT_STARTING";
   }
   if (res.status === 502) {
     const body = await res.json();

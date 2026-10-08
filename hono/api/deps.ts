@@ -14,14 +14,14 @@ import { reportsRepository } from "./modules/reports/repo.d1";
 import { reportsService } from "./modules/reports/service";
 
 /**
- * feature の組み立て方を集める唯一の場所（composition root）。
+ * module の組み立て方を集める唯一の場所（composition root）。
  *
  * 組み立てた結果ではなく、組み立て方を buildApp に渡す。hnk の provideDeps が
- * リクエストごとに呼び、handler は第 3 引数で受け取る。
- * 組み立ての入れ子は `hnk g feature` が 1 つずつ足すので、手では書かない。
+ * リクエストごとに呼び、handler は第 3 引数で受け取る。HTTP 以外の inbound（cron、キュー）は index.ts で呼ぶ。
  * db はリクエストごとに作る——モジュールの外で作ると、接続を持つ DB では
- * リクエストをまたいで共有されてしまう。getter なので、読んだ feature だけが組み上がる。
- * db そのものは返さない。route が書き込み先を選べてしまうので
+ * リクエストをまたいで共有されてしまう。getter なので、読んだ module だけが組み上がる。
+ * getter は互いを呼ぶので、module の依存は一方向に保つ（逆向きが入ると無限再帰。test/deps.test.ts が止める）。
+ * db そのものは返さない。inbound が書き込み先を選べてしまうので
  */
 export const makeDeps = (env: AppEnv["Bindings"]) => {
   const db = wireDb(env.DB);

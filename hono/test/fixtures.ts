@@ -2,13 +2,13 @@ import { env } from "cloudflare:workers";
 import { scopeTo, wireDb } from "../api/db";
 import type { Invoice } from "../api/modules/invoices/domain";
 import { invoicesTable } from "../api/modules/invoices/repo.d1";
-import type { User } from "../api/modules/users/domain";
+import { authenticatedUser } from "../api/modules/users/domain";
 
 export const db = () => wireDb(env.DB);
 
-export const alice: User = { kind: "user", id: "alice", role: "member" };
-export const bob: User = { kind: "user", id: "bob", role: "member" };
-export const admin: User = { kind: "user", id: "admin", role: "admin" };
+export const alice = authenticatedUser("alice", "member");
+export const bob = authenticatedUser("bob", "member");
+export const admin = authenticatedUser("admin", "admin");
 
 /** 請求書を 1 件。テストで気にしない項目は既定値で埋める */
 export const invoice = (over: Partial<Invoice> & Pick<Invoice, "id">): Invoice => ({

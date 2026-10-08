@@ -85,3 +85,18 @@ it("メールに失敗したら押さえたまま残り、再送で同じ冪等�
   });
   expect(sent).toEqual(["reminder/r2/2026-06-10"]);
 });
+
+it("送るべきでなくなっていたら、見送りとして残し、その日はもう送らない", async () => {
+  await insertInvoices([invoice({ id: "r3" })]);
+  const { mailer, sent } = fakeMailer();
+  const paid: OverdueInvoices = { ...remindable, getRemindable: async () => err("NOT_REMINDABLE") };
+  const repo = remindersRepository(scopeTo(db(), remindersTable));
+  const reminders = remindersService(repo, mailer, { async enqueue() {} }, paid);
+
+  expect(await reminders.send({ invoiceId: "r3" }, systemViewer, now)).toEqual({
+    ok: true,
+    value: "SKIPPED",
+  });
+  expect(await repo.claim({ invoiceId: "r3", sentOn: "2026-06-10" })).toBe("skipped");
+  expect(sent).toEqual([]);
+});

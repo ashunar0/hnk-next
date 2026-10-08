@@ -150,7 +150,8 @@ go build ./cmd/api
   deps.ts の getter は互いを呼ぶので、逆向きが 1 本入ると実行時に無限再帰になる。全部を 1 回ずつ組み上げるスモークテスト（test/deps.test.ts）で止める
 - **route は `createRoute` ＋ `createEndpoint`**（@hono/zod-openapi の上）。`c.json` だとずれたときの赤線が handler の頭に付くので、`reply` で返す
 - **失敗は値で、番号と文言を持つ**（`httpError("NOT_FOUND", 404, "…")`）。guard が持つ失敗と ValidationError は自動で宣言する。
-  `reply.failure` が受け取れるのは、route に手で書いたドメインの失敗だけ
+  `reply.failure` が受け取れるのは、route に手で書いたドメインの失敗だけ。同じ番号の失敗が複数あっても 1 つの応答にまとめ、コードごとの文言で返す
+- **利用者とシステムには印を付ける**（`unique symbol`）。`{ kind: "system" }` のようなリテラルでは書けず、作れるのは `systemViewer` と `authenticatedUser` だけ
 - **module は domain / service / routes / repo.<技術> で始め、2 つ目が現れたときだけ育てる**（上の「出発点と育ち方」）。
   名前は modules（境界を持ったまとまり）。features は「機能」で、複数のモノにまたがる操作の言葉なので使わない
 - **domain は外を知らない**。import できるのは zod だけ。ルールは zod で書き、フロントとも共有する。手順（How）は service に分ける
@@ -182,7 +183,6 @@ go build ./cmd/api
 
 ## 未決
 
-- 同じ番号の失敗が 2 つあると、responses のキーがぶつかって片方が消える
 - D1 には対話的なトランザクションが無い（`batch` が基本）。マルチテナントを考えるときに効く
 - テストの方針（service は偽物の repo、HTTP は vitest-pool-workers のローカル D1、偽物は外の API だけ、が候補）
 - `withViewer` が仮実装で、テストからログイン状態を作れない
