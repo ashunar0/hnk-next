@@ -1,7 +1,3 @@
-/**
- * 全 feature のテーブル。feature が増えたらここに足す。
- * service が行の型を使うので、repository の中には置かない
- */
 import { sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 

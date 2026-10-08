@@ -23,7 +23,7 @@
             "paths": [
               {
                 "name": "zod",
-                "message": "zod を書いていいのは route と contract/ だけ。同じルールを route の外でも使うなら contract の model に昇格する"
+                "message": "zod を書いていいのは contract/ だけ。入出力の形は contract の schema に置く"
               }
             ]
           }
@@ -39,38 +39,9 @@
             "paths": [
               {
                 "name": "zod",
-                "message": "zod を書いていいのは route と contract/ だけ。同じルールを route の外でも使うなら contract の model に昇格する"
+                "message": "zod を書いていいのは contract/ だけ。入出力の形は contract の schema に置く"
               },
-              {
-                "name": "hono",
-                "message": "feature は hono を直接使わない。hnk から import する"
-              },
-              {
-                "name": "@hono/zod-openapi",
-                "message": "feature は zod-openapi を直接使わない。hnk から import する"
-              }
-            ],
-            "patterns": [
-              {
-                "group": ["hono/*", "@hono/*"],
-                "message": "feature は hono を直接使わない。hnk から import する"
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "files": ["api/features/*/route.ts"],
-      "rules": {
-        "no-restricted-imports": [
-          "error",
-          {
-            "paths": [
-              {
-                "name": "hono",
-                "message": "feature は hono を直接使わない。hnk から import する"
-              },
+              { "name": "hono", "message": "feature は hono を直接使わない。hnk から import する" },
               {
                 "name": "@hono/zod-openapi",
                 "message": "feature は zod-openapi を直接使わない。hnk から import する"
@@ -95,7 +66,7 @@
             "paths": [
               {
                 "name": "zod",
-                "message": "zod を書いていいのは route と contract/ だけ。同じルールを route の外でも使うなら contract の model に昇格する"
+                "message": "zod を書いていいのは contract/ だけ。入出力の形は contract の schema に置く"
               },
               {
                 "name": "hono",

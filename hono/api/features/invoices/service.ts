@@ -1,5 +1,5 @@
 import { err, ok, type Result } from "hnk/result";
-import type { InvoiceRow, InvoiceUpdateValues, NewInvoiceRow } from "../../db/schema";
+import type { InvoiceRow, InvoiceUpdateValues, NewInvoiceRow } from "./table";
 
 /** 作成・更新で受け取る値。検査は route が済ませている */
 export type InvoiceInput = { title: string; body: string };
