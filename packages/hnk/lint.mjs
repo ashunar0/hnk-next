@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 
 /**
@@ -7,16 +8,62 @@ import path from "node:path";
 
 const fileOf = (context) => context.filename ?? context.getFilename();
 
-/** このファイルが属する feature 名。features/ の外なら undefined */
-const featureOf = (file) => file.match(/[/\\]features[/\\]([^/\\]+)[/\\]/)?.[1];
+/** 一番近い tsconfig.json のあるディレクトリと、その paths。アプリの根として使う */
+const projectCache = new Map();
+const projectOf = (file) => {
+  let dir = path.dirname(file);
+  while (true) {
+    if (projectCache.has(dir)) return projectCache.get(dir);
+    const tsconfig = path.join(dir, "tsconfig.json");
+    if (fs.existsSync(tsconfig)) {
+      const { compilerOptions } = JSON.parse(fs.readFileSync(tsconfig, "utf8"));
+      const project = { root: dir, paths: compilerOptions?.paths ?? {} };
+      projectCache.set(dir, project);
+      return project;
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) return null;
+    dir = parent;
+  }
+};
 
-/** 相対 import だけ解決する。パッケージやエイリアスは対象外 */
-const resolveRelative = (file, specifier) =>
-  specifier.startsWith(".") ? path.resolve(path.dirname(file), specifier) : null;
+/** import 先をファイルの絶対パスに解決する。相対 import と tsconfig の paths。パッケージなら null */
+const resolveImport = (file, specifier, project) => {
+  if (specifier.startsWith(".")) return path.resolve(path.dirname(file), specifier);
+  for (const [alias, [target]] of Object.entries(project.paths)) {
+    const prefix = alias.replace(/\*$/, "");
+    if (alias.endsWith("*") ? specifier.startsWith(prefix) : specifier === alias) {
+      return path.resolve(project.root, target.replace("*", specifier.slice(prefix.length)));
+    }
+  }
+  return null;
+};
 
-/** 解決先が features/<name>/<layer> なら、その feature 名を返す */
-const layerAt = (resolved, layer) =>
-  resolved?.match(new RegExp(`[/\\\\]features[/\\\\]([^/\\\\]+)[/\\\\]${layer}$`))?.[1];
+/** パッケージ名。`drizzle-orm/d1` は `drizzle-orm`、`@hono/zod-openapi` はそのまま。hnk だけは入口ごとに分ける */
+const packageOf = (specifier) => {
+  if (specifier === "hnk" || specifier.startsWith("hnk/")) return specifier;
+  const parts = specifier.split("/");
+  return specifier.startsWith("@") ? parts.slice(0, 2).join("/") : parts[0];
+};
+
+/**
+ * アプリの中のファイルを、役割で見る。
+ * features/<f>/<role>.ts → { feature, role }、contract/<f>/<name>.ts → { contract, role: "contract/<name>" }、
+ * api 直下の決めごと（errors, middleware, db, env, deps）→ { role }
+ */
+const placeOf = (resolved, root) => {
+  const rel = path
+    .relative(root, resolved)
+    .replace(/\\/g, "/")
+    .replace(/\.tsx?$/, "")
+    .replace(/\/index$/, "");
+  let m;
+  if ((m = rel.match(/^api\/features\/([^/]+)\/([^/]+)$/))) return { feature: m[1], role: m[2] };
+  if ((m = rel.match(/^contract\/([^/]+)\/([^/]+)$/))) return { contract: m[1], role: `contract/${m[2]}` };
+  if ((m = rel.match(/^api\/(errors|env|deps|db)$/))) return { role: m[1] };
+  if (rel.startsWith("api/middleware/")) return { role: "middleware" };
+  return { role: rel };
+};
 
 /** route.ts か。features 配下のものだけを見る */
 const isRouteFile = (file) => /[/\\]features[/\\][^/\\]+[/\\]route\.ts$/.test(file);
@@ -52,23 +99,57 @@ const rootsAtCreateRouter = (node) => {
  */
 const isGuardName = (node) => node?.type === "Identifier" && /^(require|allow)[A-Z]/.test(node.name);
 
-const foreignLayerRule = ({ layer, appliesTo, message }) => ({
-  create(context) {
-    const file = fileOf(context);
-    const self = featureOf(file);
-    if (!self) return {};
-    if (appliesTo && !appliesTo.test(file)) return {};
-
-    return {
-      ImportDeclaration(node) {
-        const target = layerAt(resolveRelative(file, node.source.value), layer);
-        if (target && target !== self) {
-          context.report({ node, message: message(target) });
-        }
-      },
-    };
+/**
+ * 役割ごとに、import してよい相手。ここに無いものは全部だめ。
+ * "type" は `import type` だけ許す。実行時には依存せず、形だけを借りる
+ *
+ * 相手の書き方:
+ *   パッケージ名（hnk, hnk/result, zod, drizzle-orm）
+ *   自分の feature の役割（table, service, presenter）
+ *   他の feature の役割は "foreign:<role>"
+ *   アプリの決めごと（errors, middleware, db）
+ *   自分の feature の contract（contract/schema, contract/model）
+ */
+const LAYERS = {
+  route: {
+    hnk: "value",
+    "contract/schema": "value",
+    errors: "value",
+    middleware: "value",
+    presenter: "value",
   },
-});
+  presenter: { "contract/schema": "type", table: "type" },
+  service: { "hnk/result": "value", "contract/model": "type", table: "type" },
+  repository: {
+    "drizzle-orm": "value",
+    db: "type",
+    table: "value",
+    "foreign:table": "value",
+    service: "type",
+  },
+  table: { "drizzle-orm": "value" },
+  "contract/schema": { zod: "value", "contract/model": "value" },
+  "contract/model": { zod: "value" },
+};
+
+/** よくある間違いには、どうすればいいかを添える */
+const HINTS = {
+  "service→repository": "必要な保存の形は service に type で宣言し、repository がそれを満たす",
+  "service→foreign:service": "読みなら route から、2 つ以上の feature に書くなら usecases/ を作る",
+  "service→foreign:repository": "読みなら自分の repository の join で、2 つ以上の feature に書くなら usecases/ を作る",
+  "repository→foreign:repository": "読みは自分の repository の join で（相手の table を import してよい）",
+  "route→repository": "route は保存を知らない。service を deps から受け取って呼ぶ",
+  "route→table": "行の形は presenter が知っている。route は presenter を呼ぶ",
+  "route→zod": "入出力の形は contract の schema に置く",
+  "service→zod": "ルールを service で使うなら contract の model に置く",
+  "service→hnk": "service が hnk から使ってよいのは Result だけ。hnk/result から import する",
+};
+
+/** foreign:service → 他 feature の service */
+const show = (name) => name.replace(/^foreign:/, "他 feature の ");
+
+const isTypeOnly = (node) =>
+  node.importKind === "type" || (node.specifiers?.length > 0 && node.specifiers.every((s) => s.importKind === "type"));
 
 const FUNCTIONS = new Set(["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"]);
 
@@ -95,17 +176,59 @@ const RESPONSE_METHODS = new Set(["json", "text", "body", "html", "redirect"]);
 const plugin = {
   meta: { name: "hnk" },
   rules: {
-    "no-foreign-repository": foreignLayerRule({
-      layer: "repository",
-      message: (t) =>
-        `他 feature の storage に手を伸ばしている（${t}）。読みは自分の repository の join で、書きは相手の usecases/ で`,
-    }),
+    /**
+     * 役割ごとの依存の向きを、許可の表（LAYERS）で守らせる。
+     * Go は package の境界が向きを強制するが、ここでは 1 つの feature フォルダに
+     * 役割が同居しているので、ファイル名の約束を機械で止める
+     */
+    "layer-imports": {
+      create(context) {
+        const file = fileOf(context);
+        const project = projectOf(file);
+        if (!project) return {};
+        const self = placeOf(file, project.root);
+        const allowed = LAYERS[self.role];
+        if (!allowed) return {};
 
-    "no-foreign-service-from-service": foreignLayerRule({
-      layer: "service",
-      appliesTo: /[/\\]service\.ts$/,
-      message: (t) => `service が他 feature を連れている（${t}）。読みなら route から、書きなら相手の usecases/ から`,
-    }),
+        const check = (node) => {
+          if (!node.source) return;
+          const specifier = node.source.value;
+          const resolved = resolveImport(file, specifier, project);
+
+          let target;
+          if (resolved === null) target = packageOf(specifier);
+          else {
+            const place = placeOf(resolved, project.root);
+            // 自分の feature 名。contract/invoices も features/invoices と同じ持ち主として見る
+            const own = self.feature ?? self.contract;
+            const foreign = (place.feature && place.feature !== own) || (place.contract && place.contract !== own);
+            target = foreign ? `foreign:${place.role}` : place.role;
+          }
+          const kind = allowed[target];
+          const hint = HINTS[`${self.role}→${target}`];
+          if (!kind) {
+            const list = Object.entries(allowed)
+              .map(([k, v]) => (v === "type" ? `${show(k)}（型だけ）` : show(k)))
+              .join(", ");
+            context.report({
+              node,
+              message: `${self.role} が ${show(target)} を import している。${hint ? `${hint}。` : ""}${self.role} が import してよいのは ${list}`,
+            });
+          } else if (kind === "type" && !isTypeOnly(node)) {
+            context.report({
+              node,
+              message: `${self.role} は ${show(target)} から型だけを借りる。import type にする`,
+            });
+          }
+        };
+
+        return {
+          ImportDeclaration: check,
+          ExportNamedDeclaration: check,
+          ExportAllDeclaration: check,
+        };
+      },
+    },
 
     /**
      * route.ts の公開面は mount する 1 本だけ。ヘルパを export すると
@@ -191,30 +314,6 @@ const plugin = {
     },
 
     /**
-     * service は、自分が使う repository の形を自分で宣言する（使う側が interface を決める）。
-     * repository.ts を import すると向きが逆になり、service が保存の実装を知ってしまう
-     */
-    "service-declares-its-repository": {
-      create(context) {
-        const file = fileOf(context);
-        if (!/[/\\]features[/\\][^/\\]+[/\\]service\.ts$/.test(file)) return {};
-
-        return {
-          ImportDeclaration(node) {
-            const resolved = resolveRelative(file, node.source.value);
-            if (resolved && /[/\\]repository(\.ts)?$/.test(resolved)) {
-              context.report({
-                node,
-                message:
-                  "service が repository を import している。必要な保存の形は service に type で宣言し、repository がそれを満たす",
-              });
-            }
-          },
-        };
-      },
-    },
-
-    /**
      * モジュールの一番上に、変わる状態を置かない。Workers では 1 つの isolate が
      * 同時に複数のリクエストを捌くので、ここに置いたものは全リクエストで共有され、
      * 別の利用者のデータが混ざる。リクエストごとのものは makeDeps か c に置く
@@ -226,8 +325,7 @@ const plugin = {
         return {
           Program(program) {
             for (const statement of program.body) {
-              const declaration =
-                statement.type === "ExportNamedDeclaration" ? statement.declaration : statement;
+              const declaration = statement.type === "ExportNamedDeclaration" ? statement.declaration : statement;
               if (declaration?.type !== "VariableDeclaration") continue;
 
               if (declaration.kind !== "const") {
@@ -289,7 +387,10 @@ const plugin = {
               return;
             }
             if (guards.length > 1) {
-              context.report({ node: guards[1], message: `認証の指定が ${guards.length} 個ある。1 つに決める` });
+              context.report({
+                node: guards[1],
+                message: `認証の指定が ${guards.length} 個ある。1 つに決める`,
+              });
             }
             if (elements[0] !== guards[0]) {
               context.report({

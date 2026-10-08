@@ -26,7 +26,10 @@ export const invoicesRouter = createRouter()
         method: "put",
         path: "/{id}",
         middleware: [requireAuth] as const,
-        request: { params: invoiceParamsSchema, body: jsonBody(invoiceInputSchema) },
+        request: {
+          params: invoiceParamsSchema,
+          body: jsonBody(invoiceInputSchema),
+        },
         responses: {
           200: json(invoiceResponseSchema, "更新した請求書"),
           ...errorResponses(NotFound),
@@ -81,10 +84,10 @@ api/features/invoices/
 
 アプリが大きくなったら出てくるものは、最初からある前提にしない。足すかどうかは感覚ではなく、次の事実で決める。
 
-| 足すもの | 足す条件 |
-|---|---|
+| 足すもの                      | 足す条件                                                                                                                          |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `contract/<feature>/model.ts` | service を route 以外（cron、CSV の取り込みなど）から呼ぶとき。zod の brand で、検査を通った値だけを service が受け取るようにする |
-| `usecases/` | 1 回の操作で 2 つ以上の feature に書き込むとき |
+| `usecases/`                   | 1 回の操作で 2 つ以上の feature に書き込むとき                                                                                    |
 
 ## 動かす
 
@@ -122,9 +125,20 @@ go build ./cmd/api
 - **依存は `buildApp(makeDeps)`**。Workers はリクエストをまたいだ I/O を拒むので、組み立てた結果ではなく組み立て方を渡す。
   `provideDeps` がリクエストごとに、使うときに 1 回だけ組み立てる
 - **repository の形は service が宣言する**（Go の「interface は使う側が決める」）
-- **lint は `hnk/lint` で提供する**。route の export は束 1 本、`createRoute` に認証の指定、`c.json` 禁止、引数の中で await しない、
-  他 feature の repository に触らない、service が repository を import しない、モジュールの一番上に変わる状態を置かない、
-  feature は hono を直接 import しない、zod を書くのは contract/ だけ
+- **lint は `hnk/lint` で提供する**。依存の向きは役割ごとの許可表（`layer-imports`）で守らせる。表に無い import は全部だめで、
+  相対 import も tsconfig の paths 経由も同じに見る。他に、route の export は束 1 本、`createRoute` に認証の指定、`c.json` 禁止、
+  引数の中で await しない、モジュールの一番上に変わる状態を置かない
+
+| 役割            | import してよいもの                                                                     |
+| --------------- | --------------------------------------------------------------------------------------- |
+| route           | hnk, contract/schema, errors, middleware, presenter                                     |
+| presenter       | contract/schema（型だけ）, table（型だけ）                                              |
+| service         | hnk/result, contract/model（型だけ）, table（型だけ）                                   |
+| repository      | drizzle-orm, db（型だけ）, table, 他 feature の table（join のため）, service（型だけ） |
+| table           | drizzle-orm                                                                             |
+| contract/schema | zod, contract/model                                                                     |
+| contract/model  | zod                                                                                     |
+
 - **名前は Hono に合わせて `create〜`**。束は `invoicesRouter`
 
 ## 未決

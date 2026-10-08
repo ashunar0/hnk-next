@@ -9,13 +9,11 @@
     {
       "files": ["api/**/*.ts"],
       "rules": {
-        "hnk/no-foreign-repository": "error",
-        "hnk/no-foreign-service-from-service": "error",
+        "hnk/layer-imports": "error",
         "hnk/route-exports-only-the-router": "error",
         "hnk/no-await-in-call-arguments": "error",
         "hnk/route-replies-through-reply": "error",
         "hnk/route-declares-auth": "error",
-        "hnk/service-declares-its-repository": "error",
         "hnk/no-module-scope-state": "error",
         "no-restricted-imports": [
           "error",
@@ -31,64 +29,9 @@
       }
     },
     {
-      "files": ["api/features/**/*.ts"],
+      "files": ["contract/**/*.ts"],
       "rules": {
-        "no-restricted-imports": [
-          "error",
-          {
-            "paths": [
-              {
-                "name": "zod",
-                "message": "zod を書いていいのは contract/ だけ。入出力の形は contract の schema に置く"
-              },
-              { "name": "hono", "message": "feature は hono を直接使わない。hnk から import する" },
-              {
-                "name": "@hono/zod-openapi",
-                "message": "feature は zod-openapi を直接使わない。hnk から import する"
-              }
-            ],
-            "patterns": [
-              {
-                "group": ["hono/*", "@hono/*"],
-                "message": "feature は hono を直接使わない。hnk から import する"
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "files": ["api/features/*/service.ts"],
-      "rules": {
-        "no-restricted-imports": [
-          "error",
-          {
-            "paths": [
-              {
-                "name": "zod",
-                "message": "zod を書いていいのは contract/ だけ。入出力の形は contract の schema に置く"
-              },
-              {
-                "name": "hono",
-                "message": "service は hono を知らない。HTTP の翻訳は route の仕事"
-              },
-              {
-                "name": "@hono/zod-openapi",
-                "message": "service は hono を知らない。HTTP の翻訳は route の仕事"
-              },
-              {
-                "name": "hnk",
-                "message": "service が hnk から使ってよいのは Result だけ。hnk/result から import する"
-              }
-            ],
-            "patterns": [
-              {
-                "group": ["hono/*", "@hono/*"],
-                "message": "service は hono を知らない。HTTP の翻訳は route の仕事"
-              }
-            ]
-          }
-        ]
+        "hnk/layer-imports": "error"
       }
     }
   ]
