@@ -6,7 +6,6 @@ import {
   listInvoicesResponseSchema,
   updateInvoiceInputSchema,
 } from "@contract/invoices/schema";
-import { deps } from "../../deps";
 import { NotFound, NotOwner, Unauthorized } from "../../errors";
 import { createEndpoint, createRoute, createRouter, errorResponses, json, jsonBody, ValidationError } from "hnk";
 import { requireAuth } from "../../middleware/auth";
@@ -25,9 +24,8 @@ export const invoicesRouter = createRouter()
           ...errorResponses(Unauthorized),
         },
       }),
-      async (c, reply) => {
+      async (c, reply, { invoices }) => {
         const viewerId = c.get("authUserId");
-        const { invoices } = deps(c);
 
         const rows = await invoices.listMine(viewerId);
 
@@ -48,10 +46,9 @@ export const invoicesRouter = createRouter()
           ...errorResponses(ValidationError, Unauthorized, NotFound),
         },
       }),
-      async (c, reply) => {
+      async (c, reply, { invoices }) => {
         const { id } = c.req.valid("param");
         const viewerId = c.get("authUserId");
-        const { invoices } = deps(c);
 
         const result = await invoices.get(id, viewerId);
         if (!result.ok) return reply.failure(result.error);
@@ -73,10 +70,9 @@ export const invoicesRouter = createRouter()
           ...errorResponses(ValidationError, Unauthorized),
         },
       }),
-      async (c, reply) => {
+      async (c, reply, { invoices }) => {
         const input = c.req.valid("json");
         const viewerId = c.get("authUserId");
-        const { invoices } = deps(c);
 
         const row = await invoices.create(viewerId, input);
 
@@ -97,11 +93,10 @@ export const invoicesRouter = createRouter()
           ...errorResponses(ValidationError, Unauthorized, NotFound, NotOwner),
         },
       }),
-      async (c, reply) => {
+      async (c, reply, { invoices }) => {
         const { id } = c.req.valid("param");
         const input = c.req.valid("json");
         const viewerId = c.get("authUserId");
-        const { invoices } = deps(c);
 
         const result = await invoices.update(id, viewerId, input);
         if (!result.ok) return reply.failure(result.error);
@@ -123,10 +118,9 @@ export const invoicesRouter = createRouter()
           ...errorResponses(ValidationError, Unauthorized, NotFound, NotOwner),
         },
       }),
-      async (c, reply) => {
+      async (c, reply, { invoices }) => {
         const { id } = c.req.valid("param");
         const viewerId = c.get("authUserId");
-        const { invoices } = deps(c);
 
         const result = await invoices.remove(id, viewerId);
         if (!result.ok) return reply.failure(result.error);

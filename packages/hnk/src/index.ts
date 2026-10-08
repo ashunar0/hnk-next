@@ -7,7 +7,7 @@ import {
   type RouteConfigToTypedResponse,
   type RouteHandler,
 } from "@hono/zod-openapi";
-import type { Context, Env, ErrorHandler, TypedResponse } from "hono";
+import type { Context, Env, ErrorHandler, MiddlewareHandler, TypedResponse } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { ContentfulStatusCode, SuccessStatusCode } from "hono/utils/http-status";
 import type { JSONParsed } from "hono/utils/types";
@@ -16,12 +16,37 @@ export { createRoute };
 export { err, ok, type Result } from "./result";
 
 /**
- * アプリが型を登録する場所。AppEnv を定義するファイルで 1 回だけ
- * `declare module "hnk" { interface Register { env: AppEnv } }` と書く
+ * アプリが型を登録する場所。AppEnv を定義するファイルで
+ * `declare module "hnk" { interface Register { env: AppEnv } }`、
+ * 組み立てのファイルで `interface Register { deps: Deps }` と書く
  */
 export interface Register {}
 
 type RegisteredEnv = Register extends { env: infer E extends Env } ? E : Env;
+
+type RegisteredDeps = Register extends { deps: infer D } ? D : Record<string, never>;
+
+// ---- 依存 ----
+
+/** hnk の中だけで使う置き場所。アプリのコードは c.var から依存を取り出さない */
+const DEPS_KEY = "hnk:deps";
+
+/**
+ * リクエストごとに依存を組み立てる middleware。`app.use("*", provideDeps(makeDeps))`。
+ *
+ * 起動時に 1 回だけ組み立てると、接続を持つ DB では Workers がリクエストをまたいだ
+ * I/O を拒む。だから組み立てた結果ではなく、組み立て方を受け取る。
+ * ここでは組み立てない。endpoint の handler が初めて受け取るときに 1 回だけ組み立てるので、
+ * 401 で返すだけのリクエストや /openapi.json では何も作られない
+ */
+export const provideDeps =
+  (makeDeps: (env: RegisteredEnv["Bindings"]) => RegisteredDeps): MiddlewareHandler =>
+  async (c, next) => {
+    let made: RegisteredDeps | undefined;
+    const resolve = () => (made ??= makeDeps(c.env));
+    c.set(DEPS_KEY as never, resolve as never);
+    await next();
+  };
 
 type MaybePromise<T> = T | Promise<T>;
 
@@ -178,13 +203,15 @@ const findDeclaredFailure = (route: RouteConfig, code: string) => {
 
 /**
  * route の宣言と handler を組にする。
- * `.openapi(...createEndpoint(createRoute({...}), async (c, reply) => ...))`
+ * `.openapi(...createEndpoint(createRoute({...}), async (c, reply, { invoices }) => ...))`。
+ * 受け取る（c）、返す（reply）、使う（deps）が、引数の位置で決まる
  */
 export const createEndpoint = <const R extends RouteConfig>(
   route: R,
   fn: (
     c: Parameters<RouteHandler<R, RouteConfigToEnv<R> & RegisteredEnv>>[0],
     reply: Reply<R>,
+    deps: RegisteredDeps,
   ) => MaybePromise<RouteConfigToTypedResponse<R>>,
 ) => {
   const handler: RouteHandler<R, RouteConfigToEnv<R> & RegisteredEnv> = (c: Context) => {
@@ -195,8 +222,12 @@ export const createEndpoint = <const R extends RouteConfig>(
       return c.json(errorBody(code, declared.message), declared.status);
     }) as unknown as Reply<R>["failure"];
 
+    const resolve = c.get(DEPS_KEY as never) as (() => RegisteredDeps) | undefined;
+    if (resolve === undefined) throw new Error("provideDeps が use されていない。app.use(\"*\", provideDeps(makeDeps))");
+    const deps = resolve();
+
     // R が決まっていないここでは TS が照らし合わせきれないので付け替える。使う側では fn の型で守られる
-    return fn(c as never, reply) as never;
+    return fn(c as never, reply, deps) as never;
   };
 
   return [route, handler] as const;
