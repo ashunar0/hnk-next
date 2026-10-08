@@ -48,7 +48,8 @@ const packageOf = (specifier) => {
 
 /**
  * アプリの中のファイルを、役割で見る。
- * modules/<m>/<role>.ts → { module, role }。アダプターの技術名は落とす（repo.d1 → repo）。
+ * modules/<m>/<role>.ts → { module, role }。何に繋ぐかの技術名は落とす（repo.d1 → repo、webhook.stripe → webhook）。
+ * modules/<m>/commands/<name>.ts → { module, role: "commands" }。
  * api 直下の決めごと（errors, middleware, db, env, deps）→ { role }
  */
 const placeOf = (resolved, root) => {
@@ -58,18 +59,22 @@ const placeOf = (resolved, root) => {
     .replace(/\.tsx?$/, "")
     .replace(/\/index$/, "");
   let m;
-  if ((m = rel.match(/^api\/modules\/([^/]+)\/([^/.]+)(\.[^/]+)?$/))) {
+  if ((m = rel.match(/^api\/modules\/([^/]+)\/(.+)$/))) {
+    const [, module, rest] = m;
     // テストは役割の外。何を import してもよい
-    if (/\.(test|typetest|spec)$/.test(m[3] ?? "")) return { module: m[1], role: "test" };
-    return { module: m[1], role: m[2] };
+    if (/\.(test|typetest|spec)$/.test(rest)) return { module, role: "test" };
+    if (rest.startsWith("commands/") && !rest.slice("commands/".length).includes("/"))
+      return { module, role: "commands" };
+    if (!rest.includes("/")) return { module, role: rest.split(".")[0] };
+    return { module, role: rest };
   }
   if ((m = rel.match(/^api\/(errors|env|deps|db)$/))) return { role: m[1] };
   if (rel.startsWith("api/middleware/")) return { role: "middleware" };
   return { role: rel };
 };
 
-/** routes.ts か。modules 配下のものだけを見る */
-const isRouteFile = (file) => /[/\\]modules[/\\][^/\\]+[/\\]routes\.ts$/.test(file);
+/** HTTP の inbound か（routes と webhook）。createRouter の束を書く場所 */
+const isHttpInbound = (file) => /[/\\]modules[/\\][^/\\]+[/\\](routes|webhook(\.[^/\\]+)?)\.ts$/.test(file);
 
 /** `as const` や `satisfies` を剥がす */
 const unwrap = (node) => {
@@ -103,21 +108,59 @@ const rootsAtCreateRouter = (node) => {
 const isGuardName = (node) => node?.type === "Identifier" && /^(require|allow)[A-Z]/.test(node.name);
 
 /**
+ * module の中の役割と、それが core / inbound / outbound のどれか。
+ * ここに無い名前のファイルは module の中に置けない（layer-imports が止める）
+ */
+const KINDS = {
+  domain: "core",
+  service: "core",
+  commands: "core",
+  routes: "inbound",
+  webhook: "inbound",
+  cron: "inbound",
+  queue: "inbound",
+  repo: "outbound",
+  gateway: "outbound",
+  mailer: "outbound",
+  jobs: "outbound",
+};
+
+/**
  * 役割ごとに、import してよい相手。ここに無いものは全部だめ。
  * "type" は `import type` だけ許す。実行時には依存せず、形だけを借りる。
  *
- * 矢印は全部 domain に向かう。domain は外を何も知らない。
- * service は手順で、保存の形を宣言する。repo はその形を満たす。
+ * 矢印は全部 core に向かう。domain は外を何も知らない。
+ * service は手順で、outbound の形を宣言する。outbound はその形を満たす。
+ * inbound は誰として呼ぶかを決め、deps から core を受け取って呼ぶ。
  *
  * 相手の書き方:
  *   パッケージ名（hnk, hnk/result, zod, drizzle-orm）
- *   自分の module の役割（domain, service, routes, repo）。他の module のものは "foreign:<role>"
- *   アプリの決めごと（errors, middleware, db）
+ *   自分の module の役割（domain, service, ...）。他の module のものは "foreign:<role>"
+ *   アプリの決めごと（errors, middleware, db, deps）
  */
 const LAYERS = {
+  // core
   domain: { zod: "value", "foreign:domain": "type" },
   service: { "hnk/result": "value", domain: "value", "foreign:domain": "type" },
+  // 他の module に変えさせてよい操作。使う outbound の形は service の宣言を借りる
+  commands: { "hnk/result": "value", domain: "value", service: "type", "foreign:domain": "type" },
+
+  // inbound（HTTP）
   routes: { hnk: "value", zod: "value", errors: "value", middleware: "value", domain: "value" },
+  // 利用者のいない HTTP。誰として呼ぶか（systemViewer）を他 module の domain から借りる
+  webhook: {
+    hnk: "value",
+    zod: "value",
+    errors: "value",
+    middleware: "value",
+    domain: "value",
+    "foreign:domain": "value",
+  },
+  // inbound（HTTP 以外）。deps を受け取り、システムとして呼ぶ
+  cron: { deps: "type", domain: "type", "foreign:domain": "value" },
+  queue: { deps: "type", domain: "type", "foreign:domain": "value" },
+
+  // outbound
   repo: {
     "drizzle-orm": "value",
     db: "type",
@@ -127,21 +170,31 @@ const LAYERS = {
     // 集計の SQL で、他 module の状態の集合（billedStatuses など）を使う
     "foreign:domain": "value",
   },
+  gateway: { "hnk/result": "value", domain: "type", service: "type" },
+  mailer: { "hnk/result": "value", domain: "type", service: "type" },
+  jobs: { domain: "type", service: "type" },
 };
 
 /** よくある間違いには、どうすればいいかを添える */
 const HINTS = {
   "domain→service": "domain はモノとルールだけ。手順は service に置く",
   "domain→hnk/result": "domain は失敗を返す手順を持たない。手順は service に置く",
-  "service→repo": "必要な保存の形は service に type で宣言し、repo がそれを満たす",
   "service→routes": "service は HTTP を知らない。失敗は Result のコードで返し、番号は routes が決める",
   "service→hnk": "service が hnk から使ってよいのは Result だけ。hnk/result から import する",
   "service→foreign:service":
     "他の module は import しない。使う形を service に宣言し、deps.ts でつなぐ。書くなら相手の commands/ を渡してもらう",
-  "routes→service": "routes は service を import しない。deps から受け取って呼ぶ",
-  "routes→repo": "routes は保存を知らない。service を deps から受け取って呼ぶ",
+  "routes→foreign:domain": "routes は認証した利用者として呼ぶ。システムとして呼べるのは利用者のいない inbound だけ",
   "routes→foreign:service": "他の module の操作は、その流れの持ち主の service から呼ぶ",
   "repo→foreign:service": "読みは自分の repo の join で（相手の repo からテーブルを import してよい）",
+};
+
+/** 向きの間違いは、役割の組ではなく core / inbound / outbound の組で説明できる */
+const KIND_HINTS = {
+  "core→outbound": "core は outbound を知らない。必要な形は service に type で宣言し、outbound がそれを満たす",
+  "core→inbound": "core は inbound を知らない。失敗は Result のコードで返し、HTTP の番号などは inbound が決める",
+  "inbound→outbound": "inbound は outbound を知らない。deps から core を受け取って呼ぶ",
+  "inbound→core": "inbound は service や commands を import しない。deps から受け取って呼ぶ",
+  "outbound→inbound": "outbound は inbound を知らない",
 };
 
 /** foreign:domain → 他 module の domain */
@@ -186,8 +239,20 @@ const plugin = {
         const project = projectOf(file);
         if (!project) return {};
         const self = placeOf(file, project.root);
+        if (self.role === "test") return {};
         const allowed = LAYERS[self.role];
-        if (!allowed) return {};
+        if (!allowed) {
+          if (!self.module) return {};
+          // module の中に、役割の分からないファイルを置かせない
+          return {
+            Program(node) {
+              context.report({
+                node,
+                message: `module の中のファイルは、役割の名前で始める（${Object.keys(KINDS).join(", ")}）。外へ繋ぐものは「役割.技術名.ts」（repo.d1.ts など）`,
+              });
+            },
+          };
+        }
 
         const check = (node) => {
           if (!node.source) return;
@@ -202,7 +267,12 @@ const plugin = {
             target = foreign ? `foreign:${place.role}` : place.role;
           }
           const kind = allowed[target];
-          const hint = HINTS[`${self.role}→${target}`];
+          const targetRole = target.replace(/^foreign:/, "");
+          const hint =
+            HINTS[`${self.role}→${target}`] ??
+            (KINDS[targetRole] && !target.startsWith("foreign:")
+              ? KIND_HINTS[`${KINDS[self.role]}→${KINDS[targetRole]}`]
+              : undefined);
           if (!kind) {
             const list = Object.entries(allowed)
               .map(([k, v]) => (v === "type" ? `${show(k)}（型だけ）` : show(k)))
@@ -233,7 +303,7 @@ const plugin = {
      */
     "route-exports-only-the-router": {
       create(context) {
-        if (!isRouteFile(fileOf(context))) return {};
+        if (!isHttpInbound(fileOf(context))) return {};
 
         const report = (node) =>
           context.report({
@@ -262,7 +332,7 @@ const plugin = {
      */
     "no-await-in-call-arguments": {
       create(context) {
-        if (!isRouteFile(fileOf(context))) return {};
+        if (!isHttpInbound(fileOf(context))) return {};
 
         // 入れ子の呼び出しでは同じ await が外側と内側の両方から見える
         const reported = new Set();
@@ -292,7 +362,7 @@ const plugin = {
      */
     "route-replies-through-reply": {
       create(context) {
-        if (!isRouteFile(fileOf(context))) return {};
+        if (!isHttpInbound(fileOf(context))) return {};
 
         return {
           CallExpression(node) {
@@ -360,7 +430,7 @@ const plugin = {
      */
     "route-declares-auth": {
       create(context) {
-        if (!isRouteFile(fileOf(context))) return {};
+        if (!isHttpInbound(fileOf(context))) return {};
 
         return {
           CallExpression(node) {

@@ -159,16 +159,24 @@ go build ./cmd/api
 - **依存は `buildApp(makeDeps)`**。Workers はリクエストをまたいだ I/O を拒むので、組み立てた結果ではなく組み立て方を渡す。
   `provideDeps` がリクエストごとに、使うときに 1 回だけ組み立てる
 - **outbound の形は service が宣言する**（Go の「interface は使う側が決める」）
-- **lint は `hnk/lint` で提供する**。依存の向きは役割ごとの許可表（`layer-imports`）で守らせる。表に無い import は全部だめで、
-  相対 import も tsconfig の paths 経由も同じに見る。他に、routes の export は束 1 本、`createRoute` に認証の指定、`c.json` 禁止、
-  引数の中で await しない、モジュールの一番上に変わる状態を置かない
+- **lint は `hnk/lint` で提供する**。module の中のファイルは、名前の頭（役割）で core / inbound / outbound に分ける。
+  役割の分からないファイルは置けない。依存の向きは役割ごとの許可表（`layer-imports`）で守らせ、表に無い import は全部だめ。
+  相対 import も tsconfig の paths 経由も同じに見る。HTTP の inbound（routes と webhook）には、export は束 1 本、
+  `createRoute` に認証の指定、`c.json` 禁止、引数の中で await しない、を求める。どこでも、モジュールの一番上に変わる状態を置かない
 
-| 役割    | import してよいもの                                                                              |
-| ------- | ------------------------------------------------------------------------------------------------ |
-| domain  | zod                                                                                              |
-| service | hnk/result, domain（型だけ）                                                                     |
-| routes  | hnk, zod, errors, middleware, domain                                                             |
-| repo    | drizzle-orm, db（型だけ）, domain（型だけ）, service（型だけ）, 他 module の repo（join のため） |
+| 側       | 役割     | import してよいもの                                                                                                       |
+| -------- | -------- | ------------------------------------------------------------------------------------------------------------------------- |
+| core     | domain   | zod, 他 module の domain（型だけ）                                                                                        |
+| core     | service  | hnk/result, domain, 他 module の domain（型だけ）                                                                         |
+| core     | commands | hnk/result, domain, service（型だけ）, 他 module の domain（型だけ）                                                      |
+| inbound  | routes   | hnk, zod, errors, middleware, domain                                                                                      |
+| inbound  | webhook  | routes と同じ ＋ 他 module の domain（systemViewer）                                                                      |
+| inbound  | cron     | deps（型だけ）, domain（型だけ）, 他 module の domain（systemViewer）                                                     |
+| inbound  | queue    | cron と同じ                                                                                                               |
+| outbound | repo     | drizzle-orm, db（型だけ）, domain, service（型だけ）, 他 module の repo（join のため）, 他 module の domain（SQL の定数） |
+| outbound | gateway  | hnk/result, domain（型だけ）, service（型だけ）                                                                           |
+| outbound | mailer   | gateway と同じ                                                                                                            |
+| outbound | jobs     | domain（型だけ）, service（型だけ）                                                                                       |
 
 - **名前は Hono に合わせて `create〜`**。束は `invoicesRouter`
 
