@@ -20,6 +20,10 @@
   "devDependencies": {
     "@hono/zod-openapi": "^1.6.3",
     "hono": "^4.13.1",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "oxlint": "^1.80.0"
+  },
+  "scripts": {
+    "test": "node --test test/lint.test.mjs"
   }
 }

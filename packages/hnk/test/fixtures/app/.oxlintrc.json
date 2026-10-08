@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../../../hono/node_modules/oxlint/configuration_schema.json",
+  "categories": { "correctness": "off" },
+  "jsPlugins": ["../../../lint.mjs"],
+  "rules": {
+    "hnk/layer-imports": "error",
+    "hnk/no-foreign-table-reads": "error",
+    "hnk/route-exports-only-the-router": "error",
+    "hnk/no-await-in-call-arguments": "error",
+    "hnk/route-replies-through-reply": "error",
+    "hnk/route-declares-auth": "error",
+    "hnk/no-module-scope-state": "error"
+  }
+}
