@@ -1,9 +1,9 @@
 {
-  "name": "hnk-fixture",
+  "name": "hnk-example-invoices",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "生成物が型検査を通ることを確かめるための最小プロジェクト。skill が指す参照実装も兼ねる",
+  "description": "hnk を使ったアプリの例。invoices の一覧・1件・作成・更新・削除",
   "scripts": {
     "typecheck": "tsc --noEmit",
     "lint": "oxlint .",
