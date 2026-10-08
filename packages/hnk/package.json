@@ -6,6 +6,7 @@
   "description": "Hono の上で、誰が書いても同じ形になるための仕組み",
   "exports": {
     ".": "./src/index.ts",
+    "./result": "./src/result.ts",
     "./lint": "./lint.mjs"
   },
   "peerDependencies": {

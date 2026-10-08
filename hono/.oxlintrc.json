@@ -44,6 +44,25 @@
           }
         ]
       }
+    },
+    {
+      "files": ["api/features/*/service.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              { "name": "zod", "message": "zod を書いていいのは contract/ だけ。ルールは contract の model に置く" },
+              { "name": "hono", "message": "service は hono を知らない。HTTP の翻訳は route の仕事" },
+              { "name": "@hono/zod-openapi", "message": "service は hono を知らない。HTTP の翻訳は route の仕事" },
+              { "name": "hnk", "message": "service が hnk から使ってよいのは Result だけ。hnk/result から import する" }
+            ],
+            "patterns": [
+              { "group": ["hono/*", "@hono/*"], "message": "service は hono を知らない。HTTP の翻訳は route の仕事" }
+            ]
+          }
+        ]
+      }
     }
   ]
 }

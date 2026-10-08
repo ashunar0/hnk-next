@@ -1,5 +1,5 @@
 import type { InvoiceInput } from "@contract/invoices/model";
-import { err, ok, type Result } from "hnk";
+import { err, ok, type Result } from "hnk/result";
 import type { InvoiceRow, InvoiceUpdateValues, NewInvoiceRow } from "./table";
 
 /**
