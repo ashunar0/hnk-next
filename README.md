@@ -147,7 +147,8 @@ go build ./cmd/api
   外が冪等キーを受けるなら渡す（Stripe には paymentId、Resend には督促の日付入りのキー）。
   途中で落ちたときに「重複してもよい」か「欠けてもよい」かは業務の判断なので、service のコメントに書く
 - **module の依存は一方向**。users ← invoices ← payments、invoices ← reminders、invoices と payments ← reports。
-  deps.ts の getter は互いを呼ぶので、逆向きが 1 本入ると実行時に無限再帰になる。全部を 1 回ずつ組み上げるスモークテスト（test/deps.test.ts）で止める
+  deps.ts は上から順に const で組み立てる（Go の main と同じ）。依存する相手を先に書かないと、tsc が「宣言の前に使っている」で止めるので、輪はコンパイルが通らない。
+  getter で遅延する案は、宣言順の保証を失うので外した（組み立ては関数を返すだけで軽い）。deps.ts は何を import してもよい場所で、lint の表には入れていない
 - **route は `createRoute` ＋ `createEndpoint`**（@hono/zod-openapi の上）。`c.json` だとずれたときの赤線が handler の頭に付くので、`reply` で返す
 - **失敗は値で、番号と文言を持つ**（`httpError("NOT_FOUND", 404, "…")`）。guard が持つ失敗と ValidationError は自動で宣言する。
   `reply.failure` が受け取れるのは、route に手で書いたドメインの失敗だけ。同じ番号の失敗が複数あっても 1 つの応答にまとめ、コードごとの文言で返す
