@@ -69,35 +69,44 @@ async update(id, viewerId, input: InvoiceInput): Promise<Result<Invoice, "NOT_FO
 
 ## 出発点と育ち方
 
-### 出発点: 箱 3 つ
+### 出発点: core・inbound・outbound
 
-どのアプリにも必ずあるのは、モノ・公開・保存の 3 つだけ。モノの箱だけは What（何であるか）と How（手順）の 2 ファイルで始める。手順はどの module にも毎回あるので、最初から分けておく。
+module は 3 つの側からなる。ヘキサゴナルアーキテクチャの分け方と同じ。
+
+| 側           | 何か                                                 | 今あるファイル               |
+| ------------ | ---------------------------------------------------- | ---------------------------- |
+| **core**     | そのモノが何で、何ができるか。外を何も知らない       | domain, service, commands    |
+| **inbound**  | 外から呼ばれる側。誰として呼ぶかを決めて core に渡す | routes, webhook, cron, queue |
+| **outbound** | 外へ出ていく側。core が宣言した形を満たす            | repo, gateway, mailer, jobs  |
+
+出発点は、どの module にも毎回ある 4 ファイル。core は What（domain）と How（service）に分けて始める。手順はどの module にも毎回あるので、最初から分けておく。
 
 ```
 api/modules/invoices/
-├─ domain.ts      モノ（What）: 型・ルール（検査済みの印付き）。外を何も知らない
-├─ service.ts     モノ（How）: 手順と、手順が必要とする保存の形の宣言
-├─ routes.ts      公開: HTTP の入出力の形と、モノ → 応答の変換
-└─ repo.d1.ts     保存: テーブルと、D1 での実装。行 → モノの詰め替え
+├─ domain.ts      core（What）: 型・ルール（検査済みの印付き）。外を何も知らない
+├─ service.ts     core（How）: 手順と、手順が必要とする outbound の形の宣言
+├─ routes.ts      inbound: HTTP の入出力の形と、モノ → 応答の変換
+└─ repo.d1.ts     outbound: テーブルと、D1 での実装。行 → モノの詰め替え
 ```
 
 ```
   routes ──────→ domain ←────── repo.d1
                    ↑               │
-                service ←──────────┘ （service が宣言した保存の形を、型だけ借りて満たす）
+                service ←──────────┘ （service が宣言した形を、型だけ借りて満たす）
 ```
 
-ルールは 1 つ。**矢印は全部 domain に向かう**。routes は service を import せず、deps から受け取る。アダプター（routes、repo.d1）のファイル名には、何に繋ぐかを書く。
+ルールは 1 つ。**矢印は全部 core に向かう**。inbound は service を import せず、deps から受け取る。
+inbound と outbound のファイル名には、何に繋ぐかを書く（`repo.d1.ts`、`gateway.stripe.ts`）。
 
 ### 育ち方: 2 つ目が現れたときだけ、3 種類
 
-| 動き         | きっかけ                                    | 足すもの                                                                                  |
-| ------------ | ------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| 横に増える   | 2 つ目の入口                                | `cron.ts`、`queue.ts`（routes.ts の隣）                                                   |
-| 横に増える   | 2 つ目の保存先                              | `files.r2.ts` など。必要な形は service で宣言する                                         |
-| 中で割れる   | 1 つのファイルが 2 つ目の理由で変わり始めた | 同じ箱の中で分ける（service.ts → ports.ts、routes.ts → schema.ts など）。矢印は変わらない |
-| 窓口を開く   | 他の module が書きに来る                    | 書かれる側の `commands/<操作>.ts`（1 操作 1 ファイル）。routes からは呼ばない             |
-| （足さない） | 他の module が読みに来る                    | 使う側の service が形を宣言し、deps.ts で相手の service をつなぐ                          |
+| 動き         | きっかけ                                      | 足すもの                                                                                  |
+| ------------ | --------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| 横に増える   | 2 つ目の inbound（cron、キュー、webhook）     | `cron.ts`、`queue.ts`、`webhook.stripe.ts`（routes.ts の隣）                              |
+| 横に増える   | 2 つ目の outbound（保存先、外部 API、メール） | `files.r2.ts`、`gateway.stripe.ts` など。必要な形は service で宣言する                    |
+| 中で割れる   | 1 つのファイルが 2 つ目の理由で変わり始めた   | 同じ箱の中で分ける（service.ts → ports.ts、routes.ts → schema.ts など）。矢印は変わらない |
+| 窓口を開く   | 他の module が書きに来る                      | 書かれる側の `commands/<操作>.ts`（1 操作 1 ファイル）。routes からは呼ばない             |
+| （足さない） | 他の module が読みに来る                      | 使う側の service が形を宣言し、deps.ts で相手の service をつなぐ                          |
 
 どの動きでも、矢印は domain に向かったまま変わらない。
 
@@ -142,7 +151,7 @@ go build ./cmd/api
 - **service は hono を知らない**。hnk から使うのは `hnk/result` だけ
 - **依存は `buildApp(makeDeps)`**。Workers はリクエストをまたいだ I/O を拒むので、組み立てた結果ではなく組み立て方を渡す。
   `provideDeps` がリクエストごとに、使うときに 1 回だけ組み立てる
-- **保存の形は service が宣言する**（Go の「interface は使う側が決める」）
+- **outbound の形は service が宣言する**（Go の「interface は使う側が決める」）
 - **lint は `hnk/lint` で提供する**。依存の向きは役割ごとの許可表（`layer-imports`）で守らせる。表に無い import は全部だめで、
   相対 import も tsconfig の paths 経由も同じに見る。他に、routes の export は束 1 本、`createRoute` に認証の指定、`c.json` 禁止、
   引数の中で await しない、モジュールの一番上に変わる状態を置かない
