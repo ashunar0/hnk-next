@@ -25,6 +25,10 @@
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "readme:layers": "node scripts/readme-layers.mjs",
-    "readme:check": "node scripts/readme-layers.mjs --check"
+    "readme:check": "node scripts/readme-layers.mjs --check",
+    "e2e": "node scripts/e2e-template.mjs"
+  },
+  "bin": {
+    "hnk": "./bin/hnk.mjs"
   }
 }
