@@ -29,22 +29,22 @@ export const invoicesRouter = createRouter()
       {
         method: "put",
         path: "/{id}",
-        middleware: [requireAuth] as const,
+        middleware: [requireAuth],
         request: {
           params: invoiceParamsSchema,
           body: jsonBody(invoiceInputSchema),
         },
         responses: {
           200: json(invoiceResponseSchema, "更新した請求書"),
-          ...errorResponses(NotFound),
+          ...errorResponses(NotFound, Forbidden),
         },
       },
       async (c, reply, { invoices }) => {
         const { id } = c.req.valid("param");
         const input = c.req.valid("json");
-        const viewerId = c.get("authUserId");
+        const viewer = c.get("authViewer");
 
-        const result = await invoices.update(id, viewerId, input);
+        const result = await invoices.update(id, viewer, input);
         if (!result.ok) return reply.failure(result.error);
 
         return reply(200, invoiceResponse(result.value));
@@ -59,8 +59,14 @@ export const invoicesRouter = createRouter()
 
 ```ts
 // hono/api/modules/invoices/service.ts
-async update(id, viewerId, input: InvoiceInput): Promise<Result<Invoice, "NOT_FOUND">> {
-  const invoice = await repo.updateOwned(id, viewerId, { ...input, updatedAt: new Date() });
+async update(id: InvoiceId, viewer: Viewer, input: InvoiceInput): Promise<Result<Invoice, "NOT_FOUND" | "FORBIDDEN">> {
+  const reach = reachOf(viewer);
+
+  const found = await repo.findWithin(id, reach);
+  if (found === null) return err("NOT_FOUND");
+  if (!canEdit(found.access)) return err("FORBIDDEN");
+
+  const invoice = await repo.updateWithin(id, reach, { ...input, updatedAt: new Date() });
   if (invoice === null) return err("NOT_FOUND");
 
   return ok(invoice);
@@ -152,7 +158,9 @@ go build ./cmd/api
   外が冪等キーを受けるなら渡す（Stripe には paymentId、Resend には督促の日付入りのキー）。
   途中で落ちたときに「重複してもよい」か「欠けてもよい」かは業務の判断なので、service のコメントに書く
 - **module の依存は一方向**。users ← invoices ← payments、invoices ← reminders、invoices と payments ← reports。
-  deps.ts は上から順に const で組み立てる（Go の main と同じ）。依存する相手を先に書かないと、tsc が「宣言の前に使っている」で止めるので、輪はコンパイルが通らない。
+  deps.ts は上から順に const で組み立てる（Go の main と同じ）。依存する相手を先に書かないと、相手をそのまま渡す所では tsc が「宣言の前に使っている」で止める。
+  ただし、他の module の ID に印を付けて渡す所（`(id, viewer) => invoices.getPayable(invoiceId(id), viewer)`）は関数で包むので、tsc は止めない。
+  module の依存が一方向であることは、今は決まりとレビューで守っていて、輪を機械では止めていない（輪が起きる兆しが出たら、deps.ts の依存を調べるテストを足す）。
   getter で遅延する案は、宣言順の保証を失うので外した（組み立ては関数を返すだけで軽い）。deps.ts は何を import してもよい場所で、lint の表には入れていない
 - **route は `createEndpoint(設定, handler)` 1 つで書く**（@hono/zod-openapi の上）。設定は zod-openapi の route の宣言と同じ形で、guard が持つ失敗と ValidationError を hnk が足す。`c.json` だとずれたときの赤線が handler の頭に付くので、`reply` で返す。`createRoute` は公開しない（書き方を 1 つにするため）
 - **失敗は値で、番号と文言を持つ**（`httpError("NOT_FOUND", 404, "…")`）。guard が持つ失敗と ValidationError は自動で宣言する。

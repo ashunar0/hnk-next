@@ -29,12 +29,6 @@ export type PaymentEvent = {
   providerRef: string;
 };
 
-/**
- * 1 つの請求書に、進行中（pending）の支払いは 1 つだけ。
- * 2 回押されたり 2 つのタブで開かれたりしても、決済画面は 1 つにする（両方で払われると二重払いになる）
- */
-export const ONE_PENDING_PER_INVOICE = true;
-
 /** 決済画面を作る前のまま、これより長く止まっている支払いは、作る途中で落ちたものとみなす */
 export const STALE_AFTER_MS = 60_000;
 

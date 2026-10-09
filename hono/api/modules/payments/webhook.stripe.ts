@@ -13,7 +13,7 @@ export const stripeWebhookRouter = createRouter().openapi(
     {
       method: "post",
       path: "/",
-      middleware: [allowSystem] as const,
+      middleware: [allowSystem],
       responses: {
         200: json(receivedSchema, "受け取った"),
         ...errorResponses(InvalidSignature, NotFound, NotPayable),

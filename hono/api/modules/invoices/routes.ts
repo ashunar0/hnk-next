@@ -88,7 +88,7 @@ export const invoicesRouter = createRouter()
       {
         method: "get",
         path: "/",
-        middleware: [requireAuth] as const,
+        middleware: [requireAuth],
         request: { query: listInvoicesQuerySchema },
         responses: {
           200: json(listInvoicesResponseSchema, "触れる範囲の請求書の一覧"),
@@ -110,7 +110,7 @@ export const invoicesRouter = createRouter()
       {
         method: "get",
         path: "/{id}",
-        middleware: [requireAuth] as const,
+        middleware: [requireAuth],
         request: { params: invoiceParamsSchema },
         responses: {
           200: json(invoiceResponseSchema, "請求書"),
@@ -134,7 +134,7 @@ export const invoicesRouter = createRouter()
       {
         method: "post",
         path: "/",
-        middleware: [requireAuth] as const,
+        middleware: [requireAuth],
         request: { body: jsonBody(invoiceInputSchema) },
         responses: {
           200: json(invoiceResponseSchema, "作成した請求書"),
@@ -156,7 +156,7 @@ export const invoicesRouter = createRouter()
       {
         method: "put",
         path: "/{id}",
-        middleware: [requireAuth] as const,
+        middleware: [requireAuth],
         request: { params: invoiceParamsSchema, body: jsonBody(invoiceInputSchema) },
         responses: {
           200: json(invoiceResponseSchema, "更新した請求書"),
@@ -181,7 +181,7 @@ export const invoicesRouter = createRouter()
       {
         method: "post",
         path: "/{id}/send",
-        middleware: [requireAuth] as const,
+        middleware: [requireAuth],
         request: { params: invoiceParamsSchema },
         responses: {
           200: json(invoiceResponseSchema, "送付した請求書"),
@@ -205,7 +205,7 @@ export const invoicesRouter = createRouter()
       {
         method: "delete",
         path: "/{id}",
-        middleware: [requireAuth] as const,
+        middleware: [requireAuth],
         request: { params: invoiceParamsSchema },
         responses: {
           200: json(deleteInvoiceResponseSchema, "削除した"),
@@ -229,7 +229,7 @@ export const invoicesRouter = createRouter()
       {
         method: "put",
         path: "/{id}/shares",
-        middleware: [requireAuth] as const,
+        middleware: [requireAuth],
         request: { params: invoiceParamsSchema, body: jsonBody(shareInputSchema) },
         responses: {
           200: json(okResponseSchema, "共有した"),
@@ -254,7 +254,7 @@ export const invoicesRouter = createRouter()
       {
         method: "delete",
         path: "/{id}/shares/{userId}",
-        middleware: [requireAuth] as const,
+        middleware: [requireAuth],
         request: { params: shareParamsSchema },
         responses: {
           200: json(okResponseSchema, "共有をやめた"),

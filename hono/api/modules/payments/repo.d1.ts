@@ -29,7 +29,8 @@ export const paymentsTable = sqliteTable(
   },
   (table) => [
     index("payments_invoice_id_idx").on(table.invoiceId),
-    // 1 つの請求書に、進行中の支払いは 1 つだけ（domain の ONE_PENDING_PER_INVOICE）
+    // 1 つの請求書に、進行中（pending）の支払いは 1 つだけ。
+    // 2 回押されたり 2 つのタブで開かれたりしても、決済画面は 1 つにする（両方で払われると二重払いになる）
     uniqueIndex("payments_one_pending_idx")
       .on(table.invoiceId)
       .where(sql`${table.status} = 'pending'`),

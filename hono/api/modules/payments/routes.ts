@@ -25,7 +25,7 @@ export const paymentsRouter = createRouter()
       {
         method: "post",
         path: "/",
-        middleware: [requireAuth] as const,
+        middleware: [requireAuth],
         request: { body: jsonBody(startPaymentInputSchema) },
         responses: {
           200: json(startPaymentResponseSchema, "決済サービスの支払い画面"),

@@ -42,7 +42,7 @@ export const reportsRouter = createRouter()
       {
         method: "get",
         path: "/monthly",
-        middleware: [requireAuth] as const,
+        middleware: [requireAuth],
         request: { query: monthlyQuerySchema },
         responses: {
           200: json(monthlyResponseSchema, "月ごとの請求額と入金額"),
