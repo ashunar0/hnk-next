@@ -1,7 +1,7 @@
 /**
  * payments を HTTP で公開する
  */
-import { createEndpoint, createRouter, errorResponses, json, jsonBody } from "hnk";
+import { createRouter, errorResponses } from "hnk";
 import { z } from "zod";
 import { NotFound } from "../../errors";
 import { requireAuth } from "../../middleware/auth";
@@ -22,29 +22,27 @@ const startPaymentResponseSchema = z.object({
 export const paymentsRouter = createRouter()
   // 支払いを始める
   .endpoint(
-    ...createEndpoint(
-      {
-        method: "post",
-        path: "/",
-        middleware: [requireAuth],
-        request: { body: jsonBody(startPaymentInputSchema) },
-        responses: {
-          200: json(startPaymentResponseSchema, "決済サービスの支払い画面"),
-          ...errorResponses(NotFound, NotPayable, PaymentStarting, GatewayFailed),
-        },
+    {
+      method: "post",
+      path: "/",
+      middleware: [requireAuth],
+      request: { json: startPaymentInputSchema },
+      responses: {
+        200: startPaymentResponseSchema,
+        ...errorResponses(NotFound, NotPayable, PaymentStarting, GatewayFailed),
       },
-      async (c, reply, { payments }) => {
-        const actor = c.get("actor");
-        const { invoiceId } = c.req.valid("json");
-        const now = new Date();
+    },
+    async (c, reply, { payments }) => {
+      const actor = c.get("actor");
+      const { invoiceId } = c.req.valid("json");
+      const now = new Date();
 
-        const result = await payments.start(actor, invoiceId, now);
-        if (!result.ok) return reply.failure(result.error);
+      const result = await payments.start(actor, invoiceId, now);
+      if (!result.ok) return reply.failure(result.error);
 
-        return reply(200, {
-          paymentId: result.value.payment.id,
-          checkoutUrl: result.value.checkoutUrl,
-        });
-      },
-    ),
+      return reply(200, {
+        paymentId: result.value.payment.id,
+        checkoutUrl: result.value.checkoutUrl,
+      });
+    },
   );

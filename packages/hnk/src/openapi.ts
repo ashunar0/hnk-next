@@ -4,7 +4,7 @@
  */
 import type { Hono } from "hono";
 import { ROUTE } from "./router";
-import type { AnySchema, RouteConfig } from "./route-types";
+import type { AnySchema, ResponseEntry, RouteConfig } from "./route-types";
 import type { JsonSchemaCapable } from "./standard-schema";
 
 const TARGET = "draft-2020-12";
@@ -53,44 +53,39 @@ const parametersOf = (
   }));
 };
 
-const contentOf = (
-  content: NonNullable<RouteConfig["responses"][number]["content"]>,
-  io: Io,
-  options: OpenapiOptions,
-) =>
-  Object.fromEntries(
-    Object.entries(content).map(([type, { schema }]) => [
-      type,
-      { schema: jsonSchemaOf(schema, io, options) },
-    ]),
-  );
+const jsonContent = (schema: AnySchema, io: Io, options: OpenapiOptions) => ({
+  "application/json": { schema: jsonSchemaOf(schema, io, options) },
+});
+
+/** 応答の宣言から、スキーマと説明を取り出す（スキーマだけなら説明は空） */
+const responseOf = (entry: ResponseEntry) =>
+  "~standard" in entry ? { schema: entry, description: "" } : entry;
 
 const operationOf = (route: RouteConfig, options: OpenapiOptions) => {
-  const { params, query, headers, cookies, body } = route.request ?? {};
+  const { param, query, header, cookie, json } = route.request ?? {};
 
   return {
     parameters: [
-      ...(params ? parametersOf(params, "path", options) : []),
+      ...(param ? parametersOf(param, "path", options) : []),
       ...(query ? parametersOf(query, "query", options) : []),
-      ...(headers ? parametersOf(headers, "header", options) : []),
-      ...(cookies ? parametersOf(cookies, "cookie", options) : []),
+      ...(header ? parametersOf(header, "header", options) : []),
+      ...(cookie ? parametersOf(cookie, "cookie", options) : []),
     ],
-    ...(body && {
+    ...(json && {
       requestBody: {
-        required: body.required ?? false,
-        content: contentOf(body.content, "input", options),
+        required: true,
+        content: jsonContent(json, "input", options),
       },
     }),
     responses: Object.fromEntries(
-      Object.entries(route.responses).map(([status, response]) => [
-        status,
-        {
-          description: response.description,
-          ...(response.content && {
-            content: contentOf(response.content, "output", options),
-          }),
-        },
-      ]),
+      Object.entries(route.responses).map(([status, entry]) => {
+        const { schema, description } = responseOf(entry);
+
+        return [
+          status,
+          { description, content: jsonContent(schema, "output", options) },
+        ];
+      }),
     ),
   };
 };

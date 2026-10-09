@@ -1,7 +1,7 @@
 /**
  * reports を HTTP で公開する
  */
-import { createEndpoint, createRouter, errorResponses, json } from "hnk";
+import { createRouter, errorResponses } from "hnk";
 import { z } from "zod";
 import { Forbidden } from "../../errors";
 import { requireAuth } from "../../middleware/auth";
@@ -38,25 +38,23 @@ const monthlyResponseSchema = z.object({
 export const reportsRouter = createRouter()
   // 月ごとの請求と入金
   .endpoint(
-    ...createEndpoint(
-      {
-        method: "get",
-        path: "/monthly",
-        middleware: [requireAuth],
-        request: { query: monthlyQuerySchema },
-        responses: {
-          200: json(monthlyResponseSchema, "月ごとの請求額と入金額"),
-          ...errorResponses(Forbidden),
-        },
+    {
+      method: "get",
+      path: "/monthly",
+      middleware: [requireAuth],
+      request: { query: monthlyQuerySchema },
+      responses: {
+        200: monthlyResponseSchema,
+        ...errorResponses(Forbidden),
       },
-      async (c, reply, { reports }) => {
-        const actor = c.get("actor");
-        const { from, to } = c.req.valid("query");
+    },
+    async (c, reply, { reports }) => {
+      const actor = c.get("actor");
+      const { from, to } = c.req.valid("query");
 
-        const result = await reports.monthly(actor, from, to);
-        if (!result.ok) return reply.failure(result.error);
+      const result = await reports.monthly(actor, from, to);
+      if (!result.ok) return reply.failure(result.error);
 
-        return reply(200, { months: result.value });
-      },
-    ),
+      return reply(200, { months: result.value });
+    },
   );

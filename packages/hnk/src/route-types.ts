@@ -24,109 +24,81 @@ type MaybePromise<T> = Promise<T> | T;
 
 export type AnySchema = StandardSchema<any, any>;
 
-type Content = { [mediaType: string]: { schema: AnySchema } };
+/**
+ * 応答の宣言 1 つ。スキーマだけ書くか、説明（OpenAPI の文書に出る）を付けるときは `json(schema, "説明")`。
+ * スキーマは Standard Schema の `~standard` を持つので、`{ schema, description }` とは見分けられる
+ */
+export type ResponseEntry =
+  AnySchema | { schema: AnySchema; description: string };
 
-/** route の宣言。形は OpenAPI の route の宣言に合わせてある（method は小文字） */
+/**
+ * route の宣言。request のキーは、handler で読むときの `c.req.valid("…")` の名前と同じ
+ * （`param` を宣言したら `c.req.valid("param")`）。method は小文字、path は Hono の書き方（`/users/:id`）
+ */
 export type RouteConfig = {
   method: "get" | "post" | "put" | "patch" | "delete";
-  /** Hono の書き方。`/users/:id` */
   path: string;
   middleware?: H | H[];
   request?: {
-    params?: AnySchema;
+    param?: AnySchema;
     query?: AnySchema;
-    headers?: AnySchema;
-    cookies?: AnySchema;
-    body?: { required?: boolean; content: Content };
+    header?: AnySchema;
+    cookie?: AnySchema;
+    /** JSON の本文 */
+    json?: AnySchema;
   };
-  responses: {
-    [status: number]: { description: string; content?: Content };
-  };
+  responses: { [status: number]: ResponseEntry };
 };
 
-// ---- 入力 ----
+/** 応答の宣言から、スキーマを取り出す */
+export type SchemaOfResponse<T> = T extends AnySchema
+  ? T
+  : T extends { schema: infer S extends AnySchema }
+    ? S
+    : never;
 
-type RequestPart<
-  R extends RouteConfig,
-  Part extends string,
-> = R["request"] extends infer Q ? (Part extends keyof Q ? Q[Part] : {}) : {};
+// ---- 入力 ----
 
 type HasUndefined<T> = undefined extends T ? true : false;
 
 type InputTypeBase<
   R extends RouteConfig,
-  Part extends string,
-  Type extends keyof ValidationTargets,
-> =
-  RequestPart<R, Part> extends infer S extends AnySchema
-    ? {
-        in: {
-          [K in Type]: HasUndefined<ValidationTargets[K]> extends true
-            ? { [K2 in keyof InferInput<S>]?: InferInput<S>[K2] }
-            : { [K2 in keyof InferInput<S>]: InferInput<S>[K2] };
-        };
-        out: { [K in Type]: InferOutput<S> };
-      }
-    : {};
-
-type IsJson<T> = T extends string
-  ? T extends `application/${infer Start}json${infer _End}`
-    ? Start extends "" | `${string}+` | `vnd.${string}+`
-      ? "json"
-      : never
-    : never
-  : never;
-
-type InputTypeJson<R extends RouteConfig> = R["request"] extends {
-  body: { content: infer C extends Content };
-}
-  ? IsJson<keyof C> extends never
-    ? {}
-    : C[keyof C] extends { schema: infer S extends AnySchema }
-      ? { in: { json: InferInput<S> }; out: { json: InferOutput<S> } }
-      : {}
+  Part extends keyof ValidationTargets,
+> = R["request"] extends { [K in Part]: infer S extends AnySchema }
+  ? {
+      in: {
+        [K in Part]: HasUndefined<ValidationTargets[K]> extends true
+          ? { [K2 in keyof InferInput<S>]?: InferInput<S>[K2] }
+          : { [K2 in keyof InferInput<S>]: InferInput<S>[K2] };
+      };
+      out: { [K in Part]: InferOutput<S> };
+    }
   : {};
 
-export type ComputeInput<R extends RouteConfig> = InputTypeBase<
-  R,
-  "params",
-  "param"
-> &
-  InputTypeBase<R, "query", "query"> &
-  InputTypeBase<R, "headers", "header"> &
-  InputTypeBase<R, "cookies", "cookie"> &
+type InputTypeJson<R extends RouteConfig> = R["request"] extends {
+  json: infer S extends AnySchema;
+}
+  ? { in: { json: InferInput<S> }; out: { json: InferOutput<S> } }
+  : {};
+
+export type ComputeInput<R extends RouteConfig> = InputTypeBase<R, "param"> &
+  InputTypeBase<R, "query"> &
+  InputTypeBase<R, "header"> &
+  InputTypeBase<R, "cookie"> &
   InputTypeJson<R>;
 
 // ---- 出力 ----
-
-type ExtractContent<T> = T extends { [K in keyof T]: infer A }
-  ? A extends { schema: infer S extends AnySchema }
-    ? InferOutput<S>
-    : never
-  : never;
-
-type ReturnJson<
-  ContentType,
-  Content,
-  Code extends StatusCode,
-> = ContentType extends `application/${infer Start}json${infer _End}`
-  ? Start extends "" | `${string}+` | `vnd.${string}+`
-    ? TypedResponse<JSONParsed<Content>, Code, "json">
-    : never
-  : never;
 
 type DefinedStatusCodes<R extends RouteConfig> = keyof R["responses"] &
   StatusCode;
 
 /** 宣言した応答の和。hc の応答の型になる */
 export type RouteConfigToTypedResponse<R extends RouteConfig> = {
-  [Status in DefinedStatusCodes<R>]: Status extends StatusCode
-    ? R["responses"][Status] extends { content: infer Content }
-      ? undefined extends Content
-        ? never
-        : ReturnJson<keyof Content, ExtractContent<Content>, Status>
-      : TypedResponse<{}, Status, string>
-    : never;
+  [Status in DefinedStatusCodes<R>]: TypedResponse<
+    JSONParsed<InferOutput<SchemaOfResponse<R["responses"][Status]>>>,
+    Status,
+    "json"
+  >;
 }[DefinedStatusCodes<R>];
 
 // ---- middleware の Env ----

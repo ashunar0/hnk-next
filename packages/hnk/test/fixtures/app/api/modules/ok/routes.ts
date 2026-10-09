@@ -1,9 +1,7 @@
-import { createEndpoint, createRouter } from "hnk";
+import { createRouter } from "hnk";
 import { requireAuth } from "../../middleware/auth";
 
-export const okRouter = createRouter();
-
-const endpoint = createEndpoint(
+export const okRouter = createRouter().endpoint(
   {
     method: "get",
     path: "/",
@@ -14,4 +12,3 @@ const endpoint = createEndpoint(
     throw new Error("fixture");
   },
 );
-void endpoint;

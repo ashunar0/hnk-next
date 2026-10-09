@@ -4,15 +4,7 @@
  * valibot 自身は JSON Schema を出さないので、文書に出したい schema だけ toStandardJsonSchema で包む
  */
 import { toStandardJsonSchema } from "@valibot/to-json-schema";
-import {
-  createEndpoint,
-  createRouter,
-  errorResponses,
-  json,
-  jsonBody,
-  onError,
-  provideDeps,
-} from "hnk";
+import { createRouter, errorResponses, json, onError, provideDeps } from "hnk";
 import { openapiDocument } from "hnk/openapi";
 import * as v from "valibot";
 import { expect, it } from "vitest";
@@ -31,27 +23,25 @@ const output = toStandardJsonSchema(
 );
 
 const router = createRouter().endpoint(
-  ...createEndpoint(
-    {
-      method: "post",
-      path: "/items/:id",
-      middleware: [allowAnonymous],
-      request: { params, query, body: jsonBody(input) },
-      responses: { 200: json(output, "作った"), ...errorResponses(NotFound) },
-    },
-    async (c, reply) => {
-      const { id } = c.req.valid("param");
-      const { limit } = c.req.valid("query");
-      const { title } = c.req.valid("json");
-      // 型: limit は transform の後の number、title は string
-      limit satisfies number;
-      title satisfies string;
+  {
+    method: "post",
+    path: "/items/:id",
+    middleware: [allowAnonymous],
+    request: { param: params, query, json: input },
+    responses: { 200: json(output, "作った"), ...errorResponses(NotFound) },
+  },
+  async (c, reply) => {
+    const { id } = c.req.valid("param");
+    const { limit } = c.req.valid("query");
+    const { title } = c.req.valid("json");
+    // 型: limit は transform の後の number、title は string
+    limit satisfies number;
+    title satisfies string;
 
-      if (id === "no") return reply.failure("NOT_FOUND");
+    if (id === "no") return reply.failure("NOT_FOUND");
 
-      return reply(200, { id, title, limit });
-    },
-  ),
+    return reply(200, { id, title, limit });
+  },
 );
 
 const app = createRouter()

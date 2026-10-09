@@ -7,13 +7,19 @@ import {
   type ToSchema,
 } from "hono";
 import { validator } from "hono/validator";
-import type { H, MergePath } from "hono/types";
+import type { MergePath } from "hono/types";
+import {
+  buildEndpoint,
+  type BuiltRoute,
+  type EndpointConfig,
+  type EndpointFn,
+} from "./endpoint";
 import { fail, ValidationError } from "./failure";
+import type { RegisteredEnv } from "./register";
 import type {
   AnySchema,
   ComputeInput,
   RouteConfig,
-  RouteConfigToEnv,
   RouteConfigToTypedResponse,
 } from "./route-types";
 
@@ -33,21 +39,19 @@ const check = (
   });
 
 const validatorsOf = (route: RouteConfig) => {
-  const { params, query, headers, cookies, body } = route.request ?? {};
-  const json =
-    body && Object.entries(body.content).find(([type]) => /json/.test(type));
+  const { param, query, header, cookie, json } = route.request ?? {};
 
   return [
-    params && check("param", params),
+    param && check("param", param),
     query && check("query", query),
-    headers && check("header", headers),
-    cookies && check("cookie", cookies),
-    json && check("json", json[1].schema),
+    header && check("header", header),
+    cookie && check("cookie", cookie),
+    json && check("json", json),
   ].filter((v): v is NonNullable<typeof v> => !!v);
 };
 
 /**
- * route をまとめる Hono。`endpoint(route, handler)` で、宣言と handler を組にして登録する。
+ * route をまとめる Hono。`.endpoint(config, fn)` で、宣言と handler を組にして登録する。
  * 宣言から、c.req.valid() の型と、hc の応答の型が決まる
  */
 export class Router<
@@ -55,34 +59,23 @@ export class Router<
   S extends Schema = {},
   BasePath extends string = "/",
 > extends Hono<E, S, BasePath> {
-  endpoint<
-    R extends RouteConfig,
-    I extends Input = ComputeInput<R>,
-    P extends string = R["path"],
-  >(
-    route: R,
-    handler: Handler<
-      R["middleware"] extends H | H[] ? RouteConfigToEnv<R> & E : E,
-      P,
-      I,
-      RouteConfigToTypedResponse<R> | Promise<RouteConfigToTypedResponse<R>>
-    >,
+  endpoint<const C extends RouteConfig>(
+    config: EndpointConfig<C>,
+    fn: EndpointFn<C>,
   ): Router<
     E,
     S &
       ToSchema<
-        R["method"],
-        MergePath<BasePath, P>,
-        I,
-        RouteConfigToTypedResponse<R>
+        C["method"],
+        MergePath<BasePath, C["path"]>,
+        ComputeInput<BuiltRoute<C>>,
+        RouteConfigToTypedResponse<BuiltRoute<C>>
       >,
     BasePath
   > {
+    const [route, handler] = buildEndpoint(config as C, fn);
     const middleware = [route.middleware ?? []].flat();
-    const last = Object.assign(
-      (c: unknown, next: unknown) => (handler as unknown as Function)(c, next),
-      { [ROUTE]: route },
-    );
+    const last = Object.assign(handler, { [ROUTE]: route });
 
     // 型は引数の宣言で守られている。Hono の on は、この中では型を照らし合わせきれない
     (
@@ -99,3 +92,6 @@ export class Router<
     return this as never;
   }
 }
+
+/** route をまとめる Hono。`new Hono()` の代わり */
+export const createRouter = () => new Router<RegisteredEnv>();

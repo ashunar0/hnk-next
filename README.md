@@ -25,32 +25,27 @@ memo.md         別の会話でまとめた、Go の設計思想を Hono で再�
 export const invoicesRouter = createRouter()
   // 更新
   .endpoint(
-    ...createEndpoint(
-      {
-        method: "put",
-        path: "/{id}",
-        middleware: [requireAuth],
-        request: {
-          params: invoiceParamsSchema,
-          body: jsonBody(invoiceInputSchema),
-        },
-        responses: {
-          200: json(invoiceResponseSchema, "更新した請求書"),
-          ...errorResponses(NotFound, Forbidden),
-        },
+    {
+      method: "put",
+      path: "/:id",
+      middleware: [requireAuth],
+      request: { param: invoiceParamsSchema, json: invoiceInputSchema },
+      responses: {
+        200: invoiceResponseSchema,
+        ...errorResponses(NotFound, Forbidden),
       },
-      async (c, reply, { invoices }) => {
-        const actor = c.get("actor");
-        const { id } = c.req.valid("param");
-        const input = c.req.valid("json");
-        const now = new Date();
+    },
+    async (c, reply, { invoices }) => {
+      const actor = c.get("actor");
+      const { id } = c.req.valid("param");
+      const input = c.req.valid("json");
+      const now = new Date();
 
-        const result = await invoices.update(actor, id, input, now);
-        if (!result.ok) return reply.failure(result.error);
+      const result = await invoices.update(actor, id, input, now);
+      if (!result.ok) return reply.failure(result.error);
 
-        return reply(200, invoiceResponse(result.value));
-      },
-    ),
+      return reply(200, invoiceResponse(result.value));
+    },
   );
 ```
 
@@ -172,7 +167,7 @@ go build ./cmd/api
   ただし、他の module の ID に印を付けて渡す所（`(actor, id) => invoices.getPayable(actor, invoiceId(id))`）は関数で包むので、tsc は止めない。
   module の依存が一方向であることは、今は決まりとレビューで守っていて、輪を機械では止めていない（輪が起きる兆しが出たら、deps.ts の依存を調べるテストを足す）。
   getter で遅延する案は、宣言順の保証を失うので外した（組み立ては関数を返すだけで軽い）。deps.ts は何を import してもよい場所で、lint の表には入れていない
-- **route は `createEndpoint(設定, handler)` 1 つで書く**（素の Hono の上。`.endpoint(...)` で登録する）。設定は OpenAPI の route の宣言に近い形（`method` は小文字、`path` は Hono の `/:id`）で、guard が持つ失敗と ValidationError を hnk が足す。`c.json` だとずれたときの赤線が handler の頭に付くので、`reply` で返す。`createRoute` は公開しない（書き方を 1 つにするため）。`path` の `:name` と `request.params` のキーが食い違うと型エラーになる
+- **route は `router.endpoint(設定, handler)` 1 つで書く**（素の Hono の上）。設定の `request` のキーは、handler で読む `c.req.valid("…")` の名前と同じ（`param` を宣言したら `valid("param")`）。`method` は小文字、`path` は Hono の `/:id`、応答はスキーマをそのまま書く（OpenAPI の文書に説明を出したいときだけ `json(schema, "説明")`）。guard が持つ失敗と ValidationError を hnk が足す。`c.json` だとずれたときの赤線が handler の頭に付くので、`reply` で返す。`createRoute` は公開しない（書き方を 1 つにするため）。`path` の `:name` と `request.params` のキーが食い違うと型エラーになる
 - **スキーマは Standard Schema を満たすものなら何でも**（zod、valibot で確かめた）。hnk は検証のライブラリを決め打ちしない。**OpenAPI は別の部品**（`hnk/openapi` の `openapiDocument(app, info)`）で、登録された宣言から文書を作る。JSON Schema への変換はスキーマのライブラリ自身が持つ（Standard JSON Schema）。valibot は単体では出せないので、文書に出したいものだけ `toStandardJsonSchema` で包む。要らないなら使わない
 - **失敗は値で、番号と文言を持つ**（`httpError("NOT_FOUND", 404, "…")`）。guard が持つ失敗と ValidationError は自動で宣言する。
   `reply.failure` が受け取れるのは、route に手で書いたドメインの失敗だけ。同じ番号の失敗が複数あっても 1 つの応答にまとめ、コードごとの文言で返す
@@ -194,8 +189,7 @@ go build ./cmd/api
 - **outbound の形は service が宣言する**（Go の「interface は使う側が決める」）
 - **lint は `hnk/lint` で提供する**。module の中のファイルは、名前の頭（役割）で core / inbound / outbound に分ける。
   役割の分からないファイルは置けない。依存の向きは役割ごとの許可表（`layer-imports`）で守らせ、表に無い import は全部だめ。
-  相対 import も tsconfig の paths 経由も同じに見る。HTTP の inbound（routes と webhook）には、export は束 1 本、
-  `createEndpoint` に認証の指定、`c.json` 禁止、引数の中で await しない、を求める。どこでも、モジュールの一番上に変わる状態を置かない。
+  相対 import も tsconfig の paths 経由も同じに見る。HTTP の inbound（routes と webhook）には、 `.endpoint` に認証の指定、`c.json` 禁止、を求める。どこでも、モジュールの一番上に変わる状態を置かない。
   他 module の表を直接読まない（`no-foreign-table-reads`）、ID の印を `as` で付けない（`no-id-cast`）、core と outbound で時計を読まない（`no-clock-outside-inbound`）も、lint で止める
 
 <!-- layers:start（packages/hnk/lint/layers.mjs から生成。直接は書き換えない） -->
@@ -273,7 +267,7 @@ invoices と同じ形で書く。迷いやすい所は、次のとおりに揃�
 - 閲覧だけを共有された人も、支払いを始められる（`getPayable` は access を見ない）
 - D1 には対話的なトランザクションが無い（`batch` が基本）。マルチテナントを考えるときに効く
 - テストは、本物のローカル D1 を使い、1 つの module で閉じるものは module の中に置くところまで決めた。service が返す失敗コードごとにテストがあるかを機械で見張るかは未定
-- `.endpoint(...createEndpoint(設定, handler))` の書き方。`.endpoint(設定, handler)` の 1 段にできるか（スプレッドが一番目立つ妥協）。設定の形（`request: { params }`、`json(schema, "説明")`）を OpenAPI 寄りから hnk 独自にするか
+- 設定の形（`request: { param, query, json }`、応答はスキーマそのまま）は、使ってみて揺れたら見直す。`reply(200, body)` を `reply.ok` / `reply.err` に揃えるかも、reply の使い間違いが実験で見えたら比べる
 - `pageQuery` / `cursorSchema`（`hnk/page-schema`）は zod 固定。Standard Schema の別のライブラリでは使えない
 - 「育ち方」を lint と生成器にどこまで載せるか
 - queue を複数持つときの振り分け、cron 式ごとの切り替え（今は 1 つずつ）

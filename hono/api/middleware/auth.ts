@@ -17,7 +17,7 @@ export const withUser: MiddlewareHandler<AppEnv> = async (c, next) => {
 };
 
 /**
- * ログインを要求する。createEndpoint の middleware に置くと、その先の handler で
+ * ログインを要求する。.endpoint の middleware に置くと、その先の handler で
  * actor（誰として操作するか）が User になる（user は null を含んだまま）。
  * Unauthorized は responses に自動で足される
  */
