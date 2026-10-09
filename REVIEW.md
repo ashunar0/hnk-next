@@ -49,14 +49,14 @@ AI が自分で直せるかはエラーの質で決まるので、赤線の出�
 ### 3. 失敗: 想定内は Result、throw は入口と想定外だけ
 
 - service は HTTP を知らない。失敗は `Result` で返し、番号と文言は `httpError("NOT_FOUND", 404, "…")` が持つ
-- route は `createEndpoint` に `responses` を宣言する（`@hono/zod-openapi` の上）。handler は `reply(200, body)` / `reply.failure(error)` で返し、宣言とずれた応答は型エラーになる。guard（`requireAuth` など）が持つ失敗は `responses` に自動で足される
+- route は `router.endpoint(設定, handler)` に `responses` を宣言する（素の Hono の上。検証は Standard Schema、OpenAPI は別の部品）。handler は `reply(200, body)` / `reply.failure(error)` で返し、宣言とずれた応答は型エラーになる。guard（`requireAuth` など）が持つ失敗は `responses` に自動で足される
 - **理由**: 失敗が戻り値の型に出て、どの失敗がありうるかを列挙できる。処理を飛ばすと型エラーになる
 - **却下**: service が `forbidden()` / `notFound()` を throw する案（HTTP の番号を知ってしまい、cron から呼ぶと意味が通らない）。defineHandler の完成を待つ案（Hono 本体の PR #5531 は未マージで、`response` が 1 つだけなので、番号ごとの失敗の宣言が載らない）
 - 見る場所: `packages/hnk/src/endpoint.ts`、`invoices/routes.ts`、`invoices/service.ts`
 
 ### 4. 提供の仕方: 仕組みはパッケージ、アプリの決めごとは生成
 
-- 仕組み（Result、`createRouter`、`createEndpoint`、`createWorker`、lint）は `hnk` パッケージ。エラーの表、env、deps、middleware と module はアプリ側
+- 仕組み（Result、`createRouter`、`createWorker`、lint）は `hnk` パッケージ。エラーの表、env、deps、middleware と module はアプリ側
 - **却下**: shadcn 方式で lib をコピーする案（Hono の上に載る FW なら、ヘルパーはパッケージで提供するべきだという判断）。結びつけのためだけのファイルを作る案
 
 ### 5. 印: 検査済みの値と ID は、型で区別する
@@ -85,7 +85,7 @@ AI が自分で直せるかはエラーの質で決まるので、赤線の出�
 1. [README.md](README.md): 全体の形、決めたこと、未決
 2. `hono/api/modules/invoices/` の `domain.ts` → `service.ts` → `routes.ts` → `repo.d1.ts`: 1 つの module の全体
 3. `hono/api/deps.ts`: 組み立てと、module をまたぐ所
-4. `packages/hnk/src/`: 仕組みの中身。`endpoint.ts`（`createEndpoint`、`reply`）、`failure.ts`（`httpError`）、`worker.ts`（`createWorker`）
+4. `packages/hnk/src/`: 仕組みの中身。`endpoint.ts` と `router.ts`（`.endpoint`、`reply`）、`failure.ts`（`httpError`）、`worker.ts`（`createWorker`）
 5. `packages/hnk/lint/layers.mjs`: 許可表
 6. [docs/03.md](docs/03.md): 場面ごとに形を試した記録（認証、cron、キュー、webhook、集計）
 7. [docs/09.md](docs/09.md): AI に新しい module を書かせた実験（4 回）
@@ -98,7 +98,7 @@ AI が自分で直せるかはエラーの質で決まるので、赤線の出�
 
 1. **育ち方の基準**: 「2 つ目が現れたときだけ育てる」の判断は、事実で決められているか。足す条件が曖昧で、結局人の感覚に戻っていないか。core / inbound / outbound という呼び方は適切か
 2. **失敗の扱い**: Result と `httpError` と `responses` の宣言で、ドメインの失敗と HTTP の失敗を二重に管理していないか。guard が失敗を自動で足す挙動は、「ブラックボックスにしない」と相性が悪くないか
-3. **zod-openapi 前提**: `createEndpoint` は `@hono/zod-openapi` の `createRoute` の形に乗っている。zod への依存は許容できるか。将来 `defineHandler`（Standard Schema）に寄せる余地を、どう見るか
+3. **土台を自前にした判断**: `@hono/zod-openapi` に乗らず、素の Hono の上に約 400 行の層（`router.ts`・`route-types.ts`・`openapi.ts`）を持った。検証は Standard Schema（zod と valibot で確かめた）、OpenAPI は要る人だけが使う別の部品。依存を剥がした代わりに、型の層を自分で保つ。この釣り合いは妥当か。`page-schema.ts`（`cursorSchema` など）は zod 固定のまま
 4. **module をまたぐ**: 使う側が形を宣言して `deps.ts` でつなぐ、書き込みは `commands/` を通す、という組み立て。1 回の書き込みで 1 つの module だけを変える方針は、どんな場面で破綻するか
 5. **印の入れ方**: brand と `unique symbol` の使い方は過剰か。ID の印を `deps.ts` で付ける形は、読む人に分かるか
 6. **テナントと共有**: `Reach` と、repo が access を返す形に、穴は無いか。共有の取り消しと書き込みの競合を、domain の 1 か所で取った判断（README の未決）は妥当か

@@ -14,6 +14,27 @@ it("OpenAPI の文書が作れる（query に zod の transform を含んでい�
   expect(Object.keys(doc.paths)).toContain("/invoices");
 });
 
+it("OpenAPI の文書: 日付は日時の文字列で出て、各 schema に $schema が付かない", async () => {
+  const res = await app.request("/openapi.json", {}, env);
+
+  const doc = (await res.json()) as {
+    paths: Record<
+      string,
+      Record<
+        string,
+        { requestBody: { content: Record<string, { schema: Record<string, unknown> }> } }
+      >
+    >;
+  };
+  const schema = doc.paths["/invoices/{id}"]!.put!.requestBody.content["application/json"]!.schema;
+
+  expect(schema).not.toHaveProperty("$schema");
+  expect((schema.properties as Record<string, unknown>).dueAt).toEqual({
+    type: "string",
+    format: "date-time",
+  });
+});
+
 it("ログインしていなければ 401", async () => {
   const res = await app.request("/invoices", {}, env);
 

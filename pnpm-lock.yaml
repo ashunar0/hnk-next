@@ -10,9 +10,6 @@ importers:
 
   hono:
     dependencies:
-      '@hono/zod-openapi':
-        specifier: ^1.6.3
-        version: 1.6.3(hono@4.13.13)(zod@4.6.5)
       '@hono/zod-validator':
         specifier: ^0.9.0
         version: 0.9.1(hono@4.13.13)(zod@4.6.5)
@@ -35,6 +32,9 @@ importers:
       '@cloudflare/workers-types':
         specifier: ^5.20260813.1
         version: 5.20261007.1
+      '@valibot/to-json-schema':
+        specifier: ^1.8.0
+        version: 1.8.0(valibot@1.5.0(typescript@7.0.2))
       drizzle-kit:
         specifier: ^0.31.11
         version: 0.31.11
@@ -47,6 +47,9 @@ importers:
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
+      valibot:
+        specifier: ^1.5.0
+        version: 1.5.0(typescript@7.0.2)
       vitest:
         specifier: ^4.1.11
         version: 4.1.11(vite@8.3.3(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
@@ -56,9 +59,6 @@ importers:
 
   packages/hnk:
     devDependencies:
-      '@hono/zod-openapi':
-        specifier: ^1.6.3
-        version: 1.6.3(hono@4.13.13)(zod@4.6.5)
       hono:
         specifier: ^4.13.1
         version: 4.13.13
@@ -73,11 +73,6 @@ importers:
         version: 4.6.5
 
 packages:
-
-  '@asteasolutions/zod-to-openapi@9.1.0':
-    resolution: {integrity: sha512-pLMeRgRYS7/vZIgAAkOe2P6+XGTifR1MT9pqDoxZ11EmcJJ+DPmdPqLN8ZZF4U8R9KHCCQCS9c2wtuE8wSrfkw==}
-    peerDependencies:
-      zod: ^4.0.0
 
   '@cloudflare/kv-asset-handler@0.5.0':
     resolution: {integrity: sha512-jxQYkj8dSIzc0cD6cMMNdOc1UVjqSqu8BZdor5s8cGjW2I8BjODt/kWPVdY+u9zj3ms75Q5qaZgnxUad83+eAg==}
@@ -750,13 +745,6 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@hono/zod-openapi@1.6.3':
-    resolution: {integrity: sha512-VYR82Y60plu8g3pN60OUXMVKpmxh3R04Qs++3DY9vtwZ9/sA/BRY0PcRIR+Z37/3itWtM7pYwT9bKiH9JhqV6Q==}
-    engines: {node: '>=16.0.0'}
-    peerDependencies:
-      hono: '>=4.10.0'
-      zod: ^4.0.0
-
   '@hono/zod-validator@0.9.1':
     resolution: {integrity: sha512-iiv6w0qrIc0arfvCtUqBWsvl4fXjzaTcQcCJTTtCnkawF9HHGE+KjEl0ox3gQJ6rKZEgE3mLExlQCF72M+mNuw==}
     peerDependencies:
@@ -1307,6 +1295,11 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@valibot/to-json-schema@1.8.0':
+    resolution: {integrity: sha512-a0M+uwCuQZEPAo65NYkFSJ14O5c213KoSZmPdoCfuFvUhfULi4T2Z6Tpjv6lTVMW9RoLm74RpRAjNEa43KcN+g==}
+    peerDependencies:
+      valibot: ^1.5.0
+
   '@vitest/expect@4.1.11':
     resolution: {integrity: sha512-VX2x5vNJXET47KAFzwERI+KRMtTTCSWTfSMKsW7JsUsXV4psq++e3DvZpuTDOpHcxytiDs6p2nhVb2tVDiiUYw==}
 
@@ -1611,9 +1604,6 @@ packages:
     resolution: {integrity: sha512-XrsrhT5sybtKI6wakr2SPOlGZWWYbUXZ7a0jT8/QOeAPau+1X/bSegNe5YR75oJmEZQbKningirmGOEJCIk61Q==}
     engines: {node: '>=12.20.0'}
 
-  openapi3-ts@4.6.1:
-    resolution: {integrity: sha512-XW9MOldkhoICNeXVzzmXzmOW5G73ppOEGmh7fLCqHjgfdEYCGGN+00MlVCeUZgovjjfC56j9tvtDt1zGabNjjA==}
-
   oxlint@1.87.0:
     resolution: {integrity: sha512-drxVlaW7Oqq7wSy1CN25znRu00aRq8n57Q2wniJRxCmtYVz07ufCm7EVDPQFZURrTgQIjzKrVEHAD/HcvJXObg==}
     engines: {node: ^20.19.0 || >=22.12.0}
@@ -1729,6 +1719,14 @@ packages:
 
   unenv@2.0.0-rc.24:
     resolution: {integrity: sha512-i7qRCmY42zmCwnYlh9H2SvLEypEFGye5iRmEMKjcGi7zk9UquigRjFtTLz0TYqr0ZGLZhaMHl/foy1bZR+Cwlw==}
+
+  valibot@1.5.0:
+    resolution: {integrity: sha512-nil6AkP2TChWL43Z5uJ6GTxX01CUA+g8LWUM+N/rB9NBbkUMaUsi9PUNzlUPgoKASgmx9f7eGOYpJ04/fSa6FQ==}
+    peerDependencies:
+      typescript: '>=5'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
 
   vite@8.3.3:
     resolution: {integrity: sha512-cTAldKPImjg6c+gk48U19POPn3GCBzZwpdsN8ZMEEcbpes+6/wvfqUd0C2y3qYY4wsj8PwgFwrZ/1jBPVttMSg==}
@@ -1864,11 +1862,6 @@ packages:
     resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
 
 snapshots:
-
-  '@asteasolutions/zod-to-openapi@9.1.0(zod@4.6.5)':
-    dependencies:
-      openapi3-ts: 4.6.1
-      zod: 4.6.5
 
   '@cloudflare/kv-asset-handler@0.5.0': {}
 
@@ -2232,14 +2225,6 @@ snapshots:
   '@esbuild/win32-x64@0.28.2':
     optional: true
 
-  '@hono/zod-openapi@1.6.3(hono@4.13.13)(zod@4.6.5)':
-    dependencies:
-      '@asteasolutions/zod-to-openapi': 9.1.0(zod@4.6.5)
-      '@hono/zod-validator': 0.9.1(hono@4.13.13)(zod@4.6.5)
-      hono: 4.13.13
-      openapi3-ts: 4.6.1
-      zod: 4.6.5
-
   '@hono/zod-validator@0.9.1(hono@4.13.13)(zod@4.6.5)':
     dependencies:
       hono: 4.13.13
@@ -2553,6 +2538,10 @@ snapshots:
   '@typescript/typescript-win32-x64@7.0.2':
     optional: true
 
+  '@valibot/to-json-schema@1.8.0(valibot@1.5.0(typescript@7.0.2))':
+    dependencies:
+      valibot: 1.5.0(typescript@7.0.2)
+
   '@vitest/expect@4.1.11':
     dependencies:
       '@standard-schema/spec': 1.1.0
@@ -2828,10 +2817,6 @@ snapshots:
 
   obug@2.2.1: {}
 
-  openapi3-ts@4.6.1:
-    dependencies:
-      yaml: 2.9.1
-
   oxlint@1.87.0:
     optionalDependencies:
       '@oxlint/binding-android-arm-eabi': 1.87.0
@@ -2993,6 +2978,10 @@ snapshots:
     dependencies:
       pathe: 2.0.3
 
+  valibot@1.5.0(typescript@7.0.2):
+    optionalDependencies:
+      typescript: 7.0.2
+
   vite@8.3.3(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1):
     dependencies:
       lightningcss: 1.33.0
@@ -3064,7 +3053,8 @@ snapshots:
 
   ws@8.21.0: {}
 
-  yaml@2.9.1: {}
+  yaml@2.9.1:
+    optional: true
 
   youch-core@0.3.3:
     dependencies:

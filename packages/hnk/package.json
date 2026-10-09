@@ -7,18 +7,17 @@
   "exports": {
     ".": "./src/index.ts",
     "./result": "./src/result.ts",
+    "./openapi": "./src/openapi.ts",
     "./page": "./src/page.ts",
     "./system": "./src/system.ts",
     "./testing": "./src/testing.ts",
     "./lint": "./lint/index.mjs"
   },
   "peerDependencies": {
-    "@hono/zod-openapi": "^1.6.3",
     "hono": "^4.13.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@hono/zod-openapi": "^1.6.3",
     "hono": "^4.13.1",
     "zod": "^4.4.3",
     "oxlint": "^1.80.0",

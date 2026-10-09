@@ -18,9 +18,10 @@ export default {
 
     return {
       CallExpression(node) {
+        // `router.endpoint(config, fn)`
         if (
-          node.callee?.type !== "Identifier" ||
-          node.callee.name !== "createEndpoint"
+          node.callee?.type !== "MemberExpression" ||
+          node.callee.property?.name !== "endpoint"
         )
           return;
         const config = unwrap(node.arguments[0]);
@@ -41,7 +42,7 @@ export default {
           context.report({
             node,
             message:
-              "createEndpoint に認証の指定が無い。middleware: [requireAuth] か、公開なら [allowAnonymous] を置く",
+              ".endpoint に認証の指定が無い。middleware: [requireAuth] か、公開なら [allowAnonymous] を置く",
           });
           return;
         }

@@ -1,4 +1,4 @@
-import { z } from "@hono/zod-openapi";
+import { z } from "zod";
 
 import { PAGE_LIMIT, type Cursor, type Page } from "./page";
 

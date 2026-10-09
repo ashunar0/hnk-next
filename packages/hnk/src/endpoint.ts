@@ -1,13 +1,6 @@
-import {
-  createRoute as zodCreateRoute,
-  OpenAPIHono,
-  z,
-  type RouteConfig,
-  type RouteConfigToEnv,
-  type RouteConfigToTypedResponse,
-  type RouteHandler,
-} from "@hono/zod-openapi";
 import type { Context, MiddlewareHandler, TypedResponse } from "hono";
+import type { ParamKeys } from "hono/types";
+import { z } from "zod";
 import type {
   ContentfulStatusCode,
   SuccessStatusCode,
@@ -16,16 +9,25 @@ import type { JSONParsed } from "hono/utils/types";
 
 import { errorBody, fail, ValidationError, type HttpError } from "./failure";
 import type { RegisteredDeps, RegisteredEnv } from "./register";
+import {
+  type AnySchema,
+  type RouteConfig,
+  type RouteConfigToEnv,
+  type RouteConfigToTypedResponse,
+  type RouteHandler,
+  type SchemaOfResponse,
+} from "./route-types";
+import type { InferInput, InferOutput } from "./standard-schema";
 
 import type { System } from "./system";
 
 /**
  * `as never` / `as unknown as` を使うのは、hnk ではこのファイルの次の 3 つだけ。
- * - provideDeps の `c.set` と、createEndpoint の `c.get`: 内部のキー（DEPS_KEY）は、アプリの Env の変数に載せない
+ * - provideDeps の `c.set` と、endpoint の `c.get`: 内部のキー（DEPS_KEY）は、アプリの Env の変数に載せない
  * - errorResponses の戻り値: 実行時に組み立てた object に、番号ごとの失敗の型を付ける
- * - createEndpoint の handler の中の `reply` と `fn(c, ...)`: route の型 R が決まらないここでは、
- *   TS が Hono / zod-openapi のジェネリクスを照らし合わせきれない
- * ここで型を信じてもらう代わりに、使う側は createEndpoint の fn の型（c、reply、deps）で守られる
+ * - .endpoint の handler の中の `reply` と `fn(c, ...)`: route の型 R が決まらないここでは、
+ *   TS が Hono のジェネリクスを照らし合わせきれない
+ * ここで型を信じてもらう代わりに、使う側は .endpoint の fn の型（c、reply、deps）で守られる
  */
 
 // ---- 依存 ----
@@ -53,32 +55,15 @@ export const provideDeps =
   };
 
 type MaybePromise<T> = T | Promise<T>;
-// ---- router ----
-
-/** route をまとめる Hono。`new Hono()` の代わり。検証に失敗したら throw して onError へ流す */
-export const createRouter = () =>
-  new OpenAPIHono<RegisteredEnv>({
-    defaultHook: (result) => {
-      if (!result.success)
-        throw fail(ValidationError, result.error.issues[0]?.message);
-    },
-  });
-
 // ---- responses の宣言 ----
 
 /**
- * JSON の本文。required を必ず付ける——付けないと、Content-Type の無いリクエストで
- * 検査そのものが飛ばされる
+ * 説明（OpenAPI の文書に出る）を付けた応答。説明が要らなければ、スキーマをそのまま書く。
+ * `responses: { 200: json(schema, "更新した請求書") }`
  */
-export const jsonBody = <T extends z.ZodType>(schema: T) => ({
-  required: true,
-  content: { "application/json": { schema } },
-});
-
-/** JSON の応答 1 つ */
-export const json = <T extends z.ZodType>(schema: T, description: string) => ({
+export const json = <T extends AnySchema>(schema: T, description: string) => ({
+  schema,
   description,
-  content: { "application/json": { schema } },
 });
 
 const errorSchema = <K extends string>(codes: readonly K[]) =>
@@ -122,13 +107,7 @@ export const errorResponses = <const T extends readonly HttpError[]>(
 type ErrorResponses<E extends HttpError> = {
   [S in E["status"]]: {
     description: string;
-    content: {
-      "application/json": {
-        schema: ReturnType<
-          typeof errorSchema<Extract<E, { status: S }>["code"]>
-        >;
-      };
-    };
+    schema: ReturnType<typeof errorSchema<Extract<E, { status: S }>["code"]>>;
   };
 };
 
@@ -161,7 +140,7 @@ export type Guard<
 };
 
 /**
- * middleware に、それが返しうる失敗を持たせる。createEndpoint の middleware に置くと、
+ * middleware に、それが返しうる失敗を持たせる。.endpoint の middleware に置くと、
  * その失敗が responses に自動で足される。`export const requireAuth = guard([Unauthorized], ...)`
  */
 export const guard = <
@@ -178,7 +157,7 @@ type GuardErrorsOf<M> = M extends readonly unknown[]
     ? E[number]
     : never;
 
-const INPUT_PARTS = ["params", "query", "body", "headers", "cookies"] as const;
+const INPUT_PARTS = ["param", "query", "header", "cookie", "json"] as const;
 
 /** 入力の検査があるか。あれば ValidationError を返しうる */
 type HasInput<R> = R extends { request: infer Q }
@@ -203,7 +182,7 @@ type WithAutoErrors<R extends RouteConfig> = Omit<R, "responses"> & {
 };
 
 /**
- * route の宣言。zod-openapi の createRoute に、失敗の自動の宣言を足したもの。
+ * route の宣言に、失敗の自動の宣言を足したもの。
  * guard が返しうる失敗（requireAuth なら Unauthorized）と、入力があるときの ValidationError は
  * responses に書かなくていい。書くのはドメインの失敗だけ
  */
@@ -215,23 +194,19 @@ const createRoute = <const R extends RouteConfig>(config: R) => {
   if (INPUT_PARTS.some((part) => config.request?.[part] !== undefined))
     auto.push(ValidationError);
 
-  return zodCreateRoute({
+  return {
     ...config,
     responses: mergeResponses(errorResponses(...auto), config.responses),
-  } as WithAutoErrors<R>);
+  } as WithAutoErrors<R>;
 };
 
 // ---- reply ----
 
 type JsonSchemaOf<R extends RouteConfig, S> = S extends keyof R["responses"]
-  ? R["responses"][S] extends {
-      content: { "application/json": { schema: infer Z extends z.ZodType } };
-    }
-    ? Z
-    : never
+  ? SchemaOfResponse<R["responses"][S]>
   : never;
 
-type JsonBodyOf<R extends RouteConfig, S> = z.infer<JsonSchemaOf<R, S>>;
+type JsonBodyOf<R extends RouteConfig, S> = InferOutput<JsonSchemaOf<R, S>>;
 
 type CodeOf<R extends RouteConfig, S> =
   JsonBodyOf<R, S> extends { error: { code: infer K } } ? K : never;
@@ -244,7 +219,7 @@ type DeclaredSuccess<R extends RouteConfig> = keyof R["responses"] &
 type Built<C extends RouteConfig> = ReturnType<typeof createRoute<C>>;
 
 /**
- * reply.failure が受け取れる失敗のコード。hnk の createEndpoint なら手で書いたものだけ
+ * reply.failure が受け取れる失敗のコード。hnk の .endpoint なら手で書いたものだけ
  * （guard や入力の検査が返す失敗は、handler が返すものではないので除く）
  */
 type DeclaredFailure<R extends RouteConfig> = R extends {
@@ -308,20 +283,50 @@ const findDeclaredFailure = (route: RouteConfig, code: string) => {
   );
 };
 
+/** request.param のキー */
+type ParamsKeysOf<C extends RouteConfig> = C extends {
+  request: { param: infer S extends AnySchema };
+}
+  ? keyof InferInput<S> & string
+  : never;
+
 /**
- * route の宣言と handler を組にする。
- * `.openapi(...createEndpoint({...}, async (c, reply, { invoices }) => ...))`。
- * 受け取る（c）、返す（reply）、使う（deps）が、引数の位置で決まる
+ * path の `:name` と request.param のキーが食い違っているとき、赤線に出る文言。
+ * 食い違っていると、実行時に検査が常に失敗するか、値が取れない
  */
-export const createEndpoint = <const C extends RouteConfig>(
+type PathMismatch<C extends RouteConfig> = [
+  | Exclude<ParamKeys<C["path"]>, ParamsKeysOf<C>>
+  | Exclude<ParamsKeysOf<C>, ParamKeys<C["path"]>>,
+] extends [never]
+  ? never
+  : `path のパラメータ（${ParamKeys<C["path"]>}）と request.param のキー（${ParamsKeysOf<C>}）が合っていない`;
+
+/** 宣言（config）の型。path と request.param が食い違っていれば、その旨の赤線が出る */
+export type EndpointConfig<C extends RouteConfig> = C &
+  ([PathMismatch<C>] extends [never]
+    ? unknown
+    : { readonly "path と request.param が合っていない": PathMismatch<C> });
+
+/** hc の応答の型などに使う、自動の失敗を足した後の宣言の型 */
+export type BuiltRoute<C extends RouteConfig> = Built<C>;
+
+/**
+ * handler の型。受け取る（c）、返す（reply）、使う（deps）が、引数の位置で決まる
+ */
+export type EndpointFn<C extends RouteConfig> = (
+  c: Parameters<
+    RouteHandler<Built<C>, RouteConfigToEnv<Built<C>> & RegisteredEnv>
+  >[0],
+  reply: Reply<Built<C>>,
+  deps: RegisteredDeps,
+) => MaybePromise<RouteConfigToTypedResponse<Built<C>>>;
+
+/**
+ * 宣言と handler を組にする。登録は Router の `.endpoint(config, fn)` が使う
+ */
+export const buildEndpoint = <const C extends RouteConfig>(
   config: C,
-  fn: (
-    c: Parameters<
-      RouteHandler<Built<C>, RouteConfigToEnv<Built<C>> & RegisteredEnv>
-    >[0],
-    reply: Reply<Built<C>>,
-    deps: RegisteredDeps,
-  ) => MaybePromise<RouteConfigToTypedResponse<Built<C>>>,
+  fn: EndpointFn<C>,
 ) => {
   const route = createRoute(config);
   const handler: RouteHandler<

@@ -2,7 +2,7 @@
  * 同じ番号の失敗を 2 つ宣言しても、どちらも返せること。
  * 宣言の中で番号がぶつかると片方が消え、型は通るのに実行時に 500 になっていた
  */
-import { createEndpoint, createRouter, errorResponses, httpError, json, provideDeps } from "hnk";
+import { createRouter, errorResponses, httpError, provideDeps } from "hnk";
 import { z } from "zod";
 import { expect, it } from "vitest";
 import { allowAnonymous } from "../api/middleware/auth";
@@ -12,24 +12,22 @@ const Second = httpError("SECOND", 409, "2 つ目の失敗");
 
 const app = createRouter();
 app.use(provideDeps(() => ({}) as never));
-app.openapi(
-  ...createEndpoint(
-    {
-      method: "get",
-      path: "/{which}",
-      middleware: [allowAnonymous] as const,
-      request: { params: z.object({ which: z.enum(["first", "second"]) }) },
-      responses: {
-        200: json(z.object({ ok: z.literal(true) }), "成功"),
-        ...errorResponses(First, Second),
-      },
+app.endpoint(
+  {
+    method: "get",
+    path: "/:which",
+    middleware: [allowAnonymous] as const,
+    request: { param: z.object({ which: z.enum(["first", "second"]) }) },
+    responses: {
+      200: z.object({ ok: z.literal(true) }),
+      ...errorResponses(First, Second),
     },
-    async (c, reply) => {
-      const { which } = c.req.valid("param");
+  },
+  async (c, reply) => {
+    const { which } = c.req.valid("param");
 
-      return which === "first" ? reply.failure("FIRST") : reply.failure("SECOND");
-    },
-  ),
+    return which === "first" ? reply.failure("FIRST") : reply.failure("SECOND");
+  },
 );
 
 it.each([
