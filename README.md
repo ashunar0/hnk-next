@@ -2,11 +2,15 @@
 
 [hnk](https://github.com/ashunar0/hnk) の作り直しの実験場。Hono の上で「誰が書いても（AI が書いても）同じ形になる」ための仕組みを、パッケージとして作っている。
 
+設計・思想のレビューをしてもらう場合は、先に [REVIEW.md](REVIEW.md) を読んでください（判断の柱、読む順番、見てほしい問い）。
+
 目指す先は Go。同じ API（invoices の一覧・1件・作成・更新・削除）を Go の定番の書き方でも書いて、並べて比べながら形を決めた。
 
 ## 中身
 
 ```
+REVIEW.md       設計レビューの入口。判断の柱と、見てほしい問い
+docs/           経緯と実験の記録（索引は docs/README.md）
 packages/hnk/   hnk パッケージ。仕組みと lint のルール
 hono/           hnk を使ったアプリ（Hono + Cloudflare Workers + D1）
 go/             同じ API を Go（net/http + sqlc）で書いたもの。比較用
@@ -239,7 +243,6 @@ invoices と同じ形で書く。迷いやすい所は、次のとおりに揃�
 - 閲覧だけを共有された人も、支払いを始められる（`getPayable` は access を見ない）
 - D1 には対話的なトランザクションが無い（`batch` が基本）。マルチテナントを考えるときに効く
 - テストの方針（service は偽物の repo、HTTP は vitest-pool-workers のローカル D1、偽物は外の API だけ、が候補）
-- ID のブランド型
 - 「育ち方」を lint と生成器にどこまで載せるか
 - queue を複数持つときの振り分け、cron 式ごとの切り替え（今は 1 つずつ）
 - conventions.md の hnk 側の列（どの層で縛るか）が空
