@@ -10,7 +10,7 @@
     "./page": "./src/page.ts",
     "./system": "./src/system.ts",
     "./testing": "./src/testing.ts",
-    "./lint": "./lint.mjs"
+    "./lint": "./lint/index.mjs"
   },
   "peerDependencies": {
     "@hono/zod-openapi": "^1.6.3",

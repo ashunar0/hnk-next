@@ -1,0 +1,117 @@
+/**
+ * module の中の役割と、それが core / inbound / outbound のどれか。
+ * ここに無い名前のファイルは module の中に置けない（layer-imports が止める）
+ */
+export const KINDS = {
+  domain: "core",
+  service: "core",
+  commands: "core",
+  routes: "inbound",
+  webhook: "inbound",
+  cron: "inbound",
+  queue: "inbound",
+  repo: "outbound",
+  gateway: "outbound",
+  mailer: "outbound",
+  jobs: "outbound",
+};
+
+/**
+ * 役割ごとに、import してよい相手。ここに無いものは全部だめ。
+ * "type" は `import type` だけ許す。実行時には依存せず、形だけを借りる。
+ *
+ * 矢印は全部 core に向かう。domain は外を何も知らない。
+ * service は手順で、outbound の形を宣言する。outbound はその形を満たす。
+ * inbound は誰として呼ぶかを決め、deps から core を受け取って呼ぶ。
+ *
+ * 相手の書き方:
+ *   パッケージ名（hnk, hnk/result, zod, drizzle-orm）
+ *   自分の module の役割（domain, service, ...）。他の module のものは "foreign:<role>"
+ *   アプリの決めごと（errors, middleware, db, deps）
+ */
+export const LAYERS = {
+  // core
+  domain: { zod: "value", "hnk/system": "type", "foreign:domain": "type" },
+  service: {
+    "hnk/result": "value",
+    "hnk/page": "type",
+    "hnk/system": "type",
+    domain: "value",
+    "foreign:domain": "type",
+  },
+  // 他の module に変えさせてよい操作。使う outbound の形は service の宣言を借りる
+  commands: {
+    "hnk/result": "value",
+    "hnk/system": "type",
+    domain: "value",
+    service: "type",
+    "foreign:domain": "type",
+  },
+
+  // inbound（HTTP）
+  routes: {
+    hnk: "value",
+    zod: "value",
+    errors: "value",
+    middleware: "value",
+    domain: "value",
+  },
+  // 利用者のいない HTTP。誰として呼ぶか（system）は allowSystem から c.get("system") で受け取る
+  webhook: {
+    hnk: "value",
+    zod: "value",
+    errors: "value",
+    middleware: "value",
+    domain: "value",
+  },
+  // inbound（HTTP 以外）。deps と system と now は createWorker が渡すので、型を借りるだけ
+  cron: { hnk: "type", domain: "type" },
+  queue: { hnk: "type", domain: "type" },
+
+  // outbound
+  repo: {
+    "drizzle-orm": "value",
+    "hnk/page": "value",
+    db: "type",
+    domain: "value",
+    service: "type",
+    "foreign:repo": "value",
+    // 集計の SQL で、他 module の状態の集合（billedStatuses など）を使う
+    "foreign:domain": "value",
+  },
+  gateway: { "hnk/result": "value", domain: "type", service: "type" },
+  mailer: { "hnk/result": "value", domain: "type", service: "type" },
+  jobs: { domain: "type", service: "type" },
+};
+
+/** よくある間違いには、どうすればいいかを添える */
+export const HINTS = {
+  "domain→service": "domain はモノとルールだけ。手順は service に置く",
+  "domain→hnk/result":
+    "domain は失敗を返す手順を持たない。手順は service に置く",
+  "service→routes":
+    "service は HTTP を知らない。失敗は Result のコードで返し、番号は routes が決める",
+  "service→hnk":
+    "service が hnk から使ってよいのは Result だけ。hnk/result から import する",
+  "service→foreign:service":
+    "他の module は import しない。使う形を service に宣言し、deps.ts でつなぐ。書くなら相手の commands/ を渡してもらう",
+  "routes→foreign:domain":
+    'routes は認証した利用者として呼ぶ。システムが要る入口は、middleware に allowSystem を置いて c.get("system") で受け取る',
+  "routes→foreign:service":
+    "他の module の操作は、その流れの持ち主の service から呼ぶ",
+  "repo→foreign:service":
+    "読みは自分の repo の join で（相手の repo からテーブルを import してよい）",
+};
+
+/** 向きの間違いは、役割の組ではなく core / inbound / outbound の組で説明できる */
+export const KIND_HINTS = {
+  "core→outbound":
+    "core は outbound を知らない。必要な形は service に type で宣言し、outbound がそれを満たす",
+  "core→inbound":
+    "core は inbound を知らない。失敗は Result のコードで返し、HTTP の番号などは inbound が決める",
+  "inbound→outbound":
+    "inbound は outbound を知らない。deps から core を受け取って呼ぶ",
+  "inbound→core":
+    "inbound は service や commands を import しない。deps から受け取って呼ぶ",
+  "outbound→inbound": "outbound は inbound を知らない",
+};

@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../hono/node_modules/oxlint/configuration_schema.json",
   "categories": { "correctness": "off" },
-  "jsPlugins": ["../../../lint.mjs"],
+  "jsPlugins": ["../../../lint/index.mjs"],
   "rules": {
     "hnk/layer-imports": "error",
     "hnk/no-foreign-table-reads": "error",
