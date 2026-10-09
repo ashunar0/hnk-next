@@ -1,6 +1,5 @@
-import { createRouter, errorResponses } from "hnk";
+import { createRouter, errorResponses, NotFound } from "hnk";
 import { z } from "zod";
-import { NotFound } from "./errors";
 import { allowAnonymous } from "./middleware/auth";
 
 const ok = z.object({ ok: z.literal(true) });

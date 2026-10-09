@@ -2,6 +2,7 @@
  * 支払いの手順（How）。請求書を確かめ、決済サービスの画面を作り、支払いを記録する
  */
 import { err, ok, type Result } from "hnk/result";
+import { NotFound } from "hnk/failures";
 import type { System } from "hnk/system";
 import type { Actor } from "../users/domain";
 import {
@@ -67,14 +68,17 @@ export type PayableInvoices = {
     actor: Actor,
     id: string,
   ) => Promise<
-    Result<{ id: string; title: string; amount: number }, "NOT_FOUND" | typeof NotPayable.code>
+    Result<
+      { id: string; title: string; amount: number },
+      typeof NotFound.code | typeof NotPayable.code
+    >
   >;
   /** 支払い済みにする。invoices の commands が満たす。何度呼んでも同じ結果になる */
   markPaid: (
     system: System,
     id: string,
     now: Date,
-  ) => Promise<Result<unknown, "NOT_FOUND" | typeof NotPayable.code>>;
+  ) => Promise<Result<unknown, typeof NotFound.code | typeof NotPayable.code>>;
 };
 
 /** 引数の順番は、誰として（actor）→ 何を → どうする → いつ（now）。時計は読まない */
@@ -92,7 +96,7 @@ export function paymentsService(
     ): Promise<
       Result<
         { payment: Payment; checkoutUrl: string },
-        | "NOT_FOUND"
+        | typeof NotFound.code
         | typeof NotPayable.code
         | typeof GatewayFailed.code
         | typeof PaymentStarting.code
@@ -160,16 +164,16 @@ export function paymentsService(
       system: System,
       event: PaymentEvent,
       now: Date,
-    ): Promise<Result<void, "NOT_FOUND" | typeof NotPayable.code>> {
+    ): Promise<Result<void, typeof NotFound.code | typeof NotPayable.code>> {
       if (event.kind === "failed") {
         const failed = await repo.updateStatusByProviderRef(event.providerRef, "failed", now);
-        if (failed === null) return err("NOT_FOUND");
+        if (failed === null) return err(NotFound.code);
 
         return ok(undefined);
       }
 
       const payment = await repo.updateStatusByProviderRef(event.providerRef, "succeeded", now);
-      if (payment === null) return err("NOT_FOUND");
+      if (payment === null) return err(NotFound.code);
 
       const invoice = await invoices.markPaid(system, payment.invoiceId, now);
       if (!invoice.ok) return invoice;

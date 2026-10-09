@@ -1,9 +1,8 @@
 /**
  * reports を HTTP で公開する
  */
-import { createRouter, errorResponses } from "hnk";
+import { createRouter, errorResponses, Forbidden } from "hnk";
 import { z } from "zod";
-import { Forbidden } from "../../errors";
 import { requireAuth } from "../../middleware/auth";
 import { monthsBetween, type Month } from "./domain";
 

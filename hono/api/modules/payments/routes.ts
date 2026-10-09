@@ -1,9 +1,8 @@
 /**
  * payments を HTTP で公開する
  */
-import { createRouter, errorResponses } from "hnk";
+import { createRouter, errorResponses, NotFound } from "hnk";
 import { z } from "zod";
-import { NotFound } from "../../errors";
 import { requireAuth } from "../../middleware/auth";
 import { GatewayFailed, NotPayable, PaymentStarting } from "./domain";
 

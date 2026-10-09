@@ -23,7 +23,11 @@ const table = () => {
     const note = NOTES[role] ? `。${NOTES[role]}` : "";
     return `| ${KINDS[role]} | ${role} | ${list}${note} |`;
   });
-  return ["| 側 | 役割 | import してよいもの |", "| --- | --- | --- |", ...rows].join("\n");
+  return [
+    "| 側 | 役割 | import してよいもの |",
+    "| --- | --- | --- |",
+    ...rows,
+  ].join("\n");
 };
 
 const before = fs.readFileSync(readme, "utf8");
@@ -38,7 +42,9 @@ const after = await prettier.format(merged, { filepath: readme });
 
 if (process.argv.includes("--check")) {
   if (after !== before) {
-    console.error("README の許可表が layers.mjs とずれている。`pnpm -C packages/hnk readme:layers` で作り直す");
+    console.error(
+      "README の許可表が layers.mjs とずれている。`pnpm -C packages/hnk readme:layers` で作り直す",
+    );
     process.exit(1);
   }
 } else {

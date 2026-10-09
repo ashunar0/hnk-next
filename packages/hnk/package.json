@@ -7,6 +7,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./result": "./src/result.ts",
+    "./failures": "./src/failures.ts",
     "./openapi": "./src/openapi.ts",
     "./page": "./src/page.ts",
     "./system": "./src/system.ts",
