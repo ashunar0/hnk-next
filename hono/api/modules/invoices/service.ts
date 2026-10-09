@@ -66,7 +66,7 @@ export type InvoicesRepository = {
 
 export function invoicesService(repo: InvoicesRepository) {
   return {
-    // 一覧。触れる範囲のものだけ、更新の新しい順
+    /** 一覧。触れる範囲のものだけ、更新の新しい順 */
     async list(viewer: Viewer, query: InvoiceListQuery): Promise<InvoicePage> {
       return repo.listWithin(reachOf(viewer), query);
     },
@@ -97,7 +97,7 @@ export function invoicesService(repo: InvoicesRepository) {
       return ok(found.invoice);
     },
 
-    // 作成。作った人が所有者になる
+    /** 作成。作った人が所有者になる */
     async create(viewer: User, input: InvoiceInput): Promise<Invoice> {
       return repo.insert({
         id: newInvoiceId(),

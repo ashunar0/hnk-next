@@ -52,7 +52,7 @@ AI が自分で直せるかはエラーの質で決まるので、赤線の出�
 - route は `createEndpoint` に `responses` を宣言する（`@hono/zod-openapi` の上）。handler は `reply(200, body)` / `reply.failure(error)` で返し、宣言とずれた応答は型エラーになる。guard（`requireAuth` など）が持つ失敗は `responses` に自動で足される
 - **理由**: 失敗が戻り値の型に出て、どの失敗がありうるかを列挙できる。処理を飛ばすと型エラーになる
 - **却下**: service が `forbidden()` / `notFound()` を throw する案（HTTP の番号を知ってしまい、cron から呼ぶと意味が通らない）。defineHandler の完成を待つ案（Hono 本体の PR #5531 は未マージで、`response` が 1 つだけなので、番号ごとの失敗の宣言が載らない）
-- 見る場所: `packages/hnk/src/index.ts`、`invoices/routes.ts`、`invoices/service.ts`
+- 見る場所: `packages/hnk/src/endpoint.ts`、`invoices/routes.ts`、`invoices/service.ts`
 
 ### 4. 提供の仕方: 仕組みはパッケージ、アプリの決めごとは生成
 
@@ -85,7 +85,7 @@ AI が自分で直せるかはエラーの質で決まるので、赤線の出�
 1. [README.md](README.md): 全体の形、決めたこと、未決
 2. `hono/api/modules/invoices/` の `domain.ts` → `service.ts` → `routes.ts` → `repo.d1.ts`: 1 つの module の全体
 3. `hono/api/deps.ts`: 組み立てと、module をまたぐ所
-4. `packages/hnk/src/index.ts`: 仕組みの中身（`createEndpoint`、`reply`、`httpError`、`createWorker`）
+4. `packages/hnk/src/`: 仕組みの中身。`endpoint.ts`（`createEndpoint`、`reply`）、`failure.ts`（`httpError`）、`worker.ts`（`createWorker`）
 5. `packages/hnk/lint/layers.mjs`: 許可表
 6. [docs/03.md](docs/03.md): 場面ごとに形を試した記録（認証、cron、キュー、webhook、集計）
 7. [docs/09.md](docs/09.md): AI に新しい module を書かせた実験（4 回）
