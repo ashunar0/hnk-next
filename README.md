@@ -239,9 +239,21 @@ go build ./cmd/api
 - **読みの線引き**: 状態の意味や業務のルールが入るもの（期限切れ、請求済みなど）は持ち主が答える（`isRemindable`、`billedStatuses`）。
   形を変えるだけの集計（月ごとにまとめる）は読み側が、範囲付きの入口から書く。ここは機械で止められないので、レビューで見る
 
+## 新しい土台・新しい module を出す
+
+形は生成器が出す。自分で層を考えない。
+
+```sh
+hnk init <dir>                   # 土台（users・db・deps・middleware・check・lint 設定・vitest）
+hnk g module <複数形の camelCase> # 例: invoices, signupRequests。api/modules/<名前>/ に 5 ファイルを出し、deps.ts と index.ts の `// hnk:` の行につなぐ
+```
+
+出るのは `title` と `body` を持つだけの 1 件 CRUD。これを本物のモノに書き換えて、`pnpm db:generate`、`pnpm exec prettier --write .`、`pnpm check` の順に回す。
+CLI の元は `packages/hnk/bin/hnk.mjs`、雛形は `packages/hnk/templates/`。雛形が今も `pnpm check` を通ることは `pnpm -C packages/hnk e2e` で確かめる。AI に書かせるときの手順は `hnk` スキルにまとめてある。
+
 ## 新しい module を足すとき
 
-invoices と同じ形で書く。迷いやすい所は、次のとおりに揃える（comments を AI に書かせた実験で、書き手が迷った所。`docs/09.md`）。
+生成された形のまま、invoices と同じ形で書く。迷いやすい所は、次のとおりに揃える（comments を AI に書かせた実験で、書き手が迷った所。`docs/09.md`）。
 
 | 迷うこと                               | 決まり                                                                                                                                                                                                                                                                                                                                                     |
 | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -250,7 +262,8 @@ invoices と同じ形で書く。迷いやすい所は、次のとおりに揃�
 | 他の module の表                       | 外部キーの `references()` の中でだけ使う。読むときは、持ち主が出している `〜Within(db, actor)` を使う                                                                                                                                                                                                                                                      |
 | 親の下にぶら下がるもの（コメントなど） | 親が見えるかを、親の service に問い合わせる（`get(actor, id)` の形を宣言）。子に orgId は持たせない。親が見えれば読める・書ける。もっと厳しい権限が要るなら、親が access を返す問いを宣言する                                                                                                                                                              |
 | 子の router                            | 親の prefix に mount する（`.route("/invoices", commentsRouter)`）。同じ prefix に router が 2 つ載ってよい。path は `/{id}/<子>`                                                                                                                                                                                                                          |
-| 失敗の使い分け                         | 見えないものは `NOT_FOUND`（在ることも知らせない）、見えるが権限が足りないものは `FORBIDDEN`。確認の順は NOT_FOUND → FORBIDDEN                                                                                                                                                                                                                             |
+| 失敗の使い分け                         | 見えないものは `NOT_FOUND`（在ることも知らせない）、見えるが権限が足りないものは `FORBIDDEN`。確認の順は 入力検査 400 → NOT_FOUND → FORBIDDEN → conflict                                                                                                                                                                                                   |
+| 状態が進むモノ                         | 遷移できない失敗は domain に `kind: "conflict"` の `Failure`。遷移は `POST /:id/<動詞>`。repo に `status = from` を WHERE に入れた 1 文の更新を持たせ、確認の後に null なら同じ conflict を返す（`send` の形）。module をまたぐ失敗の code（`NOT_PAYABLE` など）は、使う側が宣言する形なので文字列のままにしてある                                         |
 | 状態コード                             | 作成は 200 で作ったものを返す。削除は `{ ok: true }` の 200                                                                                                                                                                                                                                                                                                |
 | 入力の文字列                           | `trim()` してから長さを数える。空白だけは通さない                                                                                                                                                                                                                                                                                                          |
 | 一覧                                   | 必ず `pageQuerySchema` / `pageResponseSchema` / `pageResponse` を使う。repo は `PageQuery` を受け取って `Page` を返す（`toPage`）。上限の無い一覧を書かない。応答は `{ items, nextCursor }`（nextCursor は文字列。続きが無ければ null）。並びが昇順なら、cursor の比較は `gt`（invoices の降順は `lt`）。親が見えないときの一覧は `NOT_FOUND` を返してよい |
