@@ -21,7 +21,7 @@ export default {
         if (!name || !/Id$/.test(name)) return;
         context.report({
           node,
-          message: `${name} を as で付けている。ID の印は domain の作る関数(${name[0].toLowerCase()}${name.slice(1)}(value))で付ける`,
+          message: `${name} を as で付けている。ID の印は、その ID を持つ module の domain の作る関数(${name[0].toLowerCase()}${name.slice(1)}(value))で付ける。service など、他 module の domain の値を import できない所では付けず、素の string のまま渡して、deps.ts で印を付ける`,
         });
       },
     };
