@@ -122,6 +122,8 @@ inbound と outbound のファイル名には、何に繋ぐかを書く（`repo
 
 module をまたぐ流れは、その流れの持ち主（主語）の service が持つ。1 回の書き込みで変えるのは 1 つの module だけにし、
 相手の module には、相手が開いた `commands/` を通して頼む。まとめて取り消す仕組みが無いので、どの書き込みも何度やっても同じ結果にしておく。
+**module をまたぐ書き込みは、再送のある inbound（webhook・queue・cron）からだけ呼ぶ**。途中で落ちても、呼び出し元が再送してやり直せるから。
+routes（利用者の HTTP）には再送が無いので、routes から変えてよい module は 1 つだけ。今は `markPaid`（invoices の commands）を、payments の webhook からだけ呼んでいる。機械では止めていないので、レビューで見る
 
 ## 動かす
 

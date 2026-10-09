@@ -71,7 +71,7 @@ AI が自分で直せるかはエラーの質で決まるので、赤線の出�
 
 - service が必要な outbound や他 module の形を、自分で宣言する（Go の「interface は使う側が決める」）。repo や相手の service がそれを満たす。module は他の module を import しない
 - 組み立ては `buildApp(makeDeps)`。組み立てた結果ではなく、組み立て方を渡す（Workers はリクエストをまたいだ I/O を拒むので）。handler は `(c, reply, { invoices })` で受け取る
-- 他の module に書き込ませたいときは、書かれる側の `commands/<操作>.ts` を通す。1 回の書き込みで変えるのは 1 つの module だけにし、まとめて取り消す仕組みが無いので、どの書き込みも何度やっても同じ結果にする
+- 他の module に書き込ませたいときは、書かれる側の `commands/<操作>.ts` を通す。1 回の書き込みで変えるのは 1 つの module だけにし、まとめて取り消す仕組みが無いので、どの書き込みも何度やっても同じ結果にする。module をまたぐ書き込みは、再送のある入口（webhook・queue・cron）からだけ呼び、routes（再送が無い）から変えてよい module は 1 つだけ
 - **却下**: import で直接つなぐ案（D1 では動くが、接続を持つ Postgres ではモジュールスコープの共有が壊れる）。DI コンテナ（登録漏れが実行時エラーになる）
 
 ### 7. テナントの線: 範囲（Reach）が必須
