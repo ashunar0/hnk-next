@@ -113,13 +113,15 @@ inbound と outbound のファイル名には、何に繋ぐかを書く（`repo
 
 ### 育ち方: 2 つ目が現れたときだけ、3 種類
 
-| 動き         | きっかけ                                      | 足すもの                                                                                  |
-| ------------ | --------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| 横に増える   | 2 つ目の inbound（cron、キュー、webhook）     | `cron.ts`、`queue.ts`、`webhook.stripe.ts`（routes.ts の隣）                              |
-| 横に増える   | 2 つ目の outbound（保存先、外部 API、メール） | `files.r2.ts`、`gateway.stripe.ts` など。必要な形は service で宣言する                    |
-| 中で割れる   | 1 つのファイルが 2 つ目の理由で変わり始めた   | 同じ箱の中で分ける（service.ts → ports.ts、routes.ts → schema.ts など）。矢印は変わらない |
-| 窓口を開く   | 他の module が書きに来る                      | 書かれる側の `commands/<操作>.ts`（1 操作 1 ファイル）。routes からは呼ばない             |
-| （足さない） | 他の module が読みに来る                      | 使う側の service が形を宣言し、deps.ts で相手の service をつなぐ                          |
+| 動き         | きっかけ                                           | 足すもの                                                                                                |
+| ------------ | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| 横に増える   | 2 つ目の inbound（cron、キュー、webhook）          | `cron.ts`、`queue.ts`、`webhook.stripe.ts`（routes.ts の隣）                                            |
+| 横に増える   | 2 つ目の outbound（保存先、外部 API、メール）      | `files.r2.ts`、`gateway.stripe.ts` など。必要な形は service で宣言する                                  |
+| 中で割れる   | 1 つのファイルが 2 つ目の理由で変わり始めた        | 同じ箱の中で分ける（service.ts → ports.ts、routes.ts → schema.ts など）。矢印は変わらない               |
+| 中で割れる   | その module だけの失敗（`NOT_DRAFT` など）が現れた | `errors.ts`（routes.ts の隣）。どの module でも同じ意味のもの（401・403・404）は `api/errors.ts` のまま |
+| 窓口を開く   | 他の module が書きに来る                           | 書かれる側の `commands/<操作>.ts`（1 操作 1 ファイル）。routes からは呼ばない                           |
+| 窓口を開く   | 他の module が SQL で読みに来る（集計など）        | 持ち主の repo に `〜Within(db, actor)`。読む側は表を直接読まず、範囲の決め方も知らない                  |
+| （足さない） | 他の module が読みに来る                           | 使う側の service が形を宣言し、deps.ts で相手の service をつなぐ                                        |
 
 どの動きでも、矢印は domain に向かったまま変わらない。
 
@@ -204,6 +206,7 @@ go build ./cmd/api
 | core     | commands | hnk/result, hnk/system（型だけ）, domain, service（型だけ）, 他 module の domain（型だけ）                                                                                                                                       |
 | inbound  | routes   | hnk, zod, errors, middleware, domain                                                                                                                                                                                             |
 | inbound  | webhook  | hnk, zod, errors, middleware, domain。actor（システム）は `allowSystem` から受け取る                                                                                                                                             |
+| inbound  | errors   | hnk。その module だけの失敗。どの module でも同じ意味のもの（401・403・404）は api/errors.ts に置き、routes と webhook はどちらも import してよい                                                                                |
 | inbound  | cron     | hnk（型だけ）, domain（型だけ）。deps・actor・now は createWorker が渡す                                                                                                                                                         |
 | inbound  | queue    | hnk（型だけ）, domain（型だけ）                                                                                                                                                                                                  |
 | outbound | repo     | drizzle-orm, hnk/page, db（型だけ）, domain, service（型だけ）, 他 module の repo, 他 module の domain。他 module の repo からは外部キーの表（〜Table）と読ませる窓口（〜Within）だけ、他 module の domain は SQL の定数と型だけ |

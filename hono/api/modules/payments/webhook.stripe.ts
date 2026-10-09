@@ -4,7 +4,8 @@
  */
 import { allowSystem, createEndpoint, createRouter, errorResponses, json } from "hnk";
 import { z } from "zod";
-import { InvalidSignature, NotFound, NotPayable } from "../../errors";
+import { NotFound } from "../../errors";
+import { InvalidSignature, NotPayable } from "./errors";
 
 const receivedSchema = z.object({ received: z.literal(true) });
 

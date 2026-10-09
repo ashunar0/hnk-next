@@ -3,8 +3,9 @@
  */
 import { createEndpoint, createRouter, errorResponses, json, jsonBody } from "hnk";
 import { z } from "zod";
-import { GatewayFailed, NotFound, NotPayable, PaymentStarting } from "../../errors";
+import { NotFound } from "../../errors";
 import { requireAuth } from "../../middleware/auth";
+import { GatewayFailed, NotPayable, PaymentStarting } from "./errors";
 
 // 受け取る形
 const startPaymentInputSchema = z.object({

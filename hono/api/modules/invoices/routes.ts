@@ -12,8 +12,9 @@ import {
   pageResponseSchema,
 } from "hnk";
 import { z } from "zod";
-import { Forbidden, NotDraft, NotFound } from "../../errors";
+import { Forbidden, NotFound } from "../../errors";
 import { requireAuth } from "../../middleware/auth";
+import { NotDraft } from "./errors";
 import {
   invoiceIdSchema,
   invoiceInputSchema,
