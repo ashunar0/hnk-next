@@ -131,7 +131,7 @@ cd hono
 pnpm typecheck   # 型検査（型テストを含む）
 pnpm lint        # hnk/lint のルール
 pnpm test        # ローカルの D1 で動かすテスト（vitest + @cloudflare/vitest-plugin）
-pnpm check       # 上の 3 つと format:check、hnk の lint ルールのテストを順に回す。AI には「これを通して」と言う 1 つのコマンド
+pnpm check       # 上の 3 つと format:check、hnk の lint ルールのテスト、README の許可表のずれを回す。途中で落ちても止めず、最後に失敗を一覧で出す。AI には「これを通して」と言う 1 つのコマンド
 
 cd ../go
 go build ./cmd/api
@@ -178,7 +178,8 @@ go build ./cmd/api
 - **lint は `hnk/lint` で提供する**。module の中のファイルは、名前の頭（役割）で core / inbound / outbound に分ける。
   役割の分からないファイルは置けない。依存の向きは役割ごとの許可表（`layer-imports`）で守らせ、表に無い import は全部だめ。
   相対 import も tsconfig の paths 経由も同じに見る。HTTP の inbound（routes と webhook）には、export は束 1 本、
-  `createEndpoint` に認証の指定、`c.json` 禁止、引数の中で await しない、を求める。どこでも、モジュールの一番上に変わる状態を置かない
+  `createEndpoint` に認証の指定、`c.json` 禁止、引数の中で await しない、を求める。どこでも、モジュールの一番上に変わる状態を置かない。
+  他 module の表を直接読まない（`no-foreign-table-reads`）、ID の印を `as` で付けない（`no-id-cast`）も、lint で止める
 
 <!-- layers:start（packages/hnk/lint/layers.mjs から生成。直接は書き換えない） -->
 
