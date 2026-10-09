@@ -172,7 +172,8 @@ go build ./cmd/api
   ただし、他の module の ID に印を付けて渡す所（`(actor, id) => invoices.getPayable(actor, invoiceId(id))`）は関数で包むので、tsc は止めない。
   module の依存が一方向であることは、今は決まりとレビューで守っていて、輪を機械では止めていない（輪が起きる兆しが出たら、deps.ts の依存を調べるテストを足す）。
   getter で遅延する案は、宣言順の保証を失うので外した（組み立ては関数を返すだけで軽い）。deps.ts は何を import してもよい場所で、lint の表には入れていない
-- **route は `createEndpoint(設定, handler)` 1 つで書く**（@hono/zod-openapi の上）。設定は zod-openapi の route の宣言と同じ形で、guard が持つ失敗と ValidationError を hnk が足す。`c.json` だとずれたときの赤線が handler の頭に付くので、`reply` で返す。`createRoute` は公開しない（書き方を 1 つにするため）
+- **route は `createEndpoint(設定, handler)` 1 つで書く**（素の Hono の上。`.endpoint(...)` で登録する）。設定は OpenAPI の route の宣言に近い形（`method` は小文字、`path` は Hono の `/:id`）で、guard が持つ失敗と ValidationError を hnk が足す。`c.json` だとずれたときの赤線が handler の頭に付くので、`reply` で返す。`createRoute` は公開しない（書き方を 1 つにするため）。`path` の `:name` と `request.params` のキーが食い違うと型エラーになる
+- **スキーマは Standard Schema を満たすものなら何でも**（zod、valibot で確かめた）。hnk は検証のライブラリを決め打ちしない。**OpenAPI は別の部品**（`hnk/openapi` の `openapiDocument(app, info)`）で、登録された宣言から文書を作る。JSON Schema への変換はスキーマのライブラリ自身が持つ（Standard JSON Schema）。valibot は単体では出せないので、文書に出したいものだけ `toStandardJsonSchema` で包む。要らないなら使わない
 - **失敗は値で、番号と文言を持つ**（`httpError("NOT_FOUND", 404, "…")`）。guard が持つ失敗と ValidationError は自動で宣言する。
   `reply.failure` が受け取れるのは、route に手で書いたドメインの失敗だけ。同じ番号の失敗が複数あっても 1 つの応答にまとめ、コードごとの文言で返す
 - **誰として操作するかは `Actor`（利用者かシステム）で、引数の先頭に置く**（Go の `ctx` と同じ位置）。
@@ -271,7 +272,9 @@ invoices と同じ形で書く。迷いやすい所は、次のとおりに揃�
   SQL に access の判定を持たせるとルールが 2 か所になるので、domain の 1 か所を取った
 - 閲覧だけを共有された人も、支払いを始められる（`getPayable` は access を見ない）
 - D1 には対話的なトランザクションが無い（`batch` が基本）。マルチテナントを考えるときに効く
-- テストの方針（service は偽物の repo、HTTP は vitest-pool-workers のローカル D1、偽物は外の API だけ、が候補）
+- テストは、本物のローカル D1 を使い、1 つの module で閉じるものは module の中に置くところまで決めた。service が返す失敗コードごとにテストがあるかを機械で見張るかは未定
+- `.endpoint(...createEndpoint(設定, handler))` の書き方。`.endpoint(設定, handler)` の 1 段にできるか（スプレッドが一番目立つ妥協）。設定の形（`request: { params }`、`json(schema, "説明")`）を OpenAPI 寄りから hnk 独自にするか
+- `pageQuery` / `cursorSchema`（`hnk/page-schema`）は zod 固定。Standard Schema の別のライブラリでは使えない
 - 「育ち方」を lint と生成器にどこまで載せるか
 - queue を複数持つときの振り分け、cron 式ごとの切り替え（今は 1 つずつ）
 - conventions.md の hnk 側の列（どの層で縛るか）が空
