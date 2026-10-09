@@ -3,6 +3,7 @@
  */
 import type { Page, PageQuery } from "hnk/page";
 import { err, ok, type Result } from "hnk/result";
+import { Forbidden, NotFound } from "hnk/failures";
 import type { Actor, User } from "../users/domain";
 import {
   canEdit,
@@ -86,18 +87,18 @@ export function invoicesService(repo: InvoicesRepository) {
       actor: Actor,
       id: InvoiceId,
       now: Date,
-    ): Promise<Result<Invoice, "NOT_FOUND" | "NOT_REMINDABLE">> {
+    ): Promise<Result<Invoice, typeof NotFound.code | "NOT_REMINDABLE">> {
       const found = await repo.findWithin(id, reachOf(actor));
-      if (found === null) return err("NOT_FOUND");
+      if (found === null) return err(NotFound.code);
       if (!isRemindable(found.invoice, now)) return err("NOT_REMINDABLE");
 
       return ok(found.invoice);
     },
 
     /** 範囲の外のものは、在ることも知らせない */
-    async get(actor: Actor, id: InvoiceId): Promise<Result<Invoice, "NOT_FOUND">> {
+    async get(actor: Actor, id: InvoiceId): Promise<Result<Invoice, typeof NotFound.code>> {
       const found = await repo.findWithin(id, reachOf(actor));
-      if (found === null) return err("NOT_FOUND");
+      if (found === null) return err(NotFound.code);
 
       return ok(found.invoice);
     },
@@ -129,12 +130,12 @@ export function invoicesService(repo: InvoicesRepository) {
       id: InvoiceId,
       input: InvoiceInput,
       now: Date,
-    ): Promise<Result<Invoice, "NOT_FOUND" | "FORBIDDEN">> {
+    ): Promise<Result<Invoice, typeof NotFound.code | typeof Forbidden.code>> {
       const reach = reachOf(actor);
 
       const found = await repo.findWithin(id, reach);
-      if (found === null) return err("NOT_FOUND");
-      if (!canEdit(found.access)) return err("FORBIDDEN");
+      if (found === null) return err(NotFound.code);
+      if (!canEdit(found.access)) return err(Forbidden.code);
 
       const invoice = await repo.updateWithin(id, reach, {
         title: input.title,
@@ -144,7 +145,7 @@ export function invoicesService(repo: InvoicesRepository) {
         dueAt: input.dueAt,
         updatedAt: now,
       });
-      if (invoice === null) return err("NOT_FOUND");
+      if (invoice === null) return err(NotFound.code);
 
       return ok(invoice);
     },
@@ -153,9 +154,9 @@ export function invoicesService(repo: InvoicesRepository) {
     async getPayable(
       actor: Actor,
       id: InvoiceId,
-    ): Promise<Result<Invoice, "NOT_FOUND" | "NOT_PAYABLE">> {
+    ): Promise<Result<Invoice, typeof NotFound.code | "NOT_PAYABLE">> {
       const found = await repo.findWithin(id, reachOf(actor));
-      if (found === null) return err("NOT_FOUND");
+      if (found === null) return err(NotFound.code);
       if (!isPayable(found.invoice)) return err("NOT_PAYABLE");
 
       return ok(found.invoice);
@@ -166,12 +167,14 @@ export function invoicesService(repo: InvoicesRepository) {
       actor: Actor,
       id: InvoiceId,
       now: Date,
-    ): Promise<Result<Invoice, "NOT_FOUND" | "FORBIDDEN" | typeof NotDraft.code>> {
+    ): Promise<
+      Result<Invoice, typeof NotFound.code | typeof Forbidden.code | typeof NotDraft.code>
+    > {
       const reach = reachOf(actor);
 
       const found = await repo.findWithin(id, reach);
-      if (found === null) return err("NOT_FOUND");
-      if (!canSend(actor)) return err("FORBIDDEN");
+      if (found === null) return err(NotFound.code);
+      if (!canSend(actor)) return err(Forbidden.code);
       if (!isSendable(found.invoice)) return err(NotDraft.code);
 
       const sent = await repo.updateWithin(id, reach, { status: "sent", updatedAt: now }, "draft");
@@ -182,15 +185,18 @@ export function invoicesService(repo: InvoicesRepository) {
     },
 
     /** 消せるのは、範囲の中で、所有者側の関係のものだけ */
-    async remove(actor: Actor, id: InvoiceId): Promise<Result<void, "NOT_FOUND" | "FORBIDDEN">> {
+    async remove(
+      actor: Actor,
+      id: InvoiceId,
+    ): Promise<Result<void, typeof NotFound.code | typeof Forbidden.code>> {
       const reach = reachOf(actor);
 
       const found = await repo.findWithin(id, reach);
-      if (found === null) return err("NOT_FOUND");
-      if (!canManage(found.access)) return err("FORBIDDEN");
+      if (found === null) return err(NotFound.code);
+      if (!canManage(found.access)) return err(Forbidden.code);
 
       const deleted = await repo.deleteWithin(id, reach);
-      if (!deleted) return err("NOT_FOUND");
+      if (!deleted) return err(NotFound.code);
 
       return ok(undefined);
     },
@@ -205,10 +211,10 @@ export function invoicesService(repo: InvoicesRepository) {
       id: InvoiceId,
       userId: string,
       level: ShareLevel,
-    ): Promise<Result<void, "NOT_FOUND" | "FORBIDDEN">> {
+    ): Promise<Result<void, typeof NotFound.code | typeof Forbidden.code>> {
       const found = await repo.findWithin(id, reachOf(actor));
-      if (found === null) return err("NOT_FOUND");
-      if (!canManage(found.access)) return err("FORBIDDEN");
+      if (found === null) return err(NotFound.code);
+      if (!canManage(found.access)) return err(Forbidden.code);
 
       await repo.upsertShare({ invoiceId: id, userId, level });
 
@@ -220,10 +226,10 @@ export function invoicesService(repo: InvoicesRepository) {
       actor: Actor,
       id: InvoiceId,
       userId: string,
-    ): Promise<Result<void, "NOT_FOUND" | "FORBIDDEN">> {
+    ): Promise<Result<void, typeof NotFound.code | typeof Forbidden.code>> {
       const found = await repo.findWithin(id, reachOf(actor));
-      if (found === null) return err("NOT_FOUND");
-      if (!canManage(found.access)) return err("FORBIDDEN");
+      if (found === null) return err(NotFound.code);
+      if (!canManage(found.access)) return err(Forbidden.code);
 
       await repo.deleteShare(id, userId);
 

@@ -13,13 +13,18 @@ export type { Register } from "./register";
 export { errorResponses, guard, provideDeps, type Guard } from "./endpoint";
 export { createRouter } from "./router";
 export {
+  Forbidden,
+  NotFound,
+  Unauthorized,
+  type Failure,
+  type FailureKind,
+} from "./failures";
+export {
   fail,
   httpError,
   onError,
   ValidationError,
   type AnyFailure,
-  type Failure,
-  type FailureKind,
   type HttpError,
 } from "./failure";
 export {

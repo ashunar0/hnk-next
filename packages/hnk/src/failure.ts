@@ -1,6 +1,7 @@
 import type { ErrorHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
+import type { Failure, FailureKind } from "./failures";
 
 /** HTTP で返す失敗 1 つ。コード、何番か、既定の文言を持つ */
 export type HttpError<
@@ -22,22 +23,7 @@ const FAILURE_STATUS = {
   notFound: 404,
   conflict: 409,
   upstream: 502,
-} as const;
-
-export type FailureKind = keyof typeof FAILURE_STATUS;
-
-/**
- * モノの側（domain）が持つ失敗。コード、種類、既定の文言。HTTP の番号は知らない。
- * `export const NotDraft = { code: "NOT_DRAFT", kind: "conflict", message: "…" } as const;`
- */
-export type Failure<
-  K extends string = string,
-  Kind extends FailureKind = FailureKind,
-> = {
-  readonly code: K;
-  readonly kind: Kind;
-  readonly message: string;
-};
+} as const satisfies Record<FailureKind, ContentfulStatusCode>;
 
 /** errorResponses が受け取れる失敗。Failure は種類から番号が決まり、HttpError は番号を自分で持つ */
 export type AnyFailure = Failure | HttpError;

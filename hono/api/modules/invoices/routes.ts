@@ -7,9 +7,10 @@ import {
   pageQuerySchema,
   pageResponse,
   pageResponseSchema,
+  Forbidden,
+  NotFound,
 } from "hnk";
 import { z } from "zod";
-import { Forbidden, NotFound } from "../../errors";
 import { requireAuth } from "../../middleware/auth";
 import {
   invoiceIdSchema,

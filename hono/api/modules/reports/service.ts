@@ -2,6 +2,7 @@
  * レポートの手順（How）
  */
 import { err, ok, type Result } from "hnk/result";
+import { Forbidden } from "hnk/failures";
 import type { Actor } from "../users/domain";
 import {
   canViewReports,
@@ -29,8 +30,8 @@ export function reportsService(repo: ReportsRepository) {
       actor: Actor,
       from: Month,
       to: Month,
-    ): Promise<Result<MonthlySummary[], "FORBIDDEN">> {
-      if (!canViewReports(actor)) return err("FORBIDDEN");
+    ): Promise<Result<MonthlySummary[], typeof Forbidden.code>> {
+      if (!canViewReports(actor)) return err(Forbidden.code);
 
       const start = startOfMonth(from);
       const end = startOfMonth(nextMonth(to));

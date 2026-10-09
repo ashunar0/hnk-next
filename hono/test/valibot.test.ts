@@ -12,11 +12,11 @@ import {
   pageResponse,
   pageResponseSchema,
   provideDeps,
+  NotFound,
 } from "hnk";
 import { openapiDocument } from "hnk/openapi";
 import * as v from "valibot";
 import { expect, it } from "vitest";
-import { NotFound } from "../api/errors";
 import { allowAnonymous } from "../api/middleware/auth";
 
 const params = toStandardJsonSchema(v.object({ id: v.pipe(v.string(), v.minLength(2)) }));

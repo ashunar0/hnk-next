@@ -32,9 +32,15 @@ export const KINDS = {
  */
 export const LAYERS = {
   // core
-  domain: { zod: "value", "hnk/system": "type", "foreign:domain": "type" },
+  domain: {
+    zod: "value",
+    "hnk/system": "type",
+    "hnk/failures": "type",
+    "foreign:domain": "type",
+  },
   service: {
     "hnk/result": "value",
+    "hnk/failures": "value",
     "hnk/page": "type",
     "hnk/system": "type",
     domain: "value",
@@ -43,6 +49,7 @@ export const LAYERS = {
   // 他の module に変えさせてよい操作。使う outbound の形は service の宣言を借りる
   commands: {
     "hnk/result": "value",
+    "hnk/failures": "value",
     "hnk/system": "type",
     domain: "value",
     service: "type",
@@ -101,9 +108,9 @@ export const HINTS = {
   "routes→foreign:domain":
     'routes は認証した利用者として呼ぶ。システムが要る入口は、middleware に allowSystem を置いて c.get("actor") で受け取る',
   "routes→foreign:errors":
-    "他の module の入口の失敗は借りない。自分の service が返す失敗なら自分の domain.ts に Failure として、どの module でも同じ意味のもの（401・403・404）なら api/errors.ts に置く",
+    "他の module の入口の失敗は借りない。自分の service が返す失敗なら自分の domain.ts に Failure として、どの module でも同じ意味のもの（401・403・404）なら hnk の標準（NotFound など）を使う",
   "webhook→foreign:errors":
-    "他の module の入口の失敗は借りない。自分の service が返す失敗なら自分の domain.ts に Failure として、どの module でも同じ意味のもの（401・403・404）なら api/errors.ts に置く",
+    "他の module の入口の失敗は借りない。自分の service が返す失敗なら自分の domain.ts に Failure として、どの module でも同じ意味のもの（401・403・404）なら hnk の標準（NotFound など）を使う",
   "routes→foreign:service":
     "他の module の操作は、その流れの持ち主の service から呼ぶ",
   "repo→foreign:service":
@@ -130,7 +137,7 @@ export const KIND_HINTS = {
 export const NOTES = {
   webhook: "actor（システム）は `allowSystem` から受け取る",
   errors:
-    "入口だけの失敗（webhook の署名など）。モノの失敗は domain.ts に Failure として置く。どの module でも同じ意味のもの（401・403・404）は api/errors.ts に置き、routes と webhook はどちらも import してよい",
+    "入口だけの失敗（webhook の署名など）。モノの失敗は domain.ts に Failure として置く。どの module でも同じ意味のもの（401・403・404）は hnk の標準（NotFound など）を使う",
   cron: "deps・actor・now は createWorker が渡す",
   repo: "他 module の repo からは外部キーの表（〜Table）と読ませる窓口（〜Within）だけ、他 module の domain は SQL の定数と型だけ",
 };

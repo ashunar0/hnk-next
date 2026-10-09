@@ -2,6 +2,7 @@
  * 督促の手順（How）。期限切れを探して積む手順と、1 件ずつ送る手順の 2 つ
  */
 import { err, ok, type Result } from "hnk/result";
+import { NotFound } from "hnk/failures";
 import type { Actor } from "../users/domain";
 import {
   dayOf,
@@ -49,7 +50,7 @@ export type OverdueInvoices = {
   ) => Promise<
     Result<
       { title: string; amount: number; customerEmail: string; dueAt: Date },
-      "NOT_FOUND" | "NOT_REMINDABLE"
+      typeof NotFound.code | "NOT_REMINDABLE"
     >
   >;
 };

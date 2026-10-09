@@ -6,6 +6,7 @@
  * 何度呼んでも同じ結果になる（すでに支払い済みなら、そのまま返す）。時刻（now）は呼び出し元の入口が決める
  */
 import { err, ok, type Result } from "hnk/result";
+import { NotFound } from "hnk/failures";
 import type { System } from "hnk/system";
 import { reachOf, type Invoice, type InvoiceId } from "../domain";
 import type { InvoicesRepository } from "../service";
@@ -15,7 +16,7 @@ export function markPaid(repo: Pick<InvoicesRepository, "updateWithin" | "findWi
     system: System,
     id: InvoiceId,
     now: Date,
-  ): Promise<Result<Invoice, "NOT_FOUND" | "NOT_PAYABLE">> => {
+  ): Promise<Result<Invoice, typeof NotFound.code | "NOT_PAYABLE">> => {
     const all = reachOf(system);
 
     const paid = await repo.updateWithin(id, all, { status: "paid", updatedAt: now }, "sent");
@@ -23,7 +24,7 @@ export function markPaid(repo: Pick<InvoicesRepository, "updateWithin" | "findWi
 
     // 書き換わらなかった。無いのか、もう支払い済みなのか、送付前なのか
     const found = await repo.findWithin(id, all);
-    if (found === null) return err("NOT_FOUND");
+    if (found === null) return err(NotFound.code);
     if (found.invoice.status === "paid") return ok(found.invoice);
 
     return err("NOT_PAYABLE");
