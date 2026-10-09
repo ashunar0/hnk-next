@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "__APP_NAME__",
+  "main": "api/index.ts",
+  "compatibility_date": "2026-09-01",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "__APP_NAME__",
+      "database_id": "local",
+      "migrations_dir": "migrations",
+    },
+  ],
+}
