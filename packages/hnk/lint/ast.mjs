@@ -15,7 +15,7 @@ export const unwrap = (node) => {
 
 /**
  * 式の根まで降りて `createRouter()` かどうかを見る。
- * `createRouter().openapi(...).openapi(...)` はチェーンなので、
+ * `createRouter().endpoint(...).endpoint(...)` はチェーンなので、
  * CallExpression と MemberExpression を剥がしてから判定する
  */
 export const rootsAtCreateRouter = (node) => {

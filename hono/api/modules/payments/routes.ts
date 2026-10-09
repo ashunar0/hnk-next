@@ -21,7 +21,7 @@ const startPaymentResponseSchema = z.object({
 
 export const paymentsRouter = createRouter()
   // 支払いを始める
-  .openapi(
+  .endpoint(
     ...createEndpoint(
       {
         method: "post",

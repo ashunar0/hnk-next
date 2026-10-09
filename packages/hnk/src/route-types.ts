@@ -14,7 +14,11 @@ import type { H } from "hono/types";
 import type { StatusCode } from "hono/utils/http-status";
 import type { JSONParsed } from "hono/utils/types";
 
-import type { InferInput, InferOutput, StandardSchema } from "./standard-schema";
+import type {
+  InferInput,
+  InferOutput,
+  StandardSchema,
+} from "./standard-schema";
 
 type MaybePromise<T> = Promise<T> | T;
 
@@ -42,12 +46,10 @@ export type RouteConfig = {
 
 // ---- 入力 ----
 
-type RequestPart<R extends RouteConfig, Part extends string> =
-  R["request"] extends infer Q
-    ? Part extends keyof Q
-      ? Q[Part]
-      : {}
-    : {};
+type RequestPart<
+  R extends RouteConfig,
+  Part extends string,
+> = R["request"] extends infer Q ? (Part extends keyof Q ? Q[Part] : {}) : {};
 
 type HasUndefined<T> = undefined extends T ? true : false;
 
@@ -75,16 +77,21 @@ type IsJson<T> = T extends string
     : never
   : never;
 
-type InputTypeJson<R extends RouteConfig> =
-  R["request"] extends { body: { content: infer C extends Content } }
-    ? IsJson<keyof C> extends never
-      ? {}
-      : C[keyof C] extends { schema: infer S extends AnySchema }
-        ? { in: { json: InferInput<S> }; out: { json: InferOutput<S> } }
-        : {}
-    : {};
+type InputTypeJson<R extends RouteConfig> = R["request"] extends {
+  body: { content: infer C extends Content };
+}
+  ? IsJson<keyof C> extends never
+    ? {}
+    : C[keyof C] extends { schema: infer S extends AnySchema }
+      ? { in: { json: InferInput<S> }; out: { json: InferOutput<S> } }
+      : {}
+  : {};
 
-export type ComputeInput<R extends RouteConfig> = InputTypeBase<R, "params", "param"> &
+export type ComputeInput<R extends RouteConfig> = InputTypeBase<
+  R,
+  "params",
+  "param"
+> &
   InputTypeBase<R, "query", "query"> &
   InputTypeBase<R, "headers", "header"> &
   InputTypeBase<R, "cookies", "cookie"> &
@@ -98,14 +105,18 @@ type ExtractContent<T> = T extends { [K in keyof T]: infer A }
     : never
   : never;
 
-type ReturnJson<ContentType, Content, Code extends StatusCode> =
-  ContentType extends `application/${infer Start}json${infer _End}`
-    ? Start extends "" | `${string}+` | `vnd.${string}+`
-      ? TypedResponse<JSONParsed<Content>, Code, "json">
-      : never
-    : never;
+type ReturnJson<
+  ContentType,
+  Content,
+  Code extends StatusCode,
+> = ContentType extends `application/${infer Start}json${infer _End}`
+  ? Start extends "" | `${string}+` | `vnd.${string}+`
+    ? TypedResponse<JSONParsed<Content>, Code, "json">
+    : never
+  : never;
 
-type DefinedStatusCodes<R extends RouteConfig> = keyof R["responses"] & StatusCode;
+type DefinedStatusCodes<R extends RouteConfig> = keyof R["responses"] &
+  StatusCode;
 
 /** 宣言した応答の和。hc の応答の型になる */
 export type RouteConfigToTypedResponse<R extends RouteConfig> = {
@@ -123,7 +134,9 @@ export type RouteConfigToTypedResponse<R extends RouteConfig> = {
 type AsArray<T> = T extends undefined ? [] : T extends any[] ? T : [T];
 
 type DeepSimplify<T> = {
-  [K in keyof T]: T[K] extends Record<string, unknown> ? DeepSimplify<T[K]> : T[K];
+  [K in keyof T]: T[K] extends Record<string, unknown>
+    ? DeepSimplify<T[K]>
+    : T[K];
 } & {};
 
 type OfHandlerType<T extends MiddlewareHandler> =
@@ -132,37 +145,38 @@ type OfHandlerType<T extends MiddlewareHandler> =
     : never;
 
 /** 並べた middleware を 1 つにまとめた型（Env を重ねる） */
-type MiddlewareToHandlerType<M extends MiddlewareHandler<any, any, any>[]> = M extends [
-  infer First,
-  infer Second,
-  ...infer Rest,
-]
-  ? First extends MiddlewareHandler<any, any, any>
-    ? Second extends MiddlewareHandler<any, any, any>
-      ? Rest extends MiddlewareHandler<any, any, any>[]
-        ? MiddlewareToHandlerType<
-            [
-              MiddlewareHandler<
-                DeepSimplify<OfHandlerType<First>["env"] & OfHandlerType<Second>["env"]>,
-                OfHandlerType<First>["path"],
-                OfHandlerType<First>["input"]
-              >,
-              ...Rest,
-            ]
-          >
+type MiddlewareToHandlerType<M extends MiddlewareHandler<any, any, any>[]> =
+  M extends [infer First, infer Second, ...infer Rest]
+    ? First extends MiddlewareHandler<any, any, any>
+      ? Second extends MiddlewareHandler<any, any, any>
+        ? Rest extends MiddlewareHandler<any, any, any>[]
+          ? MiddlewareToHandlerType<
+              [
+                MiddlewareHandler<
+                  DeepSimplify<
+                    OfHandlerType<First>["env"] & OfHandlerType<Second>["env"]
+                  >,
+                  OfHandlerType<First>["path"],
+                  OfHandlerType<First>["input"]
+                >,
+                ...Rest,
+              ]
+            >
+          : never
         : never
       : never
-    : never
-  : M extends [infer Last]
-    ? Last
-    : MiddlewareHandler<Env>;
+    : M extends [infer Last]
+      ? Last
+      : MiddlewareHandler<Env>;
 
 type RouteMiddlewareParams<R extends RouteConfig> = OfHandlerType<
   MiddlewareToHandlerType<AsArray<R["middleware"]>>
 >;
 
 export type RouteConfigToEnv<R extends RouteConfig> =
-  RouteMiddlewareParams<R> extends never ? Env : RouteMiddlewareParams<R>["env"];
+  RouteMiddlewareParams<R> extends never
+    ? Env
+    : RouteMiddlewareParams<R>["env"];
 
 /** handler。c.req.valid() と c が宣言から決まり、返せるのは宣言した応答だけ */
 export type RouteHandler<

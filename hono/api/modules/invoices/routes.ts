@@ -84,7 +84,7 @@ function invoiceResponse(invoice: Invoice): InvoiceResponse {
 
 export const invoicesRouter = createRouter()
   // 一覧
-  .openapi(
+  .endpoint(
     ...createEndpoint(
       {
         method: "get",
@@ -106,7 +106,7 @@ export const invoicesRouter = createRouter()
     ),
   )
   // 1件
-  .openapi(
+  .endpoint(
     ...createEndpoint(
       {
         method: "get",
@@ -130,7 +130,7 @@ export const invoicesRouter = createRouter()
     ),
   )
   // 作成
-  .openapi(
+  .endpoint(
     ...createEndpoint(
       {
         method: "post",
@@ -153,7 +153,7 @@ export const invoicesRouter = createRouter()
     ),
   )
   // 更新
-  .openapi(
+  .endpoint(
     ...createEndpoint(
       {
         method: "put",
@@ -179,7 +179,7 @@ export const invoicesRouter = createRouter()
     ),
   )
   // 送付
-  .openapi(
+  .endpoint(
     ...createEndpoint(
       {
         method: "post",
@@ -204,7 +204,7 @@ export const invoicesRouter = createRouter()
     ),
   )
   // 削除
-  .openapi(
+  .endpoint(
     ...createEndpoint(
       {
         method: "delete",
@@ -228,7 +228,7 @@ export const invoicesRouter = createRouter()
     ),
   )
   // 共有
-  .openapi(
+  .endpoint(
     ...createEndpoint(
       {
         method: "put",
@@ -253,7 +253,7 @@ export const invoicesRouter = createRouter()
     ),
   )
   // 共有をやめる
-  .openapi(
+  .endpoint(
     ...createEndpoint(
       {
         method: "delete",

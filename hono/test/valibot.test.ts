@@ -30,7 +30,7 @@ const output = toStandardJsonSchema(
   v.object({ id: v.string(), title: v.string(), limit: v.number() }),
 );
 
-const router = createRouter().openapi(
+const router = createRouter().endpoint(
   ...createEndpoint(
     {
       method: "post",

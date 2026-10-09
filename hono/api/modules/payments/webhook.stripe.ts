@@ -9,7 +9,7 @@ import { InvalidSignature, NotPayable } from "./errors";
 
 const receivedSchema = z.object({ received: z.literal(true) });
 
-export const stripeWebhookRouter = createRouter().openapi(
+export const stripeWebhookRouter = createRouter().endpoint(
   ...createEndpoint(
     {
       method: "post",

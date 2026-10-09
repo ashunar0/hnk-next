@@ -1,4 +1,11 @@
-import { Hono, type Env, type Handler, type Input, type Schema, type ToSchema } from "hono";
+import {
+  Hono,
+  type Env,
+  type Handler,
+  type Input,
+  type Schema,
+  type ToSchema,
+} from "hono";
 import { validator } from "hono/validator";
 import type { H, MergePath } from "hono/types";
 import { fail, ValidationError } from "./failure";
@@ -27,7 +34,8 @@ const check = (
 
 const validatorsOf = (route: RouteConfig) => {
   const { params, query, headers, cookies, body } = route.request ?? {};
-  const json = body && Object.entries(body.content).find(([type]) => /json/.test(type));
+  const json =
+    body && Object.entries(body.content).find(([type]) => /json/.test(type));
 
   return [
     params && check("param", params),
@@ -39,7 +47,7 @@ const validatorsOf = (route: RouteConfig) => {
 };
 
 /**
- * route をまとめる Hono。`openapi(route, handler)` で、宣言と handler を組にして登録する。
+ * route をまとめる Hono。`endpoint(route, handler)` で、宣言と handler を組にして登録する。
  * 宣言から、c.req.valid() の型と、hc の応答の型が決まる
  */
 export class Router<
@@ -47,7 +55,7 @@ export class Router<
   S extends Schema = {},
   BasePath extends string = "/",
 > extends Hono<E, S, BasePath> {
-  openapi<
+  endpoint<
     R extends RouteConfig,
     I extends Input = ComputeInput<R>,
     P extends string = R["path"],
@@ -61,7 +69,13 @@ export class Router<
     >,
   ): Router<
     E,
-    S & ToSchema<R["method"], MergePath<BasePath, P>, I, RouteConfigToTypedResponse<R>>,
+    S &
+      ToSchema<
+        R["method"],
+        MergePath<BasePath, P>,
+        I,
+        RouteConfigToTypedResponse<R>
+      >,
     BasePath
   > {
     const middleware = [route.middleware ?? []].flat();
@@ -71,11 +85,16 @@ export class Router<
     );
 
     // 型は引数の宣言で守られている。Hono の on は、この中では型を照らし合わせきれない
-    ((this as unknown as Hono<any, any, any>).on as (...args: unknown[]) => unknown).call(this, route.method.toUpperCase(), route.path, ...([
-      ...middleware,
-      ...validatorsOf(route),
-      last,
-    ] as unknown[]));
+    (
+      (this as unknown as Hono<any, any, any>).on as (
+        ...args: unknown[]
+      ) => unknown
+    ).call(
+      this,
+      route.method.toUpperCase(),
+      route.path,
+      ...([...middleware, ...validatorsOf(route), last] as unknown[]),
+    );
 
     return this as never;
   }

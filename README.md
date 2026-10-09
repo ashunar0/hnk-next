@@ -24,7 +24,7 @@ memo.md         別の会話でまとめた、Go の設計思想を Hono で再�
 // hono/api/modules/invoices/routes.ts
 export const invoicesRouter = createRouter()
   // 更新
-  .openapi(
+  .endpoint(
     ...createEndpoint(
       {
         method: "put",

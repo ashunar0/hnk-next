@@ -37,7 +37,7 @@ const monthlyResponseSchema = z.object({
 
 export const reportsRouter = createRouter()
   // 月ごとの請求と入金
-  .openapi(
+  .endpoint(
     ...createEndpoint(
       {
         method: "get",

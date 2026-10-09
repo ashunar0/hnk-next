@@ -12,7 +12,7 @@ const Second = httpError("SECOND", 409, "2 つ目の失敗");
 
 const app = createRouter();
 app.use(provideDeps(() => ({}) as never));
-app.openapi(
+app.endpoint(
   ...createEndpoint(
     {
       method: "get",

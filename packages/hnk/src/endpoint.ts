@@ -324,7 +324,7 @@ type PathMismatch<C extends RouteConfig> = [
 
 /**
  * route の宣言と handler を組にする。
- * `.openapi(...createEndpoint({...}, async (c, reply, { invoices }) => ...))`。
+ * `.endpoint(...createEndpoint({...}, async (c, reply, { invoices }) => ...))`。
  * 受け取る（c）、返す（reply）、使う（deps）が、引数の位置で決まる
  */
 export const createEndpoint = <const C extends RouteConfig>(
