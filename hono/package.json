@@ -10,7 +10,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm -C ../packages/hnk test",
+    "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm -C ../packages/hnk test && pnpm -C ../packages/hnk readme:check",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {

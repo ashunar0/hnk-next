@@ -115,3 +115,13 @@ export const KIND_HINTS = {
     "inbound は service や commands を import しない。deps から受け取って呼ぶ",
   "outbound→inbound": "outbound は inbound を知らない",
 };
+
+/**
+ * 許可表の補足。README の表の「import してよいもの」の後ろに付く。
+ * 表そのものは LAYERS から作るので、ここには表で言い切れないことだけを書く
+ */
+export const NOTES = {
+  webhook: "system は `allowSystem` から受け取る",
+  cron: "deps・system・now は createWorker が渡す",
+  repo: "他 module の repo は範囲付きの読みと外部キーの references() だけ、他 module の domain は SQL の定数だけ",
+};

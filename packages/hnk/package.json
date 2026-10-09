@@ -21,9 +21,12 @@
     "@hono/zod-openapi": "^1.6.3",
     "hono": "^4.13.1",
     "zod": "^4.4.3",
-    "oxlint": "^1.80.0"
+    "oxlint": "^1.80.0",
+    "prettier": "^3.9.6"
   },
   "scripts": {
-    "test": "node --test test/lint.test.mjs"
+    "test": "node --test test/lint.test.mjs",
+    "readme:layers": "node scripts/readme-layers.mjs",
+    "readme:check": "node scripts/readme-layers.mjs --check"
   }
 }

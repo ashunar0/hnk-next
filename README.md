@@ -167,19 +167,23 @@ go build ./cmd/api
   相対 import も tsconfig の paths 経由も同じに見る。HTTP の inbound（routes と webhook）には、export は束 1 本、
   `createEndpoint` に認証の指定、`c.json` 禁止、引数の中で await しない、を求める。どこでも、モジュールの一番上に変わる状態を置かない
 
-| 側       | 役割     | import してよいもの                                                                                                                                          |
-| -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| core     | domain   | zod, hnk/system（型だけ）, 他 module の domain（型だけ）                                                                                                     |
-| core     | service  | hnk/result, domain, 他 module の domain（型だけ）                                                                                                            |
-| core     | commands | hnk/result, domain, service（型だけ）, 他 module の domain（型だけ）                                                                                         |
-| inbound  | routes   | hnk, zod, errors, middleware, domain                                                                                                                         |
-| inbound  | webhook  | routes と同じ。system は `allowSystem` から受け取る                                                                                                          |
-| inbound  | cron     | hnk（型だけ）, domain（型だけ）。deps・system・now は createWorker が渡す                                                                                    |
-| inbound  | queue    | cron と同じ                                                                                                                                                  |
-| outbound | repo     | drizzle-orm, db（型だけ）, domain, service（型だけ）, 他 module の repo（範囲付きの読みと、外部キーの references() だけ）, 他 module の domain（SQL の定数） |
-| outbound | gateway  | hnk/result, domain（型だけ）, service（型だけ）                                                                                                              |
-| outbound | mailer   | gateway と同じ                                                                                                                                               |
-| outbound | jobs     | domain（型だけ）, service（型だけ）                                                                                                                          |
+<!-- layers:start（packages/hnk/lint/layers.mjs から生成。直接は書き換えない） -->
+
+| 側       | 役割     | import してよいもの                                                                                                                                                                                             |
+| -------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| core     | domain   | zod, hnk/system（型だけ）, 他 module の domain（型だけ）                                                                                                                                                        |
+| core     | service  | hnk/result, hnk/page（型だけ）, hnk/system（型だけ）, domain, 他 module の domain（型だけ）                                                                                                                     |
+| core     | commands | hnk/result, hnk/system（型だけ）, domain, service（型だけ）, 他 module の domain（型だけ）                                                                                                                      |
+| inbound  | routes   | hnk, zod, errors, middleware, domain                                                                                                                                                                            |
+| inbound  | webhook  | hnk, zod, errors, middleware, domain。system は `allowSystem` から受け取る                                                                                                                                      |
+| inbound  | cron     | hnk（型だけ）, domain（型だけ）。deps・system・now は createWorker が渡す                                                                                                                                       |
+| inbound  | queue    | hnk（型だけ）, domain（型だけ）                                                                                                                                                                                 |
+| outbound | repo     | drizzle-orm, hnk/page, db（型だけ）, domain, service（型だけ）, 他 module の repo, 他 module の domain。他 module の repo は範囲付きの読みと外部キーの references() だけ、他 module の domain は SQL の定数だけ |
+| outbound | gateway  | hnk/result, domain（型だけ）, service（型だけ）                                                                                                                                                                 |
+| outbound | mailer   | hnk/result, domain（型だけ）, service（型だけ）                                                                                                                                                                 |
+| outbound | jobs     | domain（型だけ）, service（型だけ）                                                                                                                                                                             |
+
+<!-- layers:end -->
 
 - **名前は Hono に合わせて `create〜`**。束は `invoicesRouter`
 - **一覧のページ送りは hnk の部品**（`hnk/page` と `pageQuery` / `pageResponseSchema` / `pageResponse`）。
