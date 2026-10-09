@@ -4,7 +4,14 @@
 import { err, ok, type Result } from "hnk/result";
 import type { System } from "hnk/system";
 import type { Actor } from "../users/domain";
-import { isStale, type Payment, type PaymentEvent } from "./domain";
+import {
+  GatewayFailed,
+  isStale,
+  NotPayable,
+  PaymentStarting,
+  type Payment,
+  type PaymentEvent,
+} from "./domain";
 
 /** 手順が必要とする保存の形。repo.d1.ts が満たす */
 export type PaymentsRepository = {
@@ -41,7 +48,7 @@ export type PaymentGateway = {
     paymentId: string;
     amount: number;
     description: string;
-  }): Promise<Result<{ checkoutUrl: string; providerRef: string }, "GATEWAY_FAILED">>;
+  }): Promise<Result<{ checkoutUrl: string; providerRef: string }, typeof GatewayFailed.code>>;
   /** 届いた通知が本物か確かめ、支払いの結果として読む。支払いに関係ない通知は null */
   verifyEvent(
     payload: string,
@@ -59,13 +66,15 @@ export type PayableInvoices = {
   getPayable: (
     actor: Actor,
     id: string,
-  ) => Promise<Result<{ id: string; title: string; amount: number }, "NOT_FOUND" | "NOT_PAYABLE">>;
+  ) => Promise<
+    Result<{ id: string; title: string; amount: number }, "NOT_FOUND" | typeof NotPayable.code>
+  >;
   /** 支払い済みにする。invoices の commands が満たす。何度呼んでも同じ結果になる */
   markPaid: (
     system: System,
     id: string,
     now: Date,
-  ) => Promise<Result<unknown, "NOT_FOUND" | "NOT_PAYABLE">>;
+  ) => Promise<Result<unknown, "NOT_FOUND" | typeof NotPayable.code>>;
 };
 
 /** 引数の順番は、誰として（actor）→ 何を → どうする → いつ（now）。時計は読まない */
@@ -83,7 +92,10 @@ export function paymentsService(
     ): Promise<
       Result<
         { payment: Payment; checkoutUrl: string },
-        "NOT_FOUND" | "NOT_PAYABLE" | "GATEWAY_FAILED" | "PAYMENT_STARTING"
+        | "NOT_FOUND"
+        | typeof NotPayable.code
+        | typeof GatewayFailed.code
+        | typeof PaymentStarting.code
       >
     > {
       const invoice = await invoices.getPayable(actor, invoiceId);
@@ -95,7 +107,7 @@ export function paymentsService(
         if (existing.checkoutUrl !== null)
           return ok({ payment: existing, checkoutUrl: existing.checkoutUrl });
         // 画面を作っている途中。ただし長く止まっているものは、途中で落ちたとみなして閉じ、作り直す
-        if (!isStale(existing, now)) return err("PAYMENT_STARTING");
+        if (!isStale(existing, now)) return err(PaymentStarting.code);
         await repo.markFailed(existing.id, now);
       }
 
@@ -112,7 +124,7 @@ export function paymentsService(
         updatedAt: now,
       });
       // 同時に始めた別のリクエストが、先に記録した
-      if (payment === null) return err("PAYMENT_STARTING");
+      if (payment === null) return err(PaymentStarting.code);
 
       const checkout = await gateway.createCheckout({
         paymentId: payment.id,
@@ -148,7 +160,7 @@ export function paymentsService(
       system: System,
       event: PaymentEvent,
       now: Date,
-    ): Promise<Result<void, "NOT_FOUND" | "NOT_PAYABLE">> {
+    ): Promise<Result<void, "NOT_FOUND" | typeof NotPayable.code>> {
       if (event.kind === "failed") {
         const failed = await repo.updateStatusByProviderRef(event.providerRef, "failed", now);
         if (failed === null) return err("NOT_FOUND");

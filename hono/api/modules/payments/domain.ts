@@ -3,6 +3,27 @@
  * 手順も HTTP も DB も決済サービスも知らない
  */
 
+/** 請求書が支払える状態ではない */
+export const NotPayable = {
+  code: "NOT_PAYABLE",
+  kind: "conflict",
+  message: "送付済みの請求書だけを支払えます",
+} as const;
+
+/** 同じ請求書の支払いの準備が、まだ終わっていない */
+export const PaymentStarting = {
+  code: "PAYMENT_STARTING",
+  kind: "conflict",
+  message: "支払いの準備中です。少し待ってからやり直してください",
+} as const;
+
+/** 決済サービスに繋がらなかった */
+export const GatewayFailed = {
+  code: "GATEWAY_FAILED",
+  kind: "upstream",
+  message: "決済サービスに接続できませんでした",
+} as const;
+
 /** 支払いの状態。決済サービスの画面に送った → 成功 / 失敗 */
 export const paymentStatuses = ["pending", "succeeded", "failed"] as const;
 

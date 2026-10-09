@@ -87,8 +87,11 @@ class HnkError extends HTTPException {
 }
 
 /** HTTP の入口で起きる失敗を作る。middleware など、handler の外で `throw fail(Unauthorized)` */
-export const fail = (error: HttpError, message = error.message) =>
-  new HnkError(error.code, error.status, message);
+export const fail = (failure: AnyFailure, message = failure.message) => {
+  const error = toHttpError(failure);
+
+  return new HnkError(error.code, error.status, message);
+};
 
 export const errorBody = (code: string, message: string) => ({
   error: { code, message },

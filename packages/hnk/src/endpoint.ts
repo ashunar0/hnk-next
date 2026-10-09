@@ -164,7 +164,7 @@ const GUARD_ERRORS: unique symbol = Symbol("hnk.guardErrors");
 /** 返しうる失敗を持った middleware */
 export type Guard<
   M extends MiddlewareHandler,
-  E extends readonly HttpError[],
+  E extends readonly AnyFailure[],
 > = M & {
   readonly [GUARD_ERRORS]: E;
 };
@@ -174,17 +174,17 @@ export type Guard<
  * その失敗が responses に自動で足される。`export const requireAuth = guard([Unauthorized], ...)`
  */
 export const guard = <
-  const E extends readonly HttpError[],
+  const F extends readonly AnyFailure[],
   M extends MiddlewareHandler,
 >(
-  errors: E,
+  failures: F,
   middleware: M,
-): Guard<M, E> => Object.assign(middleware, { [GUARD_ERRORS]: errors });
+): Guard<M, F> => Object.assign(middleware, { [GUARD_ERRORS]: failures });
 
 type GuardErrorsOf<M> = M extends readonly unknown[]
   ? GuardErrorsOf<M[number]>
-  : M extends { readonly [GUARD_ERRORS]: infer E extends readonly HttpError[] }
-    ? E[number]
+  : M extends { readonly [GUARD_ERRORS]: infer E extends readonly AnyFailure[] }
+    ? ToHttpError<E[number]>
     : never;
 
 const INPUT_PARTS = ["param", "query", "header", "cookie", "json"] as const;
@@ -218,9 +218,11 @@ type WithAutoErrors<R extends RouteConfig> = Omit<R, "responses"> & {
  */
 const createRoute = <const R extends RouteConfig>(config: R) => {
   const middleware = [config.middleware ?? []].flat() as {
-    [GUARD_ERRORS]?: readonly HttpError[];
+    [GUARD_ERRORS]?: readonly AnyFailure[];
   }[];
-  const auto: HttpError[] = middleware.flatMap((m) => m[GUARD_ERRORS] ?? []);
+  const auto: HttpError[] = middleware.flatMap((m) =>
+    (m[GUARD_ERRORS] ?? []).map(toHttpError),
+  );
   if (INPUT_PARTS.some((part) => config.request?.[part] !== undefined))
     auto.push(ValidationError);
 
