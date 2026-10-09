@@ -108,15 +108,15 @@ inbound と outbound のファイル名には、何に繋ぐかを書く（`repo
 
 ### 育ち方: 2 つ目が現れたときだけ、3 種類
 
-| 動き         | きっかけ                                           | 足すもの                                                                                                |
-| ------------ | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| 横に増える   | 2 つ目の inbound（cron、キュー、webhook）          | `cron.ts`、`queue.ts`、`webhook.stripe.ts`（routes.ts の隣）                                            |
-| 横に増える   | 2 つ目の outbound（保存先、外部 API、メール）      | `files.r2.ts`、`gateway.stripe.ts` など。必要な形は service で宣言する                                  |
-| 中で割れる   | 1 つのファイルが 2 つ目の理由で変わり始めた        | 同じ箱の中で分ける（service.ts → ports.ts、routes.ts → schema.ts など）。矢印は変わらない               |
-| 中で割れる   | その module だけの失敗（`NOT_DRAFT` など）が現れた | `errors.ts`（routes.ts の隣）。どの module でも同じ意味のもの（401・403・404）は `api/errors.ts` のまま |
-| 窓口を開く   | 他の module が書きに来る                           | 書かれる側の `commands/<操作>.ts`（1 操作 1 ファイル）。routes からは呼ばない                           |
-| 窓口を開く   | 他の module が SQL で読みに来る（集計など）        | 持ち主の repo に `〜Within(db, actor)`。読む側は表を直接読まず、範囲の決め方も知らない                  |
-| （足さない） | 他の module が読みに来る                           | 使う側の service が形を宣言し、deps.ts で相手の service をつなぐ                                        |
+| 動き         | きっかけ                                           | 足すもの                                                                                                                                      |
+| ------------ | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| 横に増える   | 2 つ目の inbound（cron、キュー、webhook）          | `cron.ts`、`queue.ts`、`webhook.stripe.ts`（routes.ts の隣）                                                                                  |
+| 横に増える   | 2 つ目の outbound（保存先、外部 API、メール）      | `files.r2.ts`、`gateway.stripe.ts` など。必要な形は service で宣言する                                                                        |
+| 中で割れる   | 1 つのファイルが 2 つ目の理由で変わり始めた        | 同じ箱の中で分ける（service.ts → ports.ts、routes.ts → schema.ts など）。矢印は変わらない                                                     |
+| 中で割れる   | その module だけの失敗（`NOT_DRAFT` など）が現れた | 足さない。domain.ts に `Failure`（コード・種類・文言）を置く。番号は種類から hnk が決める。入口だけの失敗（webhook の署名など）は `errors.ts` |
+| 窓口を開く   | 他の module が書きに来る                           | 書かれる側の `commands/<操作>.ts`（1 操作 1 ファイル）。routes からは呼ばない                                                                 |
+| 窓口を開く   | 他の module が SQL で読みに来る（集計など）        | 持ち主の repo に `〜Within(db, actor)`。読む側は表を直接読まず、範囲の決め方も知らない                                                        |
+| （足さない） | 他の module が読みに来る                           | 使う側の service が形を宣言し、deps.ts で相手の service をつなぐ                                                                              |
 
 どの動きでも、矢印は domain に向かったまま変わらない。
 
@@ -169,7 +169,7 @@ go build ./cmd/api
   getter で遅延する案は、宣言順の保証を失うので外した（組み立ては関数を返すだけで軽い）。deps.ts は何を import してもよい場所で、lint の表には入れていない
 - **route は `router.endpoint(設定, handler)` 1 つで書く**（素の Hono の上）。設定の `request` のキーは、handler で読む `c.req.valid("…")` の名前と同じ（`param` を宣言したら `valid("param")`）。`method` は小文字、`path` は Hono の `/:id`、応答はスキーマをそのまま書く（書き方は 1 つ。失敗の応答だけは `errorResponses` が失敗の文言を説明として付ける）。guard が持つ失敗と ValidationError を hnk が足す。`c.json` だとずれたときの赤線が handler の頭に付くので、`reply` で返す。`createRoute` は公開しない（書き方を 1 つにするため）。`path` の `:name` と `request.param` のキーが食い違うと型エラーになる
 - **スキーマは Standard Schema を満たすものなら何でも**（zod、valibot で確かめた）。hnk は検証のライブラリを決め打ちせず、**hnk 自身の依存は hono だけ**。hnk が持つスキーマ（失敗の本文、ページ送り）は Standard Schema を手で満たして書いている。依存と `as never` の場所は `packages/hnk/test/source.test.mjs` が確かめる。**OpenAPI は別の部品**（`hnk/openapi` の `openapiDocument(app, info)`）で、登録された宣言から文書を作る。JSON Schema への変換はスキーマのライブラリ自身が持つ（Standard JSON Schema）。valibot は単体では出せないので、文書に出したいものだけ `toStandardJsonSchema` で包む。要らないなら使わない
-- **失敗は値で、番号と文言を持つ**（`httpError("NOT_FOUND", 404, "…")`）。guard が持つ失敗と ValidationError は自動で宣言する。
+- **失敗は値で、番号と文言を持つ**（`httpError("NOT_FOUND", 404, "…")`）。モノの失敗は domain に `Failure`（`{ code, kind, message }`、HTTP を知らない）として置き、種類（`conflict` など）から番号を決める表は hnk が 1 か所で持つ（Go の errors.go、gRPC のステータスコードと同じ考え方）。`errorResponses` は `Failure` も `httpError` も受け取る。guard が持つ失敗と ValidationError は自動で宣言する。
   `reply.failure` が受け取れるのは、route に手で書いたドメインの失敗だけ。同じ番号の失敗が複数あっても 1 つの応答にまとめ、コードごとの文言で返す
 - **誰として操作するかは `Actor`（利用者かシステム）で、引数の先頭に置く**（Go の `ctx` と同じ位置）。
   HTTP では guard が `c.get("actor")` に決め（`requireAuth` なら `User`、`allowSystem` ならシステム）、cron とキューでは `createWorker` が渡す。
@@ -201,7 +201,7 @@ go build ./cmd/api
 | core     | commands | hnk/result, hnk/system（型だけ）, domain, service（型だけ）, 他 module の domain（型だけ）                                                                                                                                       |
 | inbound  | routes   | hnk, zod, errors, middleware, domain                                                                                                                                                                                             |
 | inbound  | webhook  | hnk, zod, errors, middleware, domain。actor（システム）は `allowSystem` から受け取る                                                                                                                                             |
-| inbound  | errors   | hnk。その module だけの失敗。どの module でも同じ意味のもの（401・403・404）は api/errors.ts に置き、routes と webhook はどちらも import してよい                                                                                |
+| inbound  | errors   | hnk。入口だけの失敗（webhook の署名など）。モノの失敗は domain.ts に Failure として置く。どの module でも同じ意味のもの（401・403・404）は api/errors.ts に置き、routes と webhook はどちらも import してよい                    |
 | inbound  | cron     | hnk（型だけ）, domain（型だけ）。deps・actor・now は createWorker が渡す                                                                                                                                                         |
 | inbound  | queue    | hnk（型だけ）, domain（型だけ）                                                                                                                                                                                                  |
 | outbound | repo     | drizzle-orm, hnk/page, db（型だけ）, domain, service（型だけ）, 他 module の repo, 他 module の domain。他 module の repo からは外部キーの表（〜Table）と読ませる窓口（〜Within）だけ、他 module の domain は SQL の定数と型だけ |

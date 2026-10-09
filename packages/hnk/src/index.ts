@@ -17,6 +17,9 @@ export {
   httpError,
   onError,
   ValidationError,
+  type AnyFailure,
+  type Failure,
+  type FailureKind,
   type HttpError,
 } from "./failure";
 export {

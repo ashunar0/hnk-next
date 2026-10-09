@@ -5,7 +5,8 @@
 import { allowSystem, createRouter, errorResponses } from "hnk";
 import { z } from "zod";
 import { NotFound } from "../../errors";
-import { InvalidSignature, NotPayable } from "./errors";
+import { NotPayable } from "./domain";
+import { InvalidSignature } from "./errors";
 
 const receivedSchema = z.object({ received: z.literal(true) });
 
