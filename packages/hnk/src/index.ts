@@ -335,6 +335,13 @@ type DeclaredFailure<R extends RouteConfig> = R extends {
   ? Exclude<K, undefined>
   : { [S in keyof R["responses"]]: CodeOf<R, S> }[keyof R["responses"]];
 
+/**
+ * 失敗を 1 つも宣言していない route で reply.failure を呼んだとき、引数の型としてエラーに出る文言。
+ * ここを `never` にすると、赤線の理由が読めなくなる
+ */
+type NoFailureDeclared =
+  "この route には、手で書いた失敗の宣言が無い。responses に ...errorResponses(NotFound など) を足す";
+
 /** 失敗のコードごとに、宣言したステータスの応答を返す。「404 なら NOT_FOUND」の対応を型に残す */
 type FailureResponse<R extends RouteConfig, K> = {
   [S in keyof R["responses"] & ContentfulStatusCode]: K extends CodeOf<R, S>
@@ -358,7 +365,11 @@ type Reply<R extends RouteConfig> = {
    */
   failure<K extends string>(
     // & string は、エラーメッセージで型の名前ではなく中身（"NOT_FOUND" など）を見せるため
-    error: [K] extends [DeclaredFailure<R>] ? K : DeclaredFailure<R> & string,
+    error: [K] extends [DeclaredFailure<R>]
+      ? K
+      : [DeclaredFailure<R>] extends [never]
+        ? NoFailureDeclared
+        : DeclaredFailure<R> & string,
   ): [K] extends [DeclaredFailure<R>] ? FailureResponse<R, K> : never;
 };
 
