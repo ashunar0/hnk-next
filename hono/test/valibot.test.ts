@@ -4,7 +4,15 @@
  * valibot 自身は JSON Schema を出さないので、文書に出したい schema だけ toStandardJsonSchema で包む
  */
 import { toStandardJsonSchema } from "@valibot/to-json-schema";
-import { createEndpoint, createRouter, errorResponses, json, jsonBody, onError, provideDeps } from "hnk";
+import {
+  createEndpoint,
+  createRouter,
+  errorResponses,
+  json,
+  jsonBody,
+  onError,
+  provideDeps,
+} from "hnk";
 import { openapiDocument } from "hnk/openapi";
 import * as v from "valibot";
 import { expect, it } from "vitest";
@@ -13,10 +21,14 @@ import { allowAnonymous } from "../api/middleware/auth";
 
 const params = toStandardJsonSchema(v.object({ id: v.pipe(v.string(), v.minLength(2)) }));
 const query = toStandardJsonSchema(
-  v.object({ limit: v.optional(v.pipe(v.string(), v.transform(Number), v.integer(), v.minValue(1)), "10") }),
+  v.object({
+    limit: v.optional(v.pipe(v.string(), v.transform(Number), v.integer(), v.minValue(1)), "10"),
+  }),
 );
 const input = toStandardJsonSchema(v.object({ title: v.pipe(v.string(), v.minLength(1)) }));
-const output = toStandardJsonSchema(v.object({ id: v.string(), title: v.string(), limit: v.number() }));
+const output = toStandardJsonSchema(
+  v.object({ id: v.string(), title: v.string(), limit: v.number() }),
+);
 
 const router = createRouter().openapi(
   ...createEndpoint(
@@ -84,7 +96,10 @@ it("OpenAPI の文書に、valibot の schema が出る", () => {
   const doc = openapiDocument(app, { title: "t", version: "0" }) as any;
   const op = doc.paths["/items/{id}"].post;
 
-  expect(op.parameters.map((p: { name: string; in: string }) => `${p.in}:${p.name}`)).toEqual(["path:id", "query:limit"]);
+  expect(op.parameters.map((p: { name: string; in: string }) => `${p.in}:${p.name}`)).toEqual([
+    "path:id",
+    "query:limit",
+  ]);
   expect(op.requestBody.content["application/json"].schema.properties.title.type).toBe("string");
   expect(Object.keys(op.responses)).toEqual(expect.arrayContaining(["200", "400", "404"]));
 });
