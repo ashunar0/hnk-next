@@ -12,11 +12,6 @@ import { enqueueOverdueReminders } from "./modules/reminders/cron";
 import type { ReminderJob } from "./modules/reminders/domain";
 import { sendReminder } from "./modules/reminders/queue";
 
-/**
- * アプリを組み立てる。依存の組み立て方と、ログイン状態の決め方を外から受け取るので、
- * 本番は makeDeps と withUser を、テストは偽物を渡す。
- * authenticate はセッションの user（ログインしていなければ null）を文脈に積む middleware。認証の提供元を差し込む場所
- */
 /** zod の日付は JSON Schema で表せないので、文書には日時の文字列として出す */
 const dateAsString = (ctx: {
   zodSchema: { _zod: { def: { type: string } } };
@@ -26,6 +21,11 @@ const dateAsString = (ctx: {
     Object.assign(ctx.jsonSchema, { type: "string", format: "date-time" });
 };
 
+/**
+ * アプリを組み立てる。依存の組み立て方と、ログイン状態の決め方を外から受け取るので、
+ * 本番は makeDeps と withUser を、テストは偽物を渡す。
+ * authenticate はセッションの user（ログインしていなければ null）を文脈に積む middleware。認証の提供元を差し込む場所
+ */
 export const buildApp = (
   makeDeps: (env: AppEnv["Bindings"]) => Deps,
   authenticate: MiddlewareHandler<AppEnv> = withUser,
@@ -61,7 +61,7 @@ const app = buildApp(makeDeps);
 
 /**
  * Workers の入口。HTTP は app、時刻は cron、キューは queue に渡す。
- * 依存の組み立て、system、now、ack と retry は createWorker が受け持つ
+ * 依存の組み立て、actor（システム）、now、ack と retry は createWorker が受け持つ
  */
 export default createWorker<ReminderJob>({
   makeDeps,

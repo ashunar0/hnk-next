@@ -10,13 +10,7 @@ export type { System } from "./system";
 export type { Cursor, Page, PageQuery } from "./page";
 
 export type { Register } from "./register";
-export {
-  errorResponses,
-  guard,
-  json,
-  provideDeps,
-  type Guard,
-} from "./endpoint";
+export { errorResponses, guard, provideDeps, type Guard } from "./endpoint";
 export { createRouter } from "./router";
 export {
   fail,
@@ -32,9 +26,7 @@ export {
   type QueueContext,
 } from "./worker";
 export {
-  cursorSchema,
-  encodeCursor,
-  pageQuery,
+  pageQuerySchema,
   pageResponse,
   pageResponseSchema,
 } from "./page-schema";
