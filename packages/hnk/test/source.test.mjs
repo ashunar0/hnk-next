@@ -14,7 +14,12 @@ const src = path.join(
   "..",
   "src",
 );
-const files = fs.readdirSync(src).filter((f) => f.endsWith(".ts"));
+/** src の下の全ての .ts（サブディレクトリも）。src からの相対パス */
+const files = fs
+  .readdirSync(src, { recursive: true })
+  .filter(
+    (f) => /\.[cm]?[tj]sx?$/.test(f) && fs.statSync(path.join(src, f)).isFile(),
+  );
 
 /** コメントを除いた行 */
 const codeOf = (file) =>
@@ -26,7 +31,11 @@ const codeOf = (file) =>
 
 test("依存は hono だけ（ほかは src の中の相対 import）", () => {
   for (const file of files) {
-    for (const [, specifier] of codeOf(file).matchAll(/from "([^"]+)"/g)) {
+    // from "x"（import / export）、import "x"、import("x")、require("x")、' も `x` も
+    const found = codeOf(file).matchAll(
+      /(?:\bfrom|\bimport|\brequire)\s*\(?\s*(["'`])([^"'`]+)\1/g,
+    );
+    for (const [, , specifier] of found) {
       assert.ok(
         specifier.startsWith("./") ||
           specifier === "hono" ||
