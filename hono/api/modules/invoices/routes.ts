@@ -1,7 +1,13 @@
 /**
  * invoices を HTTP で公開する。入出力の形と、モノ → 応答の変換もここに置く
  */
-import { createRouter, errorResponses, pageQuery, pageResponse, pageResponseSchema } from "hnk";
+import {
+  createRouter,
+  errorResponses,
+  pageQuerySchema,
+  pageResponse,
+  pageResponseSchema,
+} from "hnk";
 import { z } from "zod";
 import { Forbidden, NotFound } from "../../errors";
 import { requireAuth } from "../../middleware/auth";
@@ -19,10 +25,11 @@ const invoiceParamsSchema = z.object({
   id: invoiceIdSchema,
 });
 
-const listInvoicesQuerySchema = z.object({
-  status: z.enum(invoiceStatuses).optional(),
-  ...pageQuery,
-});
+const listInvoicesQuerySchema = pageQuerySchema(
+  z.object({
+    status: z.enum(invoiceStatuses).optional(),
+  }),
+);
 
 // 返す形
 const invoiceResponseSchema = z.object({

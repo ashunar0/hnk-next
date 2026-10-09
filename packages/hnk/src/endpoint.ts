@@ -1,6 +1,5 @@
 import type { Context, MiddlewareHandler, TypedResponse } from "hono";
 import type { ParamKeys } from "hono/types";
-import { z } from "zod";
 import type {
   ContentfulStatusCode,
   SuccessStatusCode,
@@ -17,17 +16,17 @@ import {
   type RouteHandler,
   type SchemaOfResponse,
 } from "./route-types";
-import type { InferInput, InferOutput } from "./standard-schema";
+import {
+  hnkSchema,
+  issue,
+  type InferInput,
+  type InferOutput,
+} from "./standard-schema";
 
 import type { System } from "./system";
 
 /**
- * `as never` / `as unknown as` を使うのは、hnk ではこのファイルの次の 3 つだけ。
- * - provideDeps の `c.set` と、endpoint の `c.get`: 内部のキー（DEPS_KEY）は、アプリの Env の変数に載せない
- * - errorResponses の戻り値: 実行時に組み立てた object に、番号ごとの失敗の型を付ける
- * - .endpoint の handler の中の `reply` と `fn(c, ...)`: route の型 R が決まらないここでは、
- *   TS が Hono のジェネリクスを照らし合わせきれない
- * ここで型を信じてもらう代わりに、使う側は .endpoint の fn の型（c、reply、deps）で守られる
+ * `as never` / `as unknown as` を書いてよい場所と数は、test/source.test.mjs が決めて確かめる
  */
 
 // ---- 依存 ----
@@ -57,30 +56,53 @@ export const provideDeps =
 type MaybePromise<T> = T | Promise<T>;
 // ---- responses の宣言 ----
 
-/**
- * 説明（OpenAPI の文書に出る）を付けた応答。説明が要らなければ、スキーマをそのまま書く。
- * `responses: { 200: json(schema, "更新した請求書") }`
- */
-export const json = <T extends AnySchema>(schema: T, description: string) => ({
+/** 説明（OpenAPI の文書に出る）を付けた応答。失敗の応答だけが使う。アプリはスキーマをそのまま書く */
+const described = <T extends AnySchema>(schema: T, description: string) => ({
   schema,
   description,
 });
 
+type ErrorBody<K extends string> = { error: { code: K; message: string } };
+
+/** 失敗の応答の本文 `{ error: { code, message } }`。code は宣言した失敗のどれか */
 const errorSchema = <K extends string>(codes: readonly K[]) =>
-  z.object({
-    error: z.object({ code: z.literal(codes), message: z.string() }),
-  });
+  hnkSchema<ErrorBody<K>, ErrorBody<K>>(
+    (value) => {
+      const error = (value as Partial<ErrorBody<string>> | null)?.error;
+      if (
+        typeof error?.message !== "string" ||
+        !(codes as readonly string[]).includes(error.code)
+      )
+        return issue(`error.code は ${codes.join(" / ")} のどれかです`);
+
+      return { value: value as ErrorBody<K> };
+    },
+    () => ({
+      type: "object",
+      properties: {
+        error: {
+          type: "object",
+          properties: {
+            code: { type: "string", enum: codes },
+            message: { type: "string" },
+          },
+          required: ["code", "message"],
+        },
+      },
+      required: ["error"],
+    }),
+  );
 
 /** 応答の宣言に、その番号で返しうる失敗を覚えさせる。OpenAPI には出ない */
 const DECLARED_ERRORS: unique symbol = Symbol("hnk.declaredErrors");
 
-type ErrorResponse = ReturnType<typeof json> & {
+type ErrorResponse = ReturnType<typeof described> & {
   readonly [DECLARED_ERRORS]: readonly HttpError[];
 };
 
 /** 同じ番号の失敗を 1 つの応答にまとめる。コードは literal の和、文言はコードごとに覚えておく */
 const errorResponseOf = (errors: readonly HttpError[]): ErrorResponse => ({
-  ...json(
+  ...described(
     errorSchema(errors.map((e) => e.code)),
     errors.map((e) => e.message).join(" / "),
   ),
@@ -89,7 +111,7 @@ const errorResponseOf = (errors: readonly HttpError[]): ErrorResponse => ({
 
 /**
  * responses の失敗の部分。ステータスは失敗が持っているので、手では書かない。
- * `responses: { 200: json(...), ...errorResponses(Unauthorized, NotFound) }`
+ * `responses: { 200: invoiceSchema, ...errorResponses(Unauthorized, NotFound) }`
  * 同じ番号の失敗が複数あっても、1 つの応答にまとめるので消えない
  */
 export const errorResponses = <const T extends readonly HttpError[]>(

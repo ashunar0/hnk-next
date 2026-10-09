@@ -5,7 +5,7 @@
 import type { Hono } from "hono";
 import { ROUTE } from "./router";
 import type { AnySchema, ResponseEntry, RouteConfig } from "./route-types";
-import type { JsonSchemaCapable } from "./standard-schema";
+import { toJsonSchema } from "./standard-schema";
 
 const TARGET = "draft-2020-12";
 
@@ -14,22 +14,12 @@ export type OpenapiOptions = { libraryOptions?: Record<string, unknown> };
 
 type Io = "input" | "output";
 
-const jsonSchemaOf = (schema: AnySchema, io: Io, options: OpenapiOptions) => {
-  const converter = (schema as unknown as JsonSchemaCapable)["~standard"]
-    .jsonSchema;
-  if (!converter)
-    throw new Error(
-      `この schema（${schema["~standard"].vendor}）は JSON Schema を出せない。OpenAPI の文書には、Standard JSON Schema を満たすものを使う`,
-    );
-
+const jsonSchemaOf = (schema: AnySchema, io: Io, options: OpenapiOptions) =>
   // 表せない型は、文書では「何でも」にして、文書の生成そのものは止めない。指定があればそちらが先
-  const { $schema: _, ...converted } = converter[io]({
+  toJsonSchema(schema, io, {
     target: TARGET,
     libraryOptions: { unrepresentable: "any", ...options.libraryOptions },
   });
-
-  return converted;
-};
 
 /** `/users/:id` → `/users/{id}` */
 const openapiPath = (path: string) =>

@@ -25,8 +25,9 @@ type MaybePromise<T> = Promise<T> | T;
 export type AnySchema = StandardSchema<any, any>;
 
 /**
- * 応答の宣言 1 つ。スキーマだけ書くか、説明（OpenAPI の文書に出る）を付けるときは `json(schema, "説明")`。
- * スキーマは Standard Schema の `~standard` を持つので、`{ schema, description }` とは見分けられる
+ * 応答の宣言 1 つ。アプリはスキーマをそのまま書く。
+ * `{ schema, description }` は errorResponses が作る失敗の応答で、説明（失敗の文言）が OpenAPI の文書に出る。
+ * スキーマは Standard Schema の `~standard` を持つので、両者は見分けられる
  */
 export type ResponseEntry =
   AnySchema | { schema: AnySchema; description: string };
