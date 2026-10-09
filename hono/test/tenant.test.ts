@@ -1,3 +1,4 @@
+import { invoiceId } from "../api/modules/invoices/domain";
 import { expect, it } from "vitest";
 import { scopeTo } from "../api/db";
 import { invoicesService } from "../api/modules/invoices/service";
@@ -23,9 +24,12 @@ it("admin が触れるのは自分の組織の請求書だけ。他の組織の�
   const page = await invoices.list(admin, { limit: 10 });
   expect(page.items.map((i) => i.id)).toEqual(["t1-a"]);
 
-  expect(await invoices.get("t1-c", admin)).toEqual({ ok: false, error: "NOT_FOUND" });
-  expect(await invoices.send("t1-c", admin)).toEqual({ ok: false, error: "NOT_FOUND" });
-  expect(await invoices.remove("t1-c", admin)).toEqual({ ok: false, error: "NOT_FOUND" });
+  expect(await invoices.get(invoiceId("t1-c"), admin)).toEqual({ ok: false, error: "NOT_FOUND" });
+  expect(await invoices.send(invoiceId("t1-c"), admin)).toEqual({ ok: false, error: "NOT_FOUND" });
+  expect(await invoices.remove(invoiceId("t1-c"), admin)).toEqual({
+    ok: false,
+    error: "NOT_FOUND",
+  });
 });
 
 it("システムは全ての組織の請求書に触れる", async () => {

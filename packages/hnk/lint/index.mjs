@@ -5,6 +5,7 @@
 import layerImports from "./rules/layer-imports.mjs";
 import noAwaitInCallArguments from "./rules/no-await-in-call-arguments.mjs";
 import noForeignTableReads from "./rules/no-foreign-table-reads.mjs";
+import noIdCast from "./rules/no-id-cast.mjs";
 import noModuleScopeState from "./rules/no-module-scope-state.mjs";
 import routeDeclaresAuth from "./rules/route-declares-auth.mjs";
 import routeExportsOnlyTheRouter from "./rules/route-exports-only-the-router.mjs";
@@ -18,6 +19,7 @@ export default {
     "route-exports-only-the-router": routeExportsOnlyTheRouter,
     "no-await-in-call-arguments": noAwaitInCallArguments,
     "route-replies-through-reply": routeRepliesThroughReply,
+    "no-id-cast": noIdCast,
     "no-module-scope-state": noModuleScopeState,
     "route-declares-auth": routeDeclaresAuth,
   },

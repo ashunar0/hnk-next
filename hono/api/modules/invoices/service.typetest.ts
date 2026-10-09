@@ -1,4 +1,4 @@
-import { invoiceInputSchema } from "./domain";
+import { invoiceId, invoiceInputSchema } from "./domain";
 import { systemViewer } from "hnk/testing";
 import type { User } from "../users/domain";
 import type { InvoicesService } from "./service";
@@ -34,4 +34,16 @@ export async function cannotForgeViewers(invoices: InvoicesService) {
   await invoices.list({ kind: "system" }, { limit: 10 });
   // @ts-expect-error { kind: "user", ... } と書いても利用者にはなれない
   await invoices.list({ kind: "user", id: "x", role: "admin" }, { limit: 10 });
+}
+
+// 請求書の ID は印付き。素の string は渡せない（利用者・組織の ID はまだ素の string なので、
+// 取り違えを止められるのは請求書の ID が絡む所だけ）
+export async function idsAreNotInterchangeable(invoices: InvoicesService, viewer: User) {
+  // @ts-expect-error 素の string は請求書の ID ではない
+  await invoices.get("x", viewer);
+  // @ts-expect-error 利用者の ID（今は素の string）も請求書の ID としては渡せない
+  await invoices.get(viewer.id, viewer);
+
+  // 印は作る関数で付ける
+  await invoices.get(invoiceId("x"), viewer);
 }

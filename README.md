@@ -157,6 +157,7 @@ go build ./cmd/api
 - **module は domain / service / routes / repo.<技術> で始め、2 つ目が現れたときだけ育てる**（上の「出発点と育ち方」）。
   名前は modules（境界を持ったまとまり）。features は「機能」で、複数のモノにまたがる操作の言葉なので使わない
 - **domain は外を知らない**。import できるのは zod だけ。ルールは zod で書き、フロントとも共有する。手順（How）は service に分ける
+- **ID には印を付ける**（今は `InvoiceId` だけ。`string & { [brand]: true }`）。印を付けてよいのは、その module の domain が出す作る関数（`invoiceId(value)`）だけで、他の場所の `as XxxId` は lint `no-id-cast` が止める。素の `string` や別の ID は渡せない。利用者・組織の ID と、module をまたぐ所（payments・reminders の `invoiceId: string`）は未対応
 - **入力は検査済みの印（zod の brand）付きでしか service に渡せない**。どの入口から呼んでも、検査を飛ばすと型エラーになる
 - **service は hono を知らない**。hnk から使うのは `hnk/result` だけ
 - **依存は `buildApp(makeDeps)`**。Workers はリクエストをまたいだ I/O を拒むので、組み立てた結果ではなく組み立て方を渡す。

@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { scopeTo, wireDb } from "../api/db";
-import type { Invoice } from "../api/modules/invoices/domain";
+import { invoiceId, type Invoice } from "../api/modules/invoices/domain";
 import {
   invoicesRepository,
   invoiceSharesTable,
@@ -24,7 +24,7 @@ export const carol = authenticatedUser("carol", "org2", "member");
 export const admin2 = authenticatedUser("admin2", "org2", "admin");
 
 /** 請求書を 1 件。テストで気にしない項目は既定値で埋める */
-export const invoice = (over: Partial<Invoice> & Pick<Invoice, "id">): Invoice => ({
+export const invoice = (over: Omit<Partial<Invoice>, "id"> & { id: string }): Invoice => ({
   orgId: alice.orgId,
   ownerId: alice.id,
   title: `title ${over.id}`,
@@ -36,6 +36,7 @@ export const invoice = (over: Partial<Invoice> & Pick<Invoice, "id">): Invoice =
   createdAt: new Date("2026-01-01T00:00:00Z"),
   updatedAt: new Date("2026-01-01T00:00:00Z"),
   ...over,
+  id: invoiceId(over.id),
 });
 
 export const insertInvoices = async (invoices: Invoice[]) => {

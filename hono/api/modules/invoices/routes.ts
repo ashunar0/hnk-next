@@ -14,11 +14,17 @@ import {
 import { z } from "zod";
 import { Forbidden, NotDraft, NotFound } from "../../errors";
 import { requireAuth } from "../../middleware/auth";
-import { invoiceInputSchema, invoiceStatuses, shareLevels, type Invoice } from "./domain";
+import {
+  invoiceIdSchema,
+  invoiceInputSchema,
+  invoiceStatuses,
+  shareLevels,
+  type Invoice,
+} from "./domain";
 
 // 受け取る形。本文の入力は domain の invoiceInputSchema
 const invoiceParamsSchema = z.object({
-  id: z.string(),
+  id: invoiceIdSchema,
 });
 
 const listInvoicesQuerySchema = z.object({
@@ -52,7 +58,7 @@ const shareInputSchema = z.object({
 });
 
 const shareParamsSchema = z.object({
-  id: z.string(),
+  id: invoiceIdSchema,
   userId: z.string(),
 });
 

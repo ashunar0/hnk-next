@@ -15,7 +15,8 @@
         "hnk/no-await-in-call-arguments": "error",
         "hnk/route-replies-through-reply": "error",
         "hnk/route-declares-auth": "error",
-        "hnk/no-module-scope-state": "error"
+        "hnk/no-module-scope-state": "error",
+        "hnk/no-id-cast": "error"
       }
     }
   ]

@@ -19,8 +19,24 @@ export const unpaidStatuses = ["sent"] as const satisfies InvoiceStatus[];
 const isUnpaid = (status: InvoiceStatus) =>
   (unpaidStatuses as readonly InvoiceStatus[]).includes(status);
 
+/**
+ * 請求書の ID。ただの string と区別するための印。
+ * 他の ID（利用者、組織）と取り違えると型エラーになる。印を付けられるのは下の invoiceId だけ
+ */
+declare const invoiceIdBrand: unique symbol;
+
+export type InvoiceId = string & { readonly [invoiceIdBrand]: true };
+
+/** 外から来た文字列、または DB から読んだ文字列に、請求書の ID の印を付ける。`as` を書くのはここだけ */
+export const invoiceId = (value: string) => value as InvoiceId;
+
+export const newInvoiceId = () => invoiceId(crypto.randomUUID());
+
+/** 入力（URL やボディ）の ID。検査を通ると印が付く */
+export const invoiceIdSchema = z.string().min(1).transform(invoiceId);
+
 export type Invoice = {
-  id: string;
+  id: InvoiceId;
   /** 属する組織。作った人の組織で、変わらない */
   orgId: string;
   ownerId: string;

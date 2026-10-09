@@ -7,13 +7,13 @@
  */
 import { err, ok, type Result } from "hnk/result";
 import type { System } from "hnk/system";
-import { reachOf, type Invoice } from "../domain";
+import { reachOf, type Invoice, type InvoiceId } from "../domain";
 import type { InvoicesRepository } from "../service";
 
 export function markPaid(repo: Pick<InvoicesRepository, "updateWithin" | "findWithin">) {
   return async (
     system: System,
-    id: string,
+    id: InvoiceId,
   ): Promise<Result<Invoice, "NOT_FOUND" | "NOT_PAYABLE">> => {
     const all = reachOf(system);
 

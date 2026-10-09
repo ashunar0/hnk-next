@@ -11,10 +11,12 @@ import {
   isPayable,
   isRemindable,
   isSendable,
+  newInvoiceId,
   reachOf,
   type Invoice,
   type InvoiceAccess,
   type InvoiceChanges,
+  type InvoiceId,
   type InvoiceInput,
   type InvoiceReach,
   type InvoiceStatus,
@@ -40,7 +42,7 @@ export type InvoicesRepository = {
   listOverdueWithin(reach: InvoiceReach, now: Date): Promise<Invoice[]>;
   /** 範囲の中に無ければ null。あれば、閲覧者がどの関係で触れているか（access）と一緒に返す */
   findWithin(
-    id: string,
+    id: InvoiceId,
     reach: InvoiceReach,
   ): Promise<{ invoice: Invoice; access: InvoiceAccess } | null>;
   insert(invoice: Omit<Invoice, "createdAt" | "updatedAt">): Promise<Invoice>;
@@ -49,17 +51,17 @@ export type InvoicesRepository = {
    * from を渡すと、その状態のときだけ書き換える（確認と書き込みの間に状態が変わっても壊れない）
    */
   updateWithin(
-    id: string,
+    id: InvoiceId,
     reach: InvoiceReach,
     changes: InvoiceChanges,
     from?: InvoiceStatus,
   ): Promise<Invoice | null>;
   /** 範囲の中のものだけを消す。消せたら true */
-  deleteWithin(id: string, reach: InvoiceReach): Promise<boolean>;
+  deleteWithin(id: InvoiceId, reach: InvoiceReach): Promise<boolean>;
   /** 共有する。同じ相手にもう共有していれば、権限を置き換える */
-  upsertShare(share: { invoiceId: string; userId: string; level: ShareLevel }): Promise<void>;
+  upsertShare(share: { invoiceId: InvoiceId; userId: string; level: ShareLevel }): Promise<void>;
   /** 共有をやめる。無ければ何もしない */
-  deleteShare(invoiceId: string, userId: string): Promise<void>;
+  deleteShare(invoiceId: InvoiceId, userId: string): Promise<void>;
 };
 
 export function invoicesService(repo: InvoicesRepository) {
@@ -76,7 +78,7 @@ export function invoicesService(repo: InvoicesRepository) {
 
     /** 督促してよい請求書。範囲の中で、期限切れのものだけ */
     async getRemindable(
-      id: string,
+      id: InvoiceId,
       viewer: Viewer,
       now: Date,
     ): Promise<Result<Invoice, "NOT_FOUND" | "NOT_REMINDABLE">> {
@@ -88,7 +90,7 @@ export function invoicesService(repo: InvoicesRepository) {
     },
 
     /** 範囲の外のものは、在ることも知らせない */
-    async get(id: string, viewer: Viewer): Promise<Result<Invoice, "NOT_FOUND">> {
+    async get(id: InvoiceId, viewer: Viewer): Promise<Result<Invoice, "NOT_FOUND">> {
       const found = await repo.findWithin(id, reachOf(viewer));
       if (found === null) return err("NOT_FOUND");
 
@@ -98,7 +100,7 @@ export function invoicesService(repo: InvoicesRepository) {
     // 作成。作った人が所有者になる
     async create(viewer: User, input: InvoiceInput): Promise<Invoice> {
       return repo.insert({
-        id: crypto.randomUUID(),
+        id: newInvoiceId(),
         orgId: viewer.orgId,
         ownerId: viewer.id,
         title: input.title,
@@ -116,7 +118,7 @@ export function invoicesService(repo: InvoicesRepository) {
      * 見た後に共有が取り消されても、書き込みは範囲（組織）の中に留まる
      */
     async update(
-      id: string,
+      id: InvoiceId,
       viewer: Viewer,
       input: InvoiceInput,
     ): Promise<Result<Invoice, "NOT_FOUND" | "FORBIDDEN">> {
@@ -141,7 +143,7 @@ export function invoicesService(repo: InvoicesRepository) {
 
     /** 支払いに進める請求書。範囲の中で、送付済みのものだけ */
     async getPayable(
-      id: string,
+      id: InvoiceId,
       viewer: Viewer,
     ): Promise<Result<Invoice, "NOT_FOUND" | "NOT_PAYABLE">> {
       const found = await repo.findWithin(id, reachOf(viewer));
@@ -153,7 +155,7 @@ export function invoicesService(repo: InvoicesRepository) {
 
     /** 送付する。admin だけが、下書きだけを送れる */
     async send(
-      id: string,
+      id: InvoiceId,
       viewer: Viewer,
     ): Promise<Result<Invoice, "NOT_FOUND" | "FORBIDDEN" | "NOT_DRAFT">> {
       const reach = reachOf(viewer);
@@ -176,7 +178,7 @@ export function invoicesService(repo: InvoicesRepository) {
     },
 
     /** 消せるのは、範囲の中で、所有者側の関係のものだけ */
-    async remove(id: string, viewer: Viewer): Promise<Result<void, "NOT_FOUND" | "FORBIDDEN">> {
+    async remove(id: InvoiceId, viewer: Viewer): Promise<Result<void, "NOT_FOUND" | "FORBIDDEN">> {
       const reach = reachOf(viewer);
 
       const found = await repo.findWithin(id, reach);
@@ -195,7 +197,7 @@ export function invoicesService(repo: InvoicesRepository) {
      * 違う組織の相手に共有しても、範囲が組織で絞るので、その人には見えない
      */
     async share(
-      id: string,
+      id: InvoiceId,
       viewer: Viewer,
       userId: string,
       level: ShareLevel,
@@ -211,7 +213,7 @@ export function invoicesService(repo: InvoicesRepository) {
 
     /** 共有をやめる。共有できる人だけ */
     async unshare(
-      id: string,
+      id: InvoiceId,
       viewer: Viewer,
       userId: string,
     ): Promise<Result<void, "NOT_FOUND" | "FORBIDDEN">> {

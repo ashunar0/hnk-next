@@ -7,6 +7,7 @@ import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlit
 import { toPage } from "hnk/page";
 import type { ReadDb, Scope } from "../../db";
 import {
+  invoiceId,
   invoiceStatuses,
   shareLevels,
   unpaidStatuses,
@@ -67,7 +68,7 @@ type InvoiceRow = typeof invoicesTable.$inferSelect;
 
 /** 行 → モノ。今は同じ形だが、列が増えても domain に漏らさないための関所 */
 const toInvoice = (row: InvoiceRow): Invoice => ({
-  id: row.id,
+  id: invoiceId(row.id),
   orgId: row.orgId,
   ownerId: row.ownerId,
   title: row.title,
