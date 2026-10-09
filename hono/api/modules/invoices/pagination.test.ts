@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Cursor } from "hnk/page";
-import { alice, bob, insertInvoices, invoice, invoicesRepo } from "./fixtures";
+import { alice, bob, insertInvoices, invoice, invoicesRepo } from "../../../test/fixtures";
 
 const at = (iso: string) => new Date(iso);
 

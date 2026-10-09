@@ -1,8 +1,16 @@
-import { invoiceId } from "../api/modules/invoices/domain";
+import { invoiceId } from "./domain";
 import { expect, it } from "vitest";
-import { invoicesService } from "../api/modules/invoices/service";
-import { authenticatedUser, orgId } from "../api/modules/users/domain";
-import { admin, alice, bob, carol, insertInvoices, invoice, invoicesRepo } from "./fixtures";
+import { invoicesService } from "./service";
+import { authenticatedUser, orgId } from "../users/domain";
+import {
+  admin,
+  alice,
+  bob,
+  carol,
+  insertInvoices,
+  invoice,
+  invoicesRepo,
+} from "../../../test/fixtures";
 
 const service = () => invoicesService(invoicesRepo());
 

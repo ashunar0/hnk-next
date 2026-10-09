@@ -222,7 +222,7 @@ go build ./cmd/api
   repo は `limit + 1` 件読んで `toPage` に渡す。部品を使わない一覧を書くことは、まだ止めていない（AI に書かせる実験で確かめてから決める）
 - **ログイン状態は `buildApp(makeDeps, authenticate)` で差し込む**。`authenticate` はセッションの user（未ログインは null）を文脈に積む middleware で、
   本番は `withUser`（認証の提供元ができるまでは仮実装）、テストは `appAs(user)`（`test/fixtures.ts`）で本物の deps と D1 のまま利用者だけ差し替える。
-  route 層は HTTP 越しに試せる（`test/invoices-http.test.ts`）
+  route 層は HTTP 越しに試せる（`modules/invoices/routes.test.ts`）
 - **HTTP 以外の入口は `createWorker` に渡す**（`index.ts` に 1 つ）。deps は呼び出しごとに 1 回組み立て、`actor`（システム）と `now` を渡す。
   `now` は scheduled なら予定の時刻、queue ならメッセージが積まれた時刻（再送が日をまたいでも同じ日の督促になる）。
   queue の handler は Result を返すだけ: ok で ack、err で retry、想定外の throw はそのメッセージだけ retry にして同じバッチの残りは続ける。
@@ -261,7 +261,7 @@ invoices と同じ形で書く。迷いやすい所は、次のとおりに揃�
 | 操作する人の型                         | 利用者のいない入口（cron、webhook）が呼ぶ service は `Actor` を受ける。利用者の操作だけの service は `User` を受けてよい（HTTP は `requireAuth` で `User` になる）。他 module への問い合わせを `User` で宣言しても、相手が `Actor` を受けていれば満たせる。どちらも引数の先頭に置く                                                                  |
 | 外部キーの onDelete                    | 親が消えたら子も消えるなら `cascade`。子が親より長く残るべきなら、理由を書いて別の値にする                                                                                                                                                                                                                                                           |
 | システム（cron、webhook）の権限        | 書く・消すのは利用者（`User`）だけ。システムにさせたい操作は、持ち主の `commands/` に出す（例: `markPaid`）                                                                                                                                                                                                                                          |
-| テスト                                 | `test/` に平置き。本物のローカル D1 を使う。HTTP は `fixtures.ts` の `request(user, method, path, body)` で、利用者を差し替えて試す                                                                                                                                                                                                                  |
+| テスト                                 | 1 つの module で閉じるものは、その module の中（`service.test.ts` など）。module をまたぐ線（組織の線・読みの窓口）とアプリ全体は `test/`。本物のローカル D1 を使う。HTTP は `fixtures.ts` の `request(user, method, path, body)` で、利用者を差し替えて試す                                                                                         |
 | migration                              | `pnpm db:generate` で作る。`pnpm format` は `migrations/meta/*.json` を壊すので、migrations には掛けない                                                                                                                                                                                                                                             |
 
 ## 未決

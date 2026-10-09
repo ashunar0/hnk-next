@@ -3,8 +3,8 @@
  * 同じ固定データを両方に通し、同じ答えになることを確かめる
  */
 import { expect, it } from "vitest";
-import { isOverdue } from "../api/modules/invoices/domain";
-import { insertInvoices, invoice, invoicesRepo } from "./fixtures";
+import { isOverdue } from "./domain";
+import { insertInvoices, invoice, invoicesRepo } from "../../../test/fixtures";
 
 const now = new Date("2026-05-15T12:00:00Z");
 

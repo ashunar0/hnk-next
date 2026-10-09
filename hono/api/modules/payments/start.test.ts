@@ -1,14 +1,10 @@
 import { eq } from "drizzle-orm";
 import { expect, it } from "vitest";
 import { err, ok } from "hnk/result";
-import { scopeTo } from "../api/db";
-import { paymentsRepository, paymentsTable } from "../api/modules/payments/repo.d1";
-import {
-  paymentsService,
-  type PayableInvoices,
-  type PaymentGateway,
-} from "../api/modules/payments/service";
-import { alice, db, insertInvoices, invoice } from "./fixtures";
+import { scopeTo } from "../../db";
+import { paymentsRepository, paymentsTable } from "./repo.d1";
+import { paymentsService, type PayableInvoices, type PaymentGateway } from "./service";
+import { alice, db, insertInvoices, invoice } from "../../../test/fixtures";
 
 const now = new Date("2026-01-15T00:00:00Z");
 

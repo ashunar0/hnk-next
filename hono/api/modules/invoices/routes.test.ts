@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { admin, alice, bob, carol, request } from "./fixtures";
+import { admin, alice, bob, carol, request } from "../../../test/fixtures";
 
 const input = {
   title: "請求書",

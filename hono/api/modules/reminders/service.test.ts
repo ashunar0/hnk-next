@@ -1,14 +1,10 @@
 import { expect, it } from "vitest";
 import { err, ok } from "hnk/result";
-import { scopeTo } from "../api/db";
-import { remindersRepository, remindersTable } from "../api/modules/reminders/repo.d1";
-import {
-  remindersService,
-  type Mailer,
-  type OverdueInvoices,
-} from "../api/modules/reminders/service";
+import { scopeTo } from "../../db";
+import { remindersRepository, remindersTable } from "./repo.d1";
+import { remindersService, type Mailer, type OverdueInvoices } from "./service";
 import { systemActor } from "hnk/testing";
-import { db, insertInvoices, invoice } from "./fixtures";
+import { db, insertInvoices, invoice } from "../../../test/fixtures";
 
 const now = new Date("2026-06-10T00:00:00Z");
 
