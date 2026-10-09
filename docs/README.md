@@ -19,3 +19,4 @@
 | [12.md](12.md)         | REVIEW.md を読んだ外部レビュー（Fable）と、その対応                                                                |
 | [13.md](13.md)         | AI に、違反を 12 個仕込んだコードを直させた実験                                                                    |
 | [14.md](14.md)         | 外部レビューの文章版（REVIEW.md を読んだもの）。12.md の内容に加え、簡潔さの基準の提案                             |
+| [16.md](16.md)         | 土台を zod-openapi から、素の Hono + Standard Schema に替えた記録。zod と valibot で確かめた                       |
