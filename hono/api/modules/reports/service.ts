@@ -2,7 +2,7 @@
  * レポートの手順（How）
  */
 import { err, ok, type Result } from "hnk/result";
-import type { Viewer } from "../users/domain";
+import type { Actor } from "../users/domain";
 import {
   canViewReports,
   monthsBetween,
@@ -18,34 +18,26 @@ import {
  * 期間は [from, to) の時刻で渡す。誰が見るかを渡し、触れる範囲の決め方は読む側（invoices の範囲）に任せる
  */
 export type ReportsRepository = {
-  invoicedByMonth(
-    viewer: Viewer,
-    from: Date,
-    to: Date,
-  ): Promise<{ month: string; total: number }[]>;
-  receivedByMonth(
-    viewer: Viewer,
-    from: Date,
-    to: Date,
-  ): Promise<{ month: string; total: number }[]>;
+  invoicedByMonth(actor: Actor, from: Date, to: Date): Promise<{ month: string; total: number }[]>;
+  receivedByMonth(actor: Actor, from: Date, to: Date): Promise<{ month: string; total: number }[]>;
 };
 
 export function reportsService(repo: ReportsRepository) {
   return {
     /** from から to まで（両端を含む）の月ごとの集計 */
     async monthly(
-      viewer: Viewer,
+      actor: Actor,
       from: Month,
       to: Month,
     ): Promise<Result<MonthlySummary[], "FORBIDDEN">> {
-      if (!canViewReports(viewer)) return err("FORBIDDEN");
+      if (!canViewReports(actor)) return err("FORBIDDEN");
 
       const start = startOfMonth(from);
       const end = startOfMonth(nextMonth(to));
 
       const [invoiced, received] = await Promise.all([
-        repo.invoicedByMonth(viewer, start, end),
-        repo.receivedByMonth(viewer, start, end),
+        repo.invoicedByMonth(actor, start, end),
+        repo.receivedByMonth(actor, start, end),
       ]);
 
       return ok(summarize(monthsBetween(from, to), invoiced, received));

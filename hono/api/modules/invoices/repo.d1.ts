@@ -100,7 +100,7 @@ const within = (reach: InvoiceReach) => {
   }
 };
 
-/** その範囲の閲覧者が、各行にどの関係で触れているか。within と同じ範囲の読みと一緒に使う */
+/** その範囲で操作する人が、各行にどの関係で触れているか。within と同じ範囲の読みと一緒に使う */
 const accessIn = (reach: InvoiceReach): SQL<InvoiceAccess> =>
   reach.kind === "member"
     ? sql<InvoiceAccess>`case when ${invoicesTable.ownerId} = ${reach.userId} then 'manage' else (select ${invoiceSharesTable.level} from ${invoiceSharesTable} where ${invoiceSharesTable.invoiceId} = ${invoicesTable.id} and ${invoiceSharesTable.userId} = ${reach.userId}) end`

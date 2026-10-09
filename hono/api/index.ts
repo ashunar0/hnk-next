@@ -6,19 +6,19 @@ import { invoicesRouter } from "./modules/invoices/routes";
 import { paymentsRouter } from "./modules/payments/routes";
 import { reportsRouter } from "./modules/reports/routes";
 import { stripeWebhookRouter } from "./modules/payments/webhook.stripe";
-import { withViewer } from "./middleware/auth";
+import { withUser } from "./middleware/auth";
 import { enqueueOverdueReminders } from "./modules/reminders/cron";
 import type { ReminderJob } from "./modules/reminders/domain";
 import { sendReminder } from "./modules/reminders/queue";
 
 /**
  * アプリを組み立てる。依存の組み立て方と、ログイン状態の決め方を外から受け取るので、
- * 本番は makeDeps と withViewer を、テストは偽物を渡す。
- * authenticate は viewer（ログインしていなければ null）を文脈に積む middleware。認証の提供元を差し込む場所
+ * 本番は makeDeps と withUser を、テストは偽物を渡す。
+ * authenticate はセッションの user（ログインしていなければ null）を文脈に積む middleware。認証の提供元を差し込む場所
  */
 export const buildApp = (
   makeDeps: (env: AppEnv["Bindings"]) => Deps,
-  authenticate: MiddlewareHandler<AppEnv> = withViewer,
+  authenticate: MiddlewareHandler<AppEnv> = withUser,
 ) => {
   const root = createRouter();
 

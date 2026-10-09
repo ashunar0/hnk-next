@@ -7,6 +7,6 @@
 import type { QueueContext } from "hnk";
 import type { ReminderJob } from "./domain";
 
-export function sendReminder({ deps, system, now, body }: QueueContext<ReminderJob>) {
-  return deps.reminders.send(body, system, now);
+export function sendReminder({ deps, actor, now, body }: QueueContext<ReminderJob>) {
+  return deps.reminders.send(actor, body, now);
 }

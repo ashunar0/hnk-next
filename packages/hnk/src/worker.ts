@@ -2,13 +2,17 @@ import { createMiddleware } from "hono/factory";
 
 import type { RegisteredDeps, RegisteredEnv } from "./register";
 import type { Result } from "./result";
-import { systemViewer } from "./system-value";
+import { systemActor } from "./system-value";
 import type { System } from "./system";
 
-/** 入口が受け取るもの。誰として呼ぶか（system）も、いつの出来事か（now）も、入口が決めずに受け取る */
+/**
+ * 入口が受け取るもの。誰として呼ぶか（actor）も、いつの出来事か（now）も、入口が決めずに受け取る。
+ * HTTP の handler が c.get("actor") と new Date() で決めるものを、ここでは createWorker が渡す
+ */
 export type CronContext = {
   deps: RegisteredDeps;
-  system: System;
+  /** 利用者のいない入口なので、いつもシステム */
+  actor: System;
   /** 予定されていた時刻（実際に動いた時刻ではない） */
   now: Date;
 };
@@ -23,7 +27,7 @@ type Bindings = RegisteredEnv["Bindings"];
  * Workers の入口。HTTP は fetch、時刻は scheduled、キューは queue に渡す。
  *
  * - 依存は呼び出しごとに 1 回、makeDeps で組み立てる（HTTP は provideDeps が同じことをする）
- * - 利用者のいない入口なので、service を呼ぶための system をここが渡す。入口のファイルは作らず、受け取るだけ
+ * - 利用者のいない入口なので、service を呼ぶための actor（システム）をここが渡す。入口のファイルは作らず、受け取るだけ
  * - now はイベントから渡す。scheduled は予定の時刻、queue はメッセージが積まれた時刻
  *   （再送が日をまたいでも、同じ日付のまま扱える）
  * - queue の handler は Result を返す。ok なら ack、err なら retry。想定外の throw も、
@@ -47,7 +51,7 @@ export const createWorker = <Body = never>(options: {
       async scheduled(controller, env) {
         await scheduled({
           deps: makeDeps(env),
-          system: systemViewer,
+          actor: systemActor,
           now: new Date(controller.scheduledTime),
         });
       },
@@ -60,7 +64,7 @@ export const createWorker = <Body = never>(options: {
           try {
             const result = await queue({
               deps,
-              system: systemViewer,
+              actor: systemActor,
               now: message.timestamp,
               body: message.body,
             });
@@ -78,12 +82,12 @@ export const createWorker = <Body = never>(options: {
 
 /**
  * 認証を別の方法で確かめる入口（署名つきの webhook など）の宣言。
- * allowAnonymous と同じ並びで、route の middleware の先頭に置き、handler は `c.get("system")` で受け取る。
- * 署名を確かめるのは handler の仕事——確かめる前に system を使わない
+ * allowAnonymous と同じ並びで、route の middleware の先頭に置き、handler は `c.get("actor")` で受け取る（requireAuth と同じ名前）。
+ * 署名を確かめるのは handler の仕事——確かめる前に actor を使わない
  */
-export const allowSystem = createMiddleware<{ Variables: { system: System } }>(
+export const allowSystem = createMiddleware<{ Variables: { actor: System } }>(
   async (c, next) => {
-    c.set("system", systemViewer);
+    c.set("actor", systemActor);
     await next();
   },
 );

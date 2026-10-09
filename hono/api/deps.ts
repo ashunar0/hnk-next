@@ -49,8 +49,8 @@ export const makeDeps = (env: AppEnv["Bindings"]) => {
     // payments が宣言した PayableInvoices を、読みは invoices の service、書きは commands が満たす。
     // payments は請求書の ID を素の string として持つので、ここで請求書の ID の印を付けて渡す
     {
-      getPayable: (id, viewer) => invoices.getPayable(invoiceId(id), viewer),
-      markPaid: (system, id) => markInvoicePaid(system, invoiceId(id)),
+      getPayable: (actor, id) => invoices.getPayable(actor, invoiceId(id)),
+      markPaid: (system, id, now) => markInvoicePaid(system, invoiceId(id), now),
     },
   );
 
@@ -61,7 +61,7 @@ export const makeDeps = (env: AppEnv["Bindings"]) => {
     // reminders が宣言した OverdueInvoices を、invoices の service が満たす。ID の印はここで付ける
     {
       listOverdue: invoices.listOverdue,
-      getRemindable: (id, viewer, now) => invoices.getRemindable(invoiceId(id), viewer, now),
+      getRemindable: (actor, id, now) => invoices.getRemindable(actor, invoiceId(id), now),
     },
   );
 

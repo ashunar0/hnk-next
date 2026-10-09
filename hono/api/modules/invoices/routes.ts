@@ -95,10 +95,10 @@ export const invoicesRouter = createRouter()
         },
       },
       async (c, reply, { invoices }) => {
+        const actor = c.get("actor");
         const { status, cursor, limit } = c.req.valid("query");
-        const viewer = c.get("authViewer");
 
-        const page = await invoices.list(viewer, { status, after: cursor, limit });
+        const page = await invoices.list(actor, { status, after: cursor, limit });
 
         return reply(200, pageResponse(page, invoiceResponse));
       },
@@ -118,10 +118,10 @@ export const invoicesRouter = createRouter()
         },
       },
       async (c, reply, { invoices }) => {
+        const actor = c.get("actor");
         const { id } = c.req.valid("param");
-        const viewer = c.get("authViewer");
 
-        const result = await invoices.get(id, viewer);
+        const result = await invoices.get(actor, id);
         if (!result.ok) return reply.failure(result.error);
 
         return reply(200, invoiceResponse(result.value));
@@ -141,10 +141,11 @@ export const invoicesRouter = createRouter()
         },
       },
       async (c, reply, { invoices }) => {
+        const actor = c.get("actor");
         const input = c.req.valid("json");
-        const viewer = c.get("authViewer");
+        const now = new Date();
 
-        const row = await invoices.create(viewer, input);
+        const row = await invoices.create(actor, input, now);
 
         return reply(200, invoiceResponse(row));
       },
@@ -164,11 +165,12 @@ export const invoicesRouter = createRouter()
         },
       },
       async (c, reply, { invoices }) => {
+        const actor = c.get("actor");
         const { id } = c.req.valid("param");
         const input = c.req.valid("json");
-        const viewer = c.get("authViewer");
+        const now = new Date();
 
-        const result = await invoices.update(id, viewer, input);
+        const result = await invoices.update(actor, id, input, now);
         if (!result.ok) return reply.failure(result.error);
 
         return reply(200, invoiceResponse(result.value));
@@ -189,10 +191,11 @@ export const invoicesRouter = createRouter()
         },
       },
       async (c, reply, { invoices }) => {
+        const actor = c.get("actor");
         const { id } = c.req.valid("param");
-        const viewer = c.get("authViewer");
+        const now = new Date();
 
-        const result = await invoices.send(id, viewer);
+        const result = await invoices.send(actor, id, now);
         if (!result.ok) return reply.failure(result.error);
 
         return reply(200, invoiceResponse(result.value));
@@ -213,10 +216,10 @@ export const invoicesRouter = createRouter()
         },
       },
       async (c, reply, { invoices }) => {
+        const actor = c.get("actor");
         const { id } = c.req.valid("param");
-        const viewer = c.get("authViewer");
 
-        const result = await invoices.remove(id, viewer);
+        const result = await invoices.remove(actor, id);
         if (!result.ok) return reply.failure(result.error);
 
         return reply(200, { ok: true });
@@ -237,11 +240,11 @@ export const invoicesRouter = createRouter()
         },
       },
       async (c, reply, { invoices }) => {
+        const actor = c.get("actor");
         const { id } = c.req.valid("param");
         const { userId, level } = c.req.valid("json");
-        const viewer = c.get("authViewer");
 
-        const result = await invoices.share(id, viewer, userId, level);
+        const result = await invoices.share(actor, id, userId, level);
         if (!result.ok) return reply.failure(result.error);
 
         return reply(200, { ok: true });
@@ -262,10 +265,10 @@ export const invoicesRouter = createRouter()
         },
       },
       async (c, reply, { invoices }) => {
+        const actor = c.get("actor");
         const { id, userId } = c.req.valid("param");
-        const viewer = c.get("authViewer");
 
-        const result = await invoices.unshare(id, viewer, userId);
+        const result = await invoices.unshare(actor, id, userId);
         if (!result.ok) return reply.failure(result.error);
 
         return reply(200, { ok: true });

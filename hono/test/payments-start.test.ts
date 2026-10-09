@@ -10,8 +10,10 @@ import {
 } from "../api/modules/payments/service";
 import { alice, db, insertInvoices, invoice } from "./fixtures";
 
+const now = new Date("2026-01-15T00:00:00Z");
+
 const payable: PayableInvoices = {
-  async getPayable(id) {
+  async getPayable(_actor, id) {
     return ok({ id, title: "t", amount: 1200 });
   },
   async markPaid() {
@@ -41,7 +43,7 @@ it("先に pending を記録し、決済画面を作れたら識別子を結び�
     payable,
   );
 
-  const result = await payments.start("pay1", alice);
+  const result = await payments.start(alice, "pay1", now);
 
   expect(result.ok).toBe(true);
   const [row] = await paymentsOf("pay1");
@@ -56,7 +58,7 @@ it("決済画面を作れなかったら、記録した支払いを失敗で閉�
     payable,
   );
 
-  expect(await payments.start("pay2", alice)).toEqual({ ok: false, error: "GATEWAY_FAILED" });
+  expect(await payments.start(alice, "pay2", now)).toEqual({ ok: false, error: "GATEWAY_FAILED" });
   const rows = await paymentsOf("pay2");
   expect(rows.map((r) => [r.status, r.providerRef])).toEqual([["failed", null]]);
 });
@@ -69,8 +71,8 @@ it("同じ請求書で 2 回始めても、進行中の支払いは 1 つで、�
     payable,
   );
 
-  const first = await payments.start("pay3", alice);
-  const second = await payments.start("pay3", alice);
+  const first = await payments.start(alice, "pay3", now);
+  const second = await payments.start(alice, "pay3", now);
 
   expect(first.ok && second.ok).toBe(true);
   if (first.ok && second.ok) expect(second.value.checkoutUrl).toBe(first.value.checkoutUrl);

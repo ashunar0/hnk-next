@@ -86,21 +86,19 @@ export function paymentsRepository(scope: Scope<typeof paymentsTable>): Payments
       return row ? toPayment(row) : null;
     },
 
-    async attachCheckout(id, { providerRef, checkoutUrl }) {
+    async attachCheckout(id, { providerRef, checkoutUrl }, now) {
       await scope
-        .update({ providerRef, checkoutUrl, updatedAt: new Date() })
+        .update({ providerRef, checkoutUrl, updatedAt: now })
         .where(eq(paymentsTable.id, id));
     },
 
-    async markFailed(id) {
-      await scope
-        .update({ status: "failed", updatedAt: new Date() })
-        .where(eq(paymentsTable.id, id));
+    async markFailed(id, now) {
+      await scope.update({ status: "failed", updatedAt: now }).where(eq(paymentsTable.id, id));
     },
 
-    async updateStatusByProviderRef(providerRef, status) {
+    async updateStatusByProviderRef(providerRef, status, now) {
       const [row] = await scope
-        .update({ status, updatedAt: new Date() })
+        .update({ status, updatedAt: now })
         .where(eq(paymentsTable.providerRef, providerRef))
         .returning();
 

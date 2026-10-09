@@ -56,7 +56,7 @@ export const LAYERS = {
     middleware: "value",
     domain: "value",
   },
-  // 利用者のいない HTTP。誰として呼ぶか（system）は allowSystem から c.get("system") で受け取る
+  // 利用者のいない HTTP。誰として呼ぶか（システム）は allowSystem から c.get("actor") で受け取る
   webhook: {
     hnk: "value",
     zod: "value",
@@ -64,7 +64,7 @@ export const LAYERS = {
     middleware: "value",
     domain: "value",
   },
-  // inbound（HTTP 以外）。deps と system と now は createWorker が渡すので、型を借りるだけ
+  // inbound（HTTP 以外）。deps と actor と now は createWorker が渡すので、型を借りるだけ
   cron: { hnk: "type", domain: "type" },
   queue: { hnk: "type", domain: "type" },
 
@@ -96,7 +96,7 @@ export const HINTS = {
   "service→foreign:service":
     "他の module は import しない。使う形を service に宣言し、deps.ts でつなぐ。書くなら相手の commands/ を渡してもらう",
   "routes→foreign:domain":
-    'routes は認証した利用者として呼ぶ。システムが要る入口は、middleware に allowSystem を置いて c.get("system") で受け取る',
+    'routes は認証した利用者として呼ぶ。システムが要る入口は、middleware に allowSystem を置いて c.get("actor") で受け取る',
   "routes→foreign:service":
     "他の module の操作は、その流れの持ち主の service から呼ぶ",
   "repo→foreign:service":
@@ -121,7 +121,7 @@ export const KIND_HINTS = {
  * 表そのものは LAYERS から作るので、ここには表で言い切れないことだけを書く
  */
 export const NOTES = {
-  webhook: "system は `allowSystem` から受け取る",
-  cron: "deps・system・now は createWorker が渡す",
+  webhook: "actor（システム）は `allowSystem` から受け取る",
+  cron: "deps・actor・now は createWorker が渡す",
   repo: "他 module の repo は範囲付きの読みと外部キーの references() だけ、他 module の domain は SQL の定数だけ",
 };

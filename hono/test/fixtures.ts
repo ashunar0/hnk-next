@@ -46,11 +46,11 @@ export const insertInvoices = async (invoices: Invoice[]) => {
 
 /**
  * この利用者としてログインした状態のアプリ（本物の deps と D1）。
- * null ならログインしていない。認証の提供元の代わりに viewer を積むだけで、あとは本番と同じ
+ * null ならログインしていない。認証の提供元の代わりにセッションの user を積むだけで、あとは本番と同じ
  */
 export const appAs = (user: User | null) =>
   buildApp(makeDeps, async (c, next) => {
-    c.set("viewer", user);
+    c.set("user", user);
     await next();
   });
 

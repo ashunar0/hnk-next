@@ -3,7 +3,7 @@
  */
 import { err, ok, type Result } from "hnk/result";
 import type { System } from "hnk/system";
-import type { Viewer } from "../users/domain";
+import type { Actor } from "../users/domain";
 import { isStale, type Payment, type PaymentEvent } from "./domain";
 
 /** 手順が必要とする保存の形。repo.d1.ts が満たす */
@@ -12,19 +12,22 @@ export type PaymentsRepository = {
    * 進行中の支払いを記録する。その請求書に進行中のものがすでにあれば何もせず null を返す
    * （DB の部分ユニーク索引が、同時に 2 つ記録されるのを止める）
    */
-  insertPending(
-    payment: Omit<Payment, "status" | "createdAt" | "updatedAt">,
-  ): Promise<Payment | null>;
+  insertPending(payment: Omit<Payment, "status">): Promise<Payment | null>;
   /** その請求書の、進行中の支払い */
   findPending(invoiceId: string): Promise<Payment | null>;
   /** 決済サービスの画面を作れたら、その識別子と URL を結びつける */
-  attachCheckout(id: string, checkout: { providerRef: string; checkoutUrl: string }): Promise<void>;
+  attachCheckout(
+    id: string,
+    checkout: { providerRef: string; checkoutUrl: string },
+    now: Date,
+  ): Promise<void>;
   /** 画面を作れなかった支払いを、失敗で閉じる */
-  markFailed(id: string): Promise<void>;
+  markFailed(id: string, now: Date): Promise<void>;
   /** 決済サービス側の識別子で状態を書き換える。無ければ null */
   updateStatusByProviderRef(
     providerRef: string,
     status: Payment["status"],
+    now: Date,
   ): Promise<Payment | null>;
 };
 
@@ -54,13 +57,18 @@ export type PayableInvoices = {
   // メソッドの書き方ではなく関数の型で宣言する。引数の型が厳しい関数（InvoiceId を要求する側）を
   // そのまま渡すと型エラーになり、deps.ts で印を付けて渡すことになる
   getPayable: (
+    actor: Actor,
     id: string,
-    viewer: Viewer,
   ) => Promise<Result<{ id: string; title: string; amount: number }, "NOT_FOUND" | "NOT_PAYABLE">>;
   /** 支払い済みにする。invoices の commands が満たす。何度呼んでも同じ結果になる */
-  markPaid: (system: System, id: string) => Promise<Result<unknown, "NOT_FOUND" | "NOT_PAYABLE">>;
+  markPaid: (
+    system: System,
+    id: string,
+    now: Date,
+  ) => Promise<Result<unknown, "NOT_FOUND" | "NOT_PAYABLE">>;
 };
 
+/** 引数の順番は、誰として（actor）→ 何を → どうする → いつ（now）。時計は読まない */
 export function paymentsService(
   repo: PaymentsRepository,
   gateway: PaymentGateway,
@@ -69,15 +77,16 @@ export function paymentsService(
   return {
     /** 支払いを始める。送付済みの請求書に対してだけ */
     async start(
+      actor: Actor,
       invoiceId: string,
-      viewer: Viewer,
+      now: Date,
     ): Promise<
       Result<
         { payment: Payment; checkoutUrl: string },
         "NOT_FOUND" | "NOT_PAYABLE" | "GATEWAY_FAILED" | "PAYMENT_STARTING"
       >
     > {
-      const invoice = await invoices.getPayable(invoiceId, viewer);
+      const invoice = await invoices.getPayable(actor, invoiceId);
       if (!invoice.ok) return invoice;
 
       // 1 つの請求書に進行中の支払いは 1 つ。2 回目は、1 回目の決済画面をそのまま返す
@@ -86,8 +95,8 @@ export function paymentsService(
         if (existing.checkoutUrl !== null)
           return ok({ payment: existing, checkoutUrl: existing.checkoutUrl });
         // 画面を作っている途中。ただし長く止まっているものは、途中で落ちたとみなして閉じ、作り直す
-        if (!isStale(existing, new Date())) return err("PAYMENT_STARTING");
-        await repo.markFailed(existing.id);
+        if (!isStale(existing, now)) return err("PAYMENT_STARTING");
+        await repo.markFailed(existing.id, now);
       }
 
       // 先に記録 → 外へ → 結果で確定。外に出る前に記録があるので、何が起きたかを後から辿れる。
@@ -99,6 +108,8 @@ export function paymentsService(
         amount: invoice.value.amount,
         providerRef: null,
         checkoutUrl: null,
+        createdAt: now,
+        updatedAt: now,
       });
       // 同時に始めた別のリクエストが、先に記録した
       if (payment === null) return err("PAYMENT_STARTING");
@@ -109,11 +120,11 @@ export function paymentsService(
         description: invoice.value.title,
       });
       if (!checkout.ok) {
-        await repo.markFailed(payment.id);
+        await repo.markFailed(payment.id, now);
         return checkout;
       }
 
-      await repo.attachCheckout(payment.id, checkout.value);
+      await repo.attachCheckout(payment.id, checkout.value, now);
 
       return ok({
         payment: { ...payment, ...checkout.value },
@@ -136,18 +147,19 @@ export function paymentsService(
     async receive(
       system: System,
       event: PaymentEvent,
+      now: Date,
     ): Promise<Result<void, "NOT_FOUND" | "NOT_PAYABLE">> {
       if (event.kind === "failed") {
-        const failed = await repo.updateStatusByProviderRef(event.providerRef, "failed");
+        const failed = await repo.updateStatusByProviderRef(event.providerRef, "failed", now);
         if (failed === null) return err("NOT_FOUND");
 
         return ok(undefined);
       }
 
-      const payment = await repo.updateStatusByProviderRef(event.providerRef, "succeeded");
+      const payment = await repo.updateStatusByProviderRef(event.providerRef, "succeeded", now);
       if (payment === null) return err("NOT_FOUND");
 
-      const invoice = await invoices.markPaid(system, payment.invoiceId);
+      const invoice = await invoices.markPaid(system, payment.invoiceId, now);
       if (!invoice.ok) return invoice;
 
       return ok(undefined);

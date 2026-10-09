@@ -33,10 +33,11 @@ export const paymentsRouter = createRouter()
         },
       },
       async (c, reply, { payments }) => {
+        const actor = c.get("actor");
         const { invoiceId } = c.req.valid("json");
-        const viewer = c.get("authViewer");
+        const now = new Date();
 
-        const result = await payments.start(invoiceId, viewer);
+        const result = await payments.start(actor, invoiceId, now);
         if (!result.ok) return reply.failure(result.error);
 
         return reply(200, {

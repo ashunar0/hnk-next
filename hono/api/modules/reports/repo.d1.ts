@@ -16,9 +16,9 @@ const monthOf = (column: AnyColumn) =>
 
 export function reportsRepository(db: ReadDb): ReportsRepository {
   return {
-    async invoicedByMonth(viewer, from, to) {
+    async invoicedByMonth(actor, from, to) {
       // 範囲の中の請求書だけが入った副問い合わせから読む。生の表には触れない
-      const invoices = invoicesWithin(db, reachOf(viewer));
+      const invoices = invoicesWithin(db, reachOf(actor));
       const month = monthOf(invoices.dueAt);
 
       return db
@@ -34,8 +34,8 @@ export function reportsRepository(db: ReadDb): ReportsRepository {
         .groupBy(month);
     },
 
-    async receivedByMonth(viewer, from, to) {
-      const payments = paymentsWithin(db, reachOf(viewer));
+    async receivedByMonth(actor, from, to) {
+      const payments = paymentsWithin(db, reachOf(actor));
       const month = monthOf(payments.updatedAt);
 
       return db

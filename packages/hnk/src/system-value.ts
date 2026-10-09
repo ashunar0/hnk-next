@@ -5,4 +5,4 @@ import type { System } from "./system";
  * 型（system.ts）と値をファイルで分けているのは、`hnk/system` として外に出すのを型だけにするため。
  * 値は package.json の exports に出さず、hnk の中と、テスト用の `hnk/testing` だけが持つ
  */
-export const systemViewer = { kind: "system" } as System;
+export const systemActor = { kind: "system" } as System;

@@ -46,5 +46,9 @@ export type User = {
 export const authenticatedUser = (id: UserId, orgId: OrgId, role: Role) =>
   ({ kind: "user", id, orgId, role }) as User;
 
-/** いま操作しているのは誰か */
-export type Viewer = User | System;
+/**
+ * いま操作しているのは誰か。利用者かシステム。
+ * HTTP では guard（requireAuth・allowSystem）が c.get("actor") に、cron とキューでは createWorker が渡す。
+ * service は「誰として」を必ず最初の引数で受け取る
+ */
+export type Actor = User | System;

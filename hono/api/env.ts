@@ -1,9 +1,9 @@
 import type { User } from "./modules/users/domain";
 
-/** withViewer が積む文脈変数。ハンドラ側で書き写さないための単一定義 */
+/** withUser が積む文脈変数。ハンドラ側で書き写さないための単一定義 */
 export type AuthVariables = {
-  /** ログインしていなければ null */
-  viewer: User | null;
+  /** セッションの利用者。ログインしていなければ null。handler は読まず、guard が actor に決める */
+  user: User | null;
 };
 
 export type AppEnv = {
