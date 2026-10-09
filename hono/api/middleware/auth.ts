@@ -6,30 +6,30 @@ import { fail, guard } from "hnk";
 import { Unauthorized } from "../errors";
 
 /**
- * 閲覧者を文脈に積む。未ログインでも通す。
+ * セッションの利用者を文脈に積む。未ログインでも通す。
  *
  * TODO: modules/auth/ が cookie のセッションを解いて返すようになったら、
  * その結果を積む。認証提供元がまだ無いあいだは常に null
  */
-export const withViewer: MiddlewareHandler<AppEnv> = async (c, next) => {
-  c.set("viewer", null);
+export const withUser: MiddlewareHandler<AppEnv> = async (c, next) => {
+  c.set("user", null);
   await next();
 };
 
 /**
  * ログインを要求する。createEndpoint の middleware に置くと、その先の handler で
- * authViewer が User になる（viewer は null を含んだまま）。
+ * actor（誰として操作するか）が User になる（user は null を含んだまま）。
  * Unauthorized は responses に自動で足される
  */
 export const requireAuth = guard(
   [Unauthorized],
   createMiddleware<{
-    Variables: AuthVariables & { authViewer: User };
+    Variables: AuthVariables & { actor: User };
   }>(async (c, next) => {
-    const viewer = c.get("viewer");
-    if (viewer === null) throw fail(Unauthorized);
+    const user = c.get("user");
+    if (user === null) throw fail(Unauthorized);
 
-    c.set("authViewer", viewer);
+    c.set("actor", user);
     await next();
   }),
 );

@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { systemViewer } from "hnk/testing";
+import { systemActor } from "hnk/testing";
 import { expect, it } from "vitest";
 import { makeDeps } from "../api/deps";
 import { buildApp } from "../api/index";
@@ -43,5 +43,5 @@ it("webhook は allowSystem で、署名を確かめた後の handler にシス�
   const res = await fakeApp.request("/webhooks/stripe", { method: "POST", body: "{}" }, env);
 
   expect(res.status).toBe(200);
-  expect(received).toEqual([systemViewer]);
+  expect(received).toEqual([systemActor]);
 });

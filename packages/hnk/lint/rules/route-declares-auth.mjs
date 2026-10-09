@@ -4,7 +4,7 @@ import { fileOf } from "../project.mjs";
 /**
  * 認証について決めたことを宣言に書かせる。
  *
- * guard を落としても、handler が authViewer を読まなければ tsc は通る。
+ * guard を落としても、handler が actor を読まなければ tsc は通る。
  * 読まない handler —— 所有者で絞らない集計など —— では、書き忘れが
  * 無認証の公開として静かに出ていく。
  *

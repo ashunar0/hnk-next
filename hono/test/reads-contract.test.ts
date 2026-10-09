@@ -1,7 +1,6 @@
-import { orgId, userId } from "../api/modules/users/domain";
+import { authenticatedUser, orgId, userId, type Actor } from "../api/modules/users/domain";
 import { beforeAll, describe, expect, it } from "vitest";
 import { scopeTo } from "../api/db";
-import type { InvoiceReach } from "../api/modules/invoices/domain";
 import { paymentsTable } from "../api/modules/payments/repo.d1";
 import { db, insertInvoices, invoice } from "./fixtures";
 
@@ -12,7 +11,7 @@ import { db, insertInvoices, invoice } from "./fixtures";
  */
 const modules = import.meta.glob("../api/modules/*/repo.*.ts", { eager: true });
 
-type Read = (db: ReturnType<typeof import("./fixtures").db>, reach: InvoiceReach) => never;
+type Read = (db: ReturnType<typeof import("./fixtures").db>, actor: Actor) => never;
 
 const reads = Object.entries(modules).flatMap(([path, exports]) =>
   Object.entries(exports)
@@ -38,19 +37,18 @@ it("公開している読みが 1 つ以上ある", () => {
 });
 
 describe.each(reads)("$name", ({ read }) => {
-  const rows = async (reach: InvoiceReach) =>
-    JSON.stringify(await db().select().from(read(db(), reach)));
+  const rows = async (actor: Actor) => JSON.stringify(await db().select().from(read(db(), actor)));
 
-  it("組織の範囲では、自分の組織のものだけが出る", async () => {
-    const result = await rows({ kind: "org", orgId: orgId("org1") });
+  it("組織の admin には、自分の組織のものだけが出る", async () => {
+    const result = await rows(authenticatedUser(userId("admin"), orgId("org1"), "admin"));
 
     expect(result).toContain("ct1-alice");
     expect(result).toContain("ct1-bob");
     expect(result).not.toContain("ct2-");
   });
 
-  it("自分の範囲では、自分のものだけが出る", async () => {
-    const result = await rows({ kind: "member", orgId: orgId("org1"), userId: userId("alice") });
+  it("member には、自分のものだけが出る", async () => {
+    const result = await rows(authenticatedUser(userId("alice"), orgId("org1"), "member"));
 
     expect(result).toContain("ct1-alice");
     expect(result).not.toContain("ct1-bob");

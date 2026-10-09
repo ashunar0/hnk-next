@@ -50,10 +50,10 @@ export const reportsRouter = createRouter()
         },
       },
       async (c, reply, { reports }) => {
+        const actor = c.get("actor");
         const { from, to } = c.req.valid("query");
-        const viewer = c.get("authViewer");
 
-        const result = await reports.monthly(viewer, from, to);
+        const result = await reports.monthly(actor, from, to);
         if (!result.ok) return reply.failure(result.error);
 
         return reply(200, { months: result.value });

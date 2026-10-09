@@ -40,11 +40,12 @@ export const invoicesRouter = createRouter()
         },
       },
       async (c, reply, { invoices }) => {
+        const actor = c.get("actor");
         const { id } = c.req.valid("param");
         const input = c.req.valid("json");
-        const viewer = c.get("authViewer");
+        const now = new Date();
 
-        const result = await invoices.update(id, viewer, input);
+        const result = await invoices.update(actor, id, input, now);
         if (!result.ok) return reply.failure(result.error);
 
         return reply(200, invoiceResponse(result.value));
@@ -56,23 +57,25 @@ export const invoicesRouter = createRouter()
 - `responses` がそのエンドポイントの約束。handler は `reply` で返し、約束とずれると、間違えた値そのものに赤線が付く
 - `requireAuth` が返しうる 401 と、入力の検査の 400 は自動で宣言される。書くのはドメインの失敗だけ
 - handler の引数は「受け取る（`c`）・返す（`reply`）・使う（依存）」の順
+- 誰として（`actor`）は guard が決め、いつ（`now`）は handler が決める。service はどちらも引数で受け取る
 
 ```ts
 // hono/api/modules/invoices/service.ts
-async update(id: InvoiceId, viewer: Viewer, input: InvoiceInput): Promise<Result<Invoice, "NOT_FOUND" | "FORBIDDEN">> {
-  const reach = reachOf(viewer);
+async update(actor: Actor, id: InvoiceId, input: InvoiceInput, now: Date): Promise<Result<Invoice, "NOT_FOUND" | "FORBIDDEN">> {
+  const reach = reachOf(actor);
 
   const found = await repo.findWithin(id, reach);
   if (found === null) return err("NOT_FOUND");
   if (!canEdit(found.access)) return err("FORBIDDEN");
 
-  const invoice = await repo.updateWithin(id, reach, { ...input, updatedAt: new Date() });
+  const invoice = await repo.updateWithin(id, reach, { ...input, updatedAt: now });
   if (invoice === null) return err("NOT_FOUND");
 
   return ok(invoice);
 }
 ```
 
+- 引数は「誰として（actor）→ 何を → どうする → いつ（now）」の順。service は時計を読まない
 - 想定内の失敗は Result で返す。service は HTTP のステータスを知らない
 - 所有者の条件は repo の WHERE に入れて 1 文で書く。他人のものは在ることも知らせず NOT_FOUND
 - `Invoice` は domain が宣言するモノの型。repo は DB の行をこれに詰め替えて返す
@@ -110,13 +113,15 @@ inbound と outbound のファイル名には、何に繋ぐかを書く（`repo
 
 ### 育ち方: 2 つ目が現れたときだけ、3 種類
 
-| 動き         | きっかけ                                      | 足すもの                                                                                  |
-| ------------ | --------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| 横に増える   | 2 つ目の inbound（cron、キュー、webhook）     | `cron.ts`、`queue.ts`、`webhook.stripe.ts`（routes.ts の隣）                              |
-| 横に増える   | 2 つ目の outbound（保存先、外部 API、メール） | `files.r2.ts`、`gateway.stripe.ts` など。必要な形は service で宣言する                    |
-| 中で割れる   | 1 つのファイルが 2 つ目の理由で変わり始めた   | 同じ箱の中で分ける（service.ts → ports.ts、routes.ts → schema.ts など）。矢印は変わらない |
-| 窓口を開く   | 他の module が書きに来る                      | 書かれる側の `commands/<操作>.ts`（1 操作 1 ファイル）。routes からは呼ばない             |
-| （足さない） | 他の module が読みに来る                      | 使う側の service が形を宣言し、deps.ts で相手の service をつなぐ                          |
+| 動き         | きっかけ                                           | 足すもの                                                                                                |
+| ------------ | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| 横に増える   | 2 つ目の inbound（cron、キュー、webhook）          | `cron.ts`、`queue.ts`、`webhook.stripe.ts`（routes.ts の隣）                                            |
+| 横に増える   | 2 つ目の outbound（保存先、外部 API、メール）      | `files.r2.ts`、`gateway.stripe.ts` など。必要な形は service で宣言する                                  |
+| 中で割れる   | 1 つのファイルが 2 つ目の理由で変わり始めた        | 同じ箱の中で分ける（service.ts → ports.ts、routes.ts → schema.ts など）。矢印は変わらない               |
+| 中で割れる   | その module だけの失敗（`NOT_DRAFT` など）が現れた | `errors.ts`（routes.ts の隣）。どの module でも同じ意味のもの（401・403・404）は `api/errors.ts` のまま |
+| 窓口を開く   | 他の module が書きに来る                           | 書かれる側の `commands/<操作>.ts`（1 操作 1 ファイル）。routes からは呼ばない                           |
+| 窓口を開く   | 他の module が SQL で読みに来る（集計など）        | 持ち主の repo に `〜Within(db, actor)`。読む側は表を直接読まず、範囲の決め方も知らない                  |
+| （足さない） | 他の module が読みに来る                           | 使う側の service が形を宣言し、deps.ts で相手の service をつなぐ                                        |
 
 どの動きでも、矢印は domain に向かったまま変わらない。
 
@@ -164,12 +169,18 @@ go build ./cmd/api
   途中で落ちたときに「重複してもよい」か「欠けてもよい」かは業務の判断なので、service のコメントに書く
 - **module の依存は一方向**。users ← invoices ← payments、invoices ← reminders、invoices と payments ← reports。
   deps.ts は上から順に const で組み立てる（Go の main と同じ）。依存する相手を先に書かないと、相手をそのまま渡す所では tsc が「宣言の前に使っている」で止める。
-  ただし、他の module の ID に印を付けて渡す所（`(id, viewer) => invoices.getPayable(invoiceId(id), viewer)`）は関数で包むので、tsc は止めない。
+  ただし、他の module の ID に印を付けて渡す所（`(actor, id) => invoices.getPayable(actor, invoiceId(id))`）は関数で包むので、tsc は止めない。
   module の依存が一方向であることは、今は決まりとレビューで守っていて、輪を機械では止めていない（輪が起きる兆しが出たら、deps.ts の依存を調べるテストを足す）。
   getter で遅延する案は、宣言順の保証を失うので外した（組み立ては関数を返すだけで軽い）。deps.ts は何を import してもよい場所で、lint の表には入れていない
 - **route は `createEndpoint(設定, handler)` 1 つで書く**（@hono/zod-openapi の上）。設定は zod-openapi の route の宣言と同じ形で、guard が持つ失敗と ValidationError を hnk が足す。`c.json` だとずれたときの赤線が handler の頭に付くので、`reply` で返す。`createRoute` は公開しない（書き方を 1 つにするため）
 - **失敗は値で、番号と文言を持つ**（`httpError("NOT_FOUND", 404, "…")`）。guard が持つ失敗と ValidationError は自動で宣言する。
   `reply.failure` が受け取れるのは、route に手で書いたドメインの失敗だけ。同じ番号の失敗が複数あっても 1 つの応答にまとめ、コードごとの文言で返す
+- **誰として操作するかは `Actor`（利用者かシステム）で、引数の先頭に置く**（Go の `ctx` と同じ位置）。
+  HTTP では guard が `c.get("actor")` に決め（`requireAuth` なら `User`、`allowSystem` ならシステム）、cron とキューでは `createWorker` が渡す。
+  入口に関わらず、handler・cron・queue が読む名前は `actor` 1 つ。セッションの `user`（未ログインは null）は guard だけが読む
+- **時計を読むのは入口だけ**。service・commands・repo は `now` を引数で受け取り、`new Date()` を呼ばない（lint `no-clock-outside-inbound`）。
+  HTTP の handler は `new Date()`、cron は予定の時刻、queue は積まれた時刻を `now` にする。同じ手順がどの入口から呼ばれても、入口の時計で動く。
+  モノの時刻（`createdAt`・`updatedAt`）も `now` から入れる。DB の既定値は、domain に出ない列の記録だけに使う
 - **利用者とシステムには印を付ける**（`unique symbol`）。`{ kind: "system" }` のようなリテラルでは書けず、利用者を作れるのは `authenticatedUser` だけ。システムの型と値は hnk が持ち、アプリは作れず受け取るだけ（下の「HTTP 以外の入口」）
 - **module は domain / service / routes / repo.<技術> で始め、2 つ目が現れたときだけ育てる**（上の「出発点と育ち方」）。
   名前は modules（境界を持ったまとまり）。features は「機能」で、複数のモノにまたがる操作の言葉なので使わない
@@ -184,23 +195,24 @@ go build ./cmd/api
   役割の分からないファイルは置けない。依存の向きは役割ごとの許可表（`layer-imports`）で守らせ、表に無い import は全部だめ。
   相対 import も tsconfig の paths 経由も同じに見る。HTTP の inbound（routes と webhook）には、export は束 1 本、
   `createEndpoint` に認証の指定、`c.json` 禁止、引数の中で await しない、を求める。どこでも、モジュールの一番上に変わる状態を置かない。
-  他 module の表を直接読まない（`no-foreign-table-reads`）、ID の印を `as` で付けない（`no-id-cast`）も、lint で止める
+  他 module の表を直接読まない（`no-foreign-table-reads`）、ID の印を `as` で付けない（`no-id-cast`）、core と outbound で時計を読まない（`no-clock-outside-inbound`）も、lint で止める
 
 <!-- layers:start（packages/hnk/lint/layers.mjs から生成。直接は書き換えない） -->
 
-| 側       | 役割     | import してよいもの                                                                                                                                                                                             |
-| -------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| core     | domain   | zod, hnk/system（型だけ）, 他 module の domain（型だけ）                                                                                                                                                        |
-| core     | service  | hnk/result, hnk/page（型だけ）, hnk/system（型だけ）, domain, 他 module の domain（型だけ）                                                                                                                     |
-| core     | commands | hnk/result, hnk/system（型だけ）, domain, service（型だけ）, 他 module の domain（型だけ）                                                                                                                      |
-| inbound  | routes   | hnk, zod, errors, middleware, domain                                                                                                                                                                            |
-| inbound  | webhook  | hnk, zod, errors, middleware, domain。system は `allowSystem` から受け取る                                                                                                                                      |
-| inbound  | cron     | hnk（型だけ）, domain（型だけ）。deps・system・now は createWorker が渡す                                                                                                                                       |
-| inbound  | queue    | hnk（型だけ）, domain（型だけ）                                                                                                                                                                                 |
-| outbound | repo     | drizzle-orm, hnk/page, db（型だけ）, domain, service（型だけ）, 他 module の repo, 他 module の domain。他 module の repo は範囲付きの読みと外部キーの references() だけ、他 module の domain は SQL の定数だけ |
-| outbound | gateway  | hnk/result, domain（型だけ）, service（型だけ）                                                                                                                                                                 |
-| outbound | mailer   | hnk/result, domain（型だけ）, service（型だけ）                                                                                                                                                                 |
-| outbound | jobs     | domain（型だけ）, service（型だけ）                                                                                                                                                                             |
+| 側       | 役割     | import してよいもの                                                                                                                                                                                                              |
+| -------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| core     | domain   | zod, hnk/system（型だけ）, 他 module の domain（型だけ）                                                                                                                                                                         |
+| core     | service  | hnk/result, hnk/page（型だけ）, hnk/system（型だけ）, domain, 他 module の domain（型だけ）                                                                                                                                      |
+| core     | commands | hnk/result, hnk/system（型だけ）, domain, service（型だけ）, 他 module の domain（型だけ）                                                                                                                                       |
+| inbound  | routes   | hnk, zod, errors, middleware, domain                                                                                                                                                                                             |
+| inbound  | webhook  | hnk, zod, errors, middleware, domain。actor（システム）は `allowSystem` から受け取る                                                                                                                                             |
+| inbound  | errors   | hnk。その module だけの失敗。どの module でも同じ意味のもの（401・403・404）は api/errors.ts に置き、routes と webhook はどちらも import してよい                                                                                |
+| inbound  | cron     | hnk（型だけ）, domain（型だけ）。deps・actor・now は createWorker が渡す                                                                                                                                                         |
+| inbound  | queue    | hnk（型だけ）, domain（型だけ）                                                                                                                                                                                                  |
+| outbound | repo     | drizzle-orm, hnk/page, db（型だけ）, domain, service（型だけ）, 他 module の repo, 他 module の domain。他 module の repo からは外部キーの表（〜Table）と読ませる窓口（〜Within）だけ、他 module の domain は SQL の定数と型だけ |
+| outbound | gateway  | hnk/result, domain（型だけ）, service（型だけ）                                                                                                                                                                                  |
+| outbound | mailer   | hnk/result, domain（型だけ）, service（型だけ）                                                                                                                                                                                  |
+| outbound | jobs     | domain（型だけ）, service（型だけ）                                                                                                                                                                                              |
 
 <!-- layers:end -->
 
@@ -208,20 +220,23 @@ go build ./cmd/api
 - **一覧のページ送りは hnk の部品**（`hnk/page` と `pageQuery` / `pageResponseSchema` / `pageResponse`）。
   一覧は `PageQuery`（`limit` は必須）を受け取って `Page` を返す。query に展開すると `limit` に既定（20）と上限（100）が付く。
   repo は `limit + 1` 件読んで `toPage` に渡す。部品を使わない一覧を書くことは、まだ止めていない（AI に書かせる実験で確かめてから決める）
-- **ログイン状態は `buildApp(makeDeps, authenticate)` で差し込む**。`authenticate` は viewer（未ログインは null）を文脈に積む middleware で、
-  本番は `withViewer`（認証の提供元ができるまでは仮実装）、テストは `appAs(user)`（`test/fixtures.ts`）で本物の deps と D1 のまま利用者だけ差し替える。
+- **ログイン状態は `buildApp(makeDeps, authenticate)` で差し込む**。`authenticate` はセッションの user（未ログインは null）を文脈に積む middleware で、
+  本番は `withUser`（認証の提供元ができるまでは仮実装）、テストは `appAs(user)`（`test/fixtures.ts`）で本物の deps と D1 のまま利用者だけ差し替える。
   route 層は HTTP 越しに試せる（`test/invoices-http.test.ts`）
-- **HTTP 以外の入口は `createWorker` に渡す**（`index.ts` に 1 つ）。deps は呼び出しごとに 1 回組み立て、`system` と `now` を渡す。
+- **HTTP 以外の入口は `createWorker` に渡す**（`index.ts` に 1 つ）。deps は呼び出しごとに 1 回組み立て、`actor`（システム）と `now` を渡す。
   `now` は scheduled なら予定の時刻、queue ならメッセージが積まれた時刻（再送が日をまたいでも同じ日の督促になる）。
   queue の handler は Result を返すだけ: ok で ack、err で retry、想定外の throw はそのメッセージだけ retry にして同じバッチの残りは続ける。
-  cron・queue のファイルは `system` を import せず受け取るだけ。システムの値を作る場所は hnk の中に 1 つ（テストは `hnk/testing`）。
-  署名つき webhook は `allowSystem` を宣言して `c.get("system")` で受け取る（署名を確かめた後に使う）
+  cron・queue のファイルはシステムを import せず受け取るだけ。システムの値を作る場所は hnk の中に 1 つ（テストは `hnk/testing`）。
+  署名つき webhook は `allowSystem` を宣言して `c.get("actor")` で受け取る（署名を確かめた後に使う）
 - **組織は User が持ち、範囲（Reach）がデータで運ぶ**。システムは全組織、admin は自分の組織の全員分、member は自分の分だけ。
   どの範囲も組織の線を越えない
 - **共有は同じ組織の中で、閲覧と編集の 2 段階**。member の範囲は「自分のもの＋共有されたもの」。
   repo が範囲を解釈し、行と一緒に access（`manage` / `edit` / `view`）を返す。`canEdit` と `canManage` は access を受け取る純関数。
   共有できるのは所有者と組織の admin。見えない人には在ることも分からない（NOT_FOUND）、見えるが権限が足りないときは FORBIDDEN
-- **他の module に見せる読みは、範囲付きの入口（`invoicesWithin(db, reach)` など）だけ**。範囲が必須引数なので、付け忘れが書けない。
+- **module をまたぐ窓口は 2 つだけ**。書かせるのは書かれる側の `commands/`（core）、SQL で読ませるのは持ち主の repo が出す `〜Within`（outbound）。
+  core どうしは import せず、使う側が形を宣言して `deps.ts` でつなぐ。outbound は他 module の repo から、外部キーの表（`〜Table`）と `〜Within` だけを借りる（lint `layer-imports`）
+- **他の module に見せる読みは、誰として読むかが必須の入口（`invoicesWithin(db, actor)` など）だけ**。actor が必須引数なので、範囲の付け忘れが書けない。
+  範囲の決め方（`reachOf`）は持ち主の中に閉じていて、読む側は知らない。
   生の表は読みに使わせない（lint `no-foreign-table-reads`。外部キーの `references()` の中だけ許す）。
   `〜Within` は repo の export から自動で拾い、`test/reads-contract.test.ts` が「他の組織のデータが出ない」を全部に当てる。
   読みを足したら、その表の行を seed に足さないとテストが落ちる
@@ -236,14 +251,14 @@ invoices と同じ形で書く。迷いやすい所は、次のとおりに揃�
 | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 置き場所                               | `modules/<名前>/` に `domain / service / routes / repo.d1` の 4 つで始める。増やすのは 2 つ目が現れたとき                                                                                                                                                                                                                                            |
 | 他の module を使う                     | import しない。使う側の service が必要な形を宣言し（戻りは使う分だけ。例: `{ id: string }`）、`deps.ts` でつなぐ。`deps.ts` は依存する相手を先に書く                                                                                                                                                                                                 |
-| 他の module の表                       | 外部キーの `references()` の中でだけ使う。読むときは、持ち主が出している `〜Within(db, reach)` を使う                                                                                                                                                                                                                                                |
-| 親の下にぶら下がるもの（コメントなど） | 親が見えるかを、親の service に問い合わせる（`get(id, viewer)` の形を宣言）。子に orgId は持たせない。親が見えれば読める・書ける。もっと厳しい権限が要るなら、親が access を返す問いを宣言する                                                                                                                                                       |
+| 他の module の表                       | 外部キーの `references()` の中でだけ使う。読むときは、持ち主が出している `〜Within(db, actor)` を使う                                                                                                                                                                                                                                                |
+| 親の下にぶら下がるもの（コメントなど） | 親が見えるかを、親の service に問い合わせる（`get(actor, id)` の形を宣言）。子に orgId は持たせない。親が見えれば読める・書ける。もっと厳しい権限が要るなら、親が access を返す問いを宣言する                                                                                                                                                        |
 | 子の router                            | 親の prefix に mount する（`.route("/invoices", commentsRouter)`）。同じ prefix に router が 2 つ載ってよい。path は `/{id}/<子>`                                                                                                                                                                                                                    |
 | 失敗の使い分け                         | 見えないものは `NOT_FOUND`（在ることも知らせない）、見えるが権限が足りないものは `FORBIDDEN`。確認の順は NOT_FOUND → FORBIDDEN                                                                                                                                                                                                                       |
 | 状態コード                             | 作成は 200 で作ったものを返す。削除は `{ ok: true }` の 200                                                                                                                                                                                                                                                                                          |
 | 入力の文字列                           | `trim()` してから長さを数える。空白だけは通さない                                                                                                                                                                                                                                                                                                    |
 | 一覧                                   | 必ず `pageQuery` / `pageResponseSchema` / `pageResponse` を使う。repo は `PageQuery` を受け取って `Page` を返す（`toPage`）。上限の無い一覧を書かない。応答は `{ items, nextCursor }`（nextCursor は文字列。続きが無ければ null）。並びが昇順なら、cursor の比較は `gt`（invoices の降順は `lt`）。親が見えないときの一覧は `NOT_FOUND` を返してよい |
-| 閲覧者の型                             | 利用者のいない入口（cron、webhook）が呼ぶ service は `Viewer` を受ける。利用者の操作だけの service は `User` を受けてよい（HTTP は `requireAuth` で `User` になる）。他 module への問い合わせを `User` で宣言しても、相手が `Viewer` を受けていれば満たせる                                                                                          |
+| 操作する人の型                         | 利用者のいない入口（cron、webhook）が呼ぶ service は `Actor` を受ける。利用者の操作だけの service は `User` を受けてよい（HTTP は `requireAuth` で `User` になる）。他 module への問い合わせを `User` で宣言しても、相手が `Actor` を受けていれば満たせる。どちらも引数の先頭に置く                                                                  |
 | 外部キーの onDelete                    | 親が消えたら子も消えるなら `cascade`。子が親より長く残るべきなら、理由を書いて別の値にする                                                                                                                                                                                                                                                           |
 | システム（cron、webhook）の権限        | 書く・消すのは利用者（`User`）だけ。システムにさせたい操作は、持ち主の `commands/` に出す（例: `markPaid`）                                                                                                                                                                                                                                          |
 | テスト                                 | `test/` に平置き。本物のローカル D1 を使う。HTTP は `fixtures.ts` の `request(user, method, path, body)` で、利用者を差し替えて試す                                                                                                                                                                                                                  |

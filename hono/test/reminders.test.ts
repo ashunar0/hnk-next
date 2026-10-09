@@ -7,7 +7,7 @@ import {
   type Mailer,
   type OverdueInvoices,
 } from "../api/modules/reminders/service";
-import { systemViewer } from "hnk/testing";
+import { systemActor } from "hnk/testing";
 import { db, insertInvoices, invoice } from "./fixtures";
 
 const now = new Date("2026-06-10T00:00:00Z");
@@ -53,11 +53,11 @@ it("同じ日に 2 回届いても、送るのは 1 回。2 回目は確定済�
     remindable,
   );
 
-  expect(await reminders.send({ invoiceId: "r1" }, systemViewer, now)).toEqual({
+  expect(await reminders.send(systemActor, { invoiceId: "r1" }, now)).toEqual({
     ok: true,
     value: "SENT",
   });
-  expect(await reminders.send({ invoiceId: "r1" }, systemViewer, now)).toEqual({
+  expect(await reminders.send(systemActor, { invoiceId: "r1" }, now)).toEqual({
     ok: true,
     value: "SKIPPED",
   });
@@ -75,11 +75,11 @@ it("メールに失敗したら押さえたまま残り、再送で同じ冪等�
   );
 
   failOnce();
-  expect(await reminders.send({ invoiceId: "r2" }, systemViewer, now)).toEqual({
+  expect(await reminders.send(systemActor, { invoiceId: "r2" }, now)).toEqual({
     ok: false,
     error: "MAIL_FAILED",
   });
-  expect(await reminders.send({ invoiceId: "r2" }, systemViewer, now)).toEqual({
+  expect(await reminders.send(systemActor, { invoiceId: "r2" }, now)).toEqual({
     ok: true,
     value: "SENT",
   });
@@ -93,7 +93,7 @@ it("送るべきでなくなっていたら、見送りとして残し、その�
   const repo = remindersRepository(scopeTo(db(), remindersTable));
   const reminders = remindersService(repo, mailer, { async enqueue() {} }, paid);
 
-  expect(await reminders.send({ invoiceId: "r3" }, systemViewer, now)).toEqual({
+  expect(await reminders.send(systemActor, { invoiceId: "r3" }, now)).toEqual({
     ok: true,
     value: "SKIPPED",
   });

@@ -1,5 +1,5 @@
 import { err, ok, createWorker } from "hnk";
-import { systemViewer } from "hnk/testing";
+import { systemActor } from "hnk/testing";
 import { expect, it, vi } from "vitest";
 import { makeDeps } from "../api/deps";
 
@@ -53,7 +53,7 @@ it("queue: ok は ack、err は retry。想定外の throw も、そのメッセ
   ]);
 });
 
-it("queue: now はメッセージが積まれた時刻、system と deps は入口が渡す", async () => {
+it("queue: now はメッセージが積まれた時刻、actor と deps は入口が渡す", async () => {
   const m = message("x", "2026-06-09T23:59:00Z");
   const received: unknown[] = [];
   const handler = worker(async (context) => {
@@ -63,7 +63,7 @@ it("queue: now はメッセージが積まれた時刻、system と deps は入�
 
   await run(handler, [m]);
 
-  expect(received).toEqual([{ deps: fakeDeps, system: systemViewer, now: m.timestamp, body: "x" }]);
+  expect(received).toEqual([{ deps: fakeDeps, actor: systemActor, now: m.timestamp, body: "x" }]);
 });
 
 it("scheduled: now は予定の時刻", async () => {
@@ -79,9 +79,7 @@ it("scheduled: now は予定の時刻", async () => {
 
   await handler.scheduled!({ scheduledTime } as never, {} as never, {} as never);
 
-  expect(received).toEqual([
-    { deps: fakeDeps, system: systemViewer, now: new Date(scheduledTime) },
-  ]);
+  expect(received).toEqual([{ deps: fakeDeps, actor: systemActor, now: new Date(scheduledTime) }]);
 });
 
 it("使わない入口は持たない", () => {

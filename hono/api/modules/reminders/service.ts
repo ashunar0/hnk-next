@@ -2,7 +2,7 @@
  * 督促の手順（How）。期限切れを探して積む手順と、1 件ずつ送る手順の 2 つ
  */
 import { err, ok, type Result } from "hnk/result";
-import type { Viewer } from "../users/domain";
+import type { Actor } from "../users/domain";
 import {
   dayOf,
   reminderKey,
@@ -40,11 +40,11 @@ export type ReminderJobs = {
 
 /** 手順が必要とする請求書の形。invoices の service が満たし、deps.ts でつなぐ */
 export type OverdueInvoices = {
-  listOverdue: (viewer: Viewer, now: Date) => Promise<{ id: string }[]>;
+  listOverdue: (actor: Actor, now: Date) => Promise<{ id: string }[]>;
   /** 督促してよいかを invoices に問う。判定は invoices のルールに任せる */
   getRemindable: (
+    actor: Actor,
     id: string,
-    viewer: Viewer,
     now: Date,
   ) => Promise<
     Result<
@@ -54,6 +54,7 @@ export type OverdueInvoices = {
   >;
 };
 
+/** 引数の順番は、誰として（actor）→ 何を → いつ（now）。時計は読まない */
 export function remindersService(
   repo: RemindersRepository,
   mailer: Mailer,
@@ -61,9 +62,9 @@ export function remindersService(
   invoices: OverdueInvoices,
 ) {
   return {
-    /** 期限切れの請求書を探し、督促を 1 件ずつキューに積む。範囲は viewer で決まる */
-    async enqueueOverdue(viewer: Viewer, now: Date): Promise<number> {
-      const overdue = await invoices.listOverdue(viewer, now);
+    /** 期限切れの請求書を探し、督促を 1 件ずつキューに積む。範囲は actor で決まる */
+    async enqueueOverdue(actor: Actor, now: Date): Promise<number> {
+      const overdue = await invoices.listOverdue(actor, now);
 
       await jobs.enqueue(overdue.map((invoice) => ({ invoiceId: invoice.id })));
 
@@ -82,15 +83,15 @@ export function remindersService(
      * キーに日付が入っていて、キューの再送も同じ日のうちに終わる前提で成り立つ
      */
     async send(
+      actor: Actor,
       job: ReminderJob,
-      viewer: Viewer,
       now: Date,
     ): Promise<Result<"SENT" | "SKIPPED", "MAIL_FAILED">> {
       const reminder = { invoiceId: job.invoiceId, sentOn: dayOf(now) };
       if ((await repo.claim(reminder)) !== "claimed") return ok("SKIPPED");
 
       // 積んだ後に支払われたり消されたりしたものは送らない
-      const invoice = await invoices.getRemindable(job.invoiceId, viewer, now);
+      const invoice = await invoices.getRemindable(actor, job.invoiceId, now);
       if (!invoice.ok) {
         await repo.markSkipped(reminder);
         return ok("SKIPPED");

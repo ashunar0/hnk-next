@@ -8,6 +8,7 @@ export const KINDS = {
   commands: "core",
   routes: "inbound",
   webhook: "inbound",
+  errors: "inbound",
   cron: "inbound",
   queue: "inbound",
   repo: "outbound",
@@ -56,7 +57,7 @@ export const LAYERS = {
     middleware: "value",
     domain: "value",
   },
-  // 利用者のいない HTTP。誰として呼ぶか（system）は allowSystem から c.get("system") で受け取る
+  // 利用者のいない HTTP。誰として呼ぶか（システム）は allowSystem から c.get("actor") で受け取る
   webhook: {
     hnk: "value",
     zod: "value",
@@ -64,7 +65,9 @@ export const LAYERS = {
     middleware: "value",
     domain: "value",
   },
-  // inbound（HTTP 以外）。deps と system と now は createWorker が渡すので、型を借りるだけ
+  // その module だけの失敗を、HTTP でどう返すか。routes と webhook が使う
+  errors: { hnk: "value" },
+  // inbound（HTTP 以外）。deps と actor と now は createWorker が渡すので、型を借りるだけ
   cron: { hnk: "type", domain: "type" },
   queue: { hnk: "type", domain: "type" },
 
@@ -96,7 +99,11 @@ export const HINTS = {
   "service→foreign:service":
     "他の module は import しない。使う形を service に宣言し、deps.ts でつなぐ。書くなら相手の commands/ を渡してもらう",
   "routes→foreign:domain":
-    'routes は認証した利用者として呼ぶ。システムが要る入口は、middleware に allowSystem を置いて c.get("system") で受け取る',
+    'routes は認証した利用者として呼ぶ。システムが要る入口は、middleware に allowSystem を置いて c.get("actor") で受け取る',
+  "routes→foreign:errors":
+    "他の module の失敗は借りない。自分の service が返す失敗なら自分の errors.ts に、どの module でも同じ意味のもの（401・403・404）なら api/errors.ts に置く",
+  "webhook→foreign:errors":
+    "他の module の失敗は借りない。自分の service が返す失敗なら自分の errors.ts に、どの module でも同じ意味のもの（401・403・404）なら api/errors.ts に置く",
   "routes→foreign:service":
     "他の module の操作は、その流れの持ち主の service から呼ぶ",
   "repo→foreign:service":
@@ -121,7 +128,9 @@ export const KIND_HINTS = {
  * 表そのものは LAYERS から作るので、ここには表で言い切れないことだけを書く
  */
 export const NOTES = {
-  webhook: "system は `allowSystem` から受け取る",
-  cron: "deps・system・now は createWorker が渡す",
-  repo: "他 module の repo は範囲付きの読みと外部キーの references() だけ、他 module の domain は SQL の定数だけ",
+  webhook: "actor（システム）は `allowSystem` から受け取る",
+  errors:
+    "その module だけの失敗。どの module でも同じ意味のもの（401・403・404）は api/errors.ts に置き、routes と webhook はどちらも import してよい",
+  cron: "deps・actor・now は createWorker が渡す",
+  repo: "他 module の repo からは外部キーの表（〜Table）と読ませる窓口（〜Within）だけ、他 module の domain は SQL の定数と型だけ",
 };

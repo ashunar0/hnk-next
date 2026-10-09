@@ -4,8 +4,8 @@
 import { and, eq, getTableColumns, sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import type { ReadDb, Scope } from "../../db";
-import type { InvoiceReach } from "../invoices/domain";
 import { invoicesTable, invoicesWithin } from "../invoices/repo.d1";
+import type { Actor } from "../users/domain";
 import { paymentStatuses, type Payment } from "./domain";
 import type { PaymentsRepository } from "./service";
 
@@ -55,8 +55,8 @@ const toPayment = (row: PaymentRow): Payment => ({
  * 他の module が読むための入口。範囲の中の請求書に結ばれた支払いだけが入った副問い合わせを返す。
  * 支払いは組織を持たないので、範囲は請求書を通して決まる
  */
-export const paymentsWithin = (db: ReadDb, reach: InvoiceReach) => {
-  const invoices = invoicesWithin(db, reach);
+export const paymentsWithin = (db: ReadDb, actor: Actor) => {
+  const invoices = invoicesWithin(db, actor);
 
   return db
     .select(getTableColumns(paymentsTable))
@@ -86,21 +86,19 @@ export function paymentsRepository(scope: Scope<typeof paymentsTable>): Payments
       return row ? toPayment(row) : null;
     },
 
-    async attachCheckout(id, { providerRef, checkoutUrl }) {
+    async attachCheckout(id, { providerRef, checkoutUrl }, now) {
       await scope
-        .update({ providerRef, checkoutUrl, updatedAt: new Date() })
+        .update({ providerRef, checkoutUrl, updatedAt: now })
         .where(eq(paymentsTable.id, id));
     },
 
-    async markFailed(id) {
-      await scope
-        .update({ status: "failed", updatedAt: new Date() })
-        .where(eq(paymentsTable.id, id));
+    async markFailed(id, now) {
+      await scope.update({ status: "failed", updatedAt: now }).where(eq(paymentsTable.id, id));
     },
 
-    async updateStatusByProviderRef(providerRef, status) {
+    async updateStatusByProviderRef(providerRef, status, now) {
       const [row] = await scope
-        .update({ status, updatedAt: new Date() })
+        .update({ status, updatedAt: now })
         .where(eq(paymentsTable.providerRef, providerRef))
         .returning();
 
