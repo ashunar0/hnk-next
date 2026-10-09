@@ -3,7 +3,7 @@
  * 手順も HTTP も DB も知らない。他のファイルは全部ここに向かう
  */
 import { z } from "zod";
-import type { Viewer } from "../users/domain";
+import type { OrgId, UserId, Viewer } from "../users/domain";
 
 /** 請求書の状態。下書き → 送付済み → 支払い済み */
 export const invoiceStatuses = ["draft", "sent", "paid"] as const;
@@ -38,8 +38,8 @@ export const invoiceIdSchema = z.string().min(1).transform(invoiceId);
 export type Invoice = {
   id: InvoiceId;
   /** 属する組織。作った人の組織で、変わらない */
-  orgId: string;
-  ownerId: string;
+  orgId: OrgId;
+  ownerId: UserId;
   title: string;
   body: string;
   /** 請求額（円） */
@@ -102,8 +102,8 @@ export type InvoiceAccess = "manage" | ShareLevel;
  */
 export type InvoiceReach =
   | { kind: "all" }
-  | { kind: "org"; orgId: string }
-  | { kind: "member"; orgId: string; userId: string };
+  | { kind: "org"; orgId: OrgId }
+  | { kind: "member"; orgId: OrgId; userId: UserId };
 
 /** システムは全組織に、admin は自分の組織の全員のものに、member は自分のものと共有されたものに触れる */
 export const reachOf = (viewer: Viewer): InvoiceReach => {

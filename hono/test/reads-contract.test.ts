@@ -1,3 +1,4 @@
+import { orgId, userId } from "../api/modules/users/domain";
 import { beforeAll, describe, expect, it } from "vitest";
 import { scopeTo } from "../api/db";
 import type { InvoiceReach } from "../api/modules/invoices/domain";
@@ -22,9 +23,9 @@ const reads = Object.entries(modules).flatMap(([path, exports]) =>
 /** 組織 1 の alice と bob、組織 2 の carol。支払いは請求書ごとに 1 件 */
 beforeAll(async () => {
   await insertInvoices([
-    invoice({ id: "ct1-alice", orgId: "org1", ownerId: "alice", status: "sent" }),
-    invoice({ id: "ct1-bob", orgId: "org1", ownerId: "bob", status: "sent" }),
-    invoice({ id: "ct2-carol", orgId: "org2", ownerId: "carol", status: "sent" }),
+    invoice({ id: "ct1-alice", orgId: orgId("org1"), ownerId: userId("alice"), status: "sent" }),
+    invoice({ id: "ct1-bob", orgId: orgId("org1"), ownerId: userId("bob"), status: "sent" }),
+    invoice({ id: "ct2-carol", orgId: orgId("org2"), ownerId: userId("carol"), status: "sent" }),
   ]);
   const payments = scopeTo(db(), paymentsTable);
   for (const id of ["ct1-alice", "ct1-bob", "ct2-carol"]) {
@@ -41,7 +42,7 @@ describe.each(reads)("$name", ({ read }) => {
     JSON.stringify(await db().select().from(read(db(), reach)));
 
   it("組織の範囲では、自分の組織のものだけが出る", async () => {
-    const result = await rows({ kind: "org", orgId: "org1" });
+    const result = await rows({ kind: "org", orgId: orgId("org1") });
 
     expect(result).toContain("ct1-alice");
     expect(result).toContain("ct1-bob");
@@ -49,7 +50,7 @@ describe.each(reads)("$name", ({ read }) => {
   });
 
   it("自分の範囲では、自分のものだけが出る", async () => {
-    const result = await rows({ kind: "member", orgId: "org1", userId: "alice" });
+    const result = await rows({ kind: "member", orgId: orgId("org1"), userId: userId("alice") });
 
     expect(result).toContain("ct1-alice");
     expect(result).not.toContain("ct1-bob");

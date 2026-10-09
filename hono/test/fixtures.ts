@@ -8,7 +8,7 @@ import {
 } from "../api/modules/invoices/repo.d1";
 import { makeDeps } from "../api/deps";
 import { buildApp } from "../api/index";
-import { authenticatedUser, type User } from "../api/modules/users/domain";
+import { authenticatedUser, orgId, userId, type User } from "../api/modules/users/domain";
 
 export const db = () => wireDb(env.DB);
 
@@ -16,12 +16,12 @@ export const db = () => wireDb(env.DB);
 export const invoicesRepo = () =>
   invoicesRepository(scopeTo(db(), invoicesTable), scopeTo(db(), invoiceSharesTable));
 
-export const alice = authenticatedUser("alice", "org1", "member");
-export const bob = authenticatedUser("bob", "org1", "member");
-export const admin = authenticatedUser("admin", "org1", "admin");
+export const alice = authenticatedUser(userId("alice"), orgId("org1"), "member");
+export const bob = authenticatedUser(userId("bob"), orgId("org1"), "member");
+export const admin = authenticatedUser(userId("admin"), orgId("org1"), "admin");
 /** 別の組織の人たち */
-export const carol = authenticatedUser("carol", "org2", "member");
-export const admin2 = authenticatedUser("admin2", "org2", "admin");
+export const carol = authenticatedUser(userId("carol"), orgId("org2"), "member");
+export const admin2 = authenticatedUser(userId("admin2"), orgId("org2"), "admin");
 
 /** 請求書を 1 件。テストで気にしない項目は既定値で埋める */
 export const invoice = (over: Omit<Partial<Invoice>, "id"> & { id: string }): Invoice => ({

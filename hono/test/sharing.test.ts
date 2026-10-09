@@ -1,7 +1,7 @@
 import { invoiceId } from "../api/modules/invoices/domain";
 import { expect, it } from "vitest";
 import { invoicesService } from "../api/modules/invoices/service";
-import { authenticatedUser } from "../api/modules/users/domain";
+import { authenticatedUser, orgId } from "../api/modules/users/domain";
 import { admin, alice, bob, carol, insertInvoices, invoice, invoicesRepo } from "./fixtures";
 
 const service = () => invoicesService(invoicesRepo());
@@ -15,7 +15,8 @@ const input = {
 } as never;
 
 /** alice の請求書 1 件を、テストごとに別の id で入れる */
-const seed = (id: string) => insertInvoices([invoice({ id, ownerId: alice.id, orgId: "org1" })]);
+const seed = (id: string) =>
+  insertInvoices([invoice({ id, ownerId: alice.id, orgId: orgId("org1") })]);
 
 const ids = async (viewer: Parameters<ReturnType<typeof service>["list"]>[0]) =>
   (await service().list(viewer, { limit: 100 })).items.map((i) => i.id);
@@ -93,7 +94,7 @@ it("違う組織の人に共有しても、その人には見えない", async (
     error: "NOT_FOUND",
   });
   // 同じ id の人が組織を移っても、組織の線は越えない
-  const carolInOrg1 = authenticatedUser(carol.id, "org1", "member");
+  const carolInOrg1 = authenticatedUser(carol.id, orgId("org1"), "member");
   expect((await service().get(invoiceId("s6"), carolInOrg1)).ok).toBe(true);
 });
 

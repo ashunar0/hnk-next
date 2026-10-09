@@ -1,3 +1,4 @@
+import { orgId } from "../api/modules/users/domain";
 import { invoiceId } from "../api/modules/invoices/domain";
 import { expect, it } from "vitest";
 import { scopeTo } from "../api/db";
@@ -13,8 +14,8 @@ const service = () => invoicesService(invoicesRepo());
 /** テスト同士で id が重ならないよう、prefix を付けて 2 つの組織に 1 件ずつ入れる */
 const seed = (prefix: string) =>
   insertInvoices([
-    invoice({ id: `${prefix}-a`, ownerId: alice.id, orgId: "org1" }),
-    invoice({ id: `${prefix}-c`, ownerId: carol.id, orgId: "org2" }),
+    invoice({ id: `${prefix}-a`, ownerId: alice.id, orgId: orgId("org1") }),
+    invoice({ id: `${prefix}-c`, ownerId: carol.id, orgId: orgId("org2") }),
   ]);
 
 it("admin が触れるのは自分の組織の請求書だけ。他の組織のものは在ることも分からない", async () => {
@@ -57,7 +58,7 @@ it("レポートは自分の組織の分だけ数える", async () => {
   await insertInvoices([
     invoice({
       id: "r1",
-      orgId: "org1",
+      orgId: orgId("org1"),
       status: "paid",
       amount: 1000,
       dueAt: new Date("2026-01-10T00:00:00Z"),
@@ -65,7 +66,7 @@ it("レポートは自分の組織の分だけ数える", async () => {
     invoice({
       id: "r2",
       ownerId: carol.id,
-      orgId: "org2",
+      orgId: orgId("org2"),
       status: "paid",
       amount: 7000,
       dueAt: new Date("2026-01-10T00:00:00Z"),
