@@ -21,6 +21,7 @@ import {
   type InvoiceReach,
   type InvoiceStatus,
   type ShareLevel,
+  NotDraft,
 } from "./domain";
 
 /** 一覧の条件。位置と件数は hnk の PageQuery */
@@ -165,17 +166,17 @@ export function invoicesService(repo: InvoicesRepository) {
       actor: Actor,
       id: InvoiceId,
       now: Date,
-    ): Promise<Result<Invoice, "NOT_FOUND" | "FORBIDDEN" | "NOT_DRAFT">> {
+    ): Promise<Result<Invoice, "NOT_FOUND" | "FORBIDDEN" | typeof NotDraft.code>> {
       const reach = reachOf(actor);
 
       const found = await repo.findWithin(id, reach);
       if (found === null) return err("NOT_FOUND");
       if (!canSend(actor)) return err("FORBIDDEN");
-      if (!isSendable(found.invoice)) return err("NOT_DRAFT");
+      if (!isSendable(found.invoice)) return err(NotDraft.code);
 
       const sent = await repo.updateWithin(id, reach, { status: "sent", updatedAt: now }, "draft");
       // 読んだ後に、別の誰かが先に状態を変えた
-      if (sent === null) return err("NOT_DRAFT");
+      if (sent === null) return err(NotDraft.code);
 
       return ok(sent);
     },

@@ -11,11 +11,11 @@ import {
 import { z } from "zod";
 import { Forbidden, NotFound } from "../../errors";
 import { requireAuth } from "../../middleware/auth";
-import { NotDraft } from "./errors";
 import {
   invoiceIdSchema,
   invoiceInputSchema,
   invoiceStatuses,
+  NotDraft,
   shareLevels,
   type Invoice,
 } from "./domain";

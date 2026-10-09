@@ -5,6 +5,13 @@
 import { z } from "zod";
 import type { Actor, OrgId, UserId } from "../users/domain";
 
+/** 下書きではない請求書を送ろうとした。種類から HTTP の番号を決めるのは hnk */
+export const NotDraft = {
+  code: "NOT_DRAFT",
+  kind: "conflict",
+  message: "下書きの請求書だけを送付できます",
+} as const;
+
 /** 請求書の状態。下書き → 送付済み → 支払い済み */
 export const invoiceStatuses = ["draft", "sent", "paid"] as const;
 

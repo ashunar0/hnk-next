@@ -6,7 +6,15 @@ import type {
 } from "hono/utils/http-status";
 import type { JSONParsed } from "hono/utils/types";
 
-import { errorBody, fail, ValidationError, type HttpError } from "./failure";
+import {
+  errorBody,
+  fail,
+  toHttpError,
+  ValidationError,
+  type AnyFailure,
+  type HttpError,
+  type ToHttpError,
+} from "./failure";
 import type { RegisteredDeps, RegisteredEnv } from "./register";
 import {
   type AnySchema,
@@ -114,16 +122,16 @@ const errorResponseOf = (errors: readonly HttpError[]): ErrorResponse => ({
  * `responses: { 200: invoiceSchema, ...errorResponses(Unauthorized, NotFound) }`
  * 同じ番号の失敗が複数あっても、1 つの応答にまとめるので消えない
  */
-export const errorResponses = <const T extends readonly HttpError[]>(
-  ...errors: T
+export const errorResponses = <const T extends readonly AnyFailure[]>(
+  ...failures: T
 ) => {
   const byStatus = new Map<number, HttpError[]>();
-  for (const e of errors)
+  for (const e of failures.map(toHttpError))
     byStatus.set(e.status, [...(byStatus.get(e.status) ?? []), e]);
 
   return Object.fromEntries(
     [...byStatus].map(([status, group]) => [status, errorResponseOf(group)]),
-  ) as unknown as ErrorResponses<T[number]>;
+  ) as unknown as ErrorResponses<ToHttpError<T[number]>>;
 };
 
 type ErrorResponses<E extends HttpError> = {

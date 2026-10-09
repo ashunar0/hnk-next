@@ -39,3 +39,23 @@ it.each([
   expect(res.status).toBe(409);
   expect(await res.json()).toEqual({ error: { code, message } });
 });
+
+it("domain の Failure は、種類から決まった番号と、自分のコードと文言で返る", async () => {
+  const Stale = { code: "STALE", kind: "conflict", message: "古い" } as const;
+  const failing = createRouter();
+  failing.use(provideDeps(() => ({}) as never));
+  failing.endpoint(
+    {
+      method: "get",
+      path: "/",
+      middleware: [allowAnonymous] as const,
+      responses: { 200: z.object({ ok: z.literal(true) }), ...errorResponses(Stale) },
+    },
+    async (_c, reply) => reply.failure("STALE"),
+  );
+
+  const res = await failing.request("/");
+
+  expect(res.status).toBe(409);
+  expect(await res.json()).toEqual({ error: { code: "STALE", message: "古い" } });
+});
