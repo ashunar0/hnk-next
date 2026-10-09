@@ -6,10 +6,11 @@ import { and, desc, eq, getTableColumns, inArray, lt, or, sql, type SQL } from "
 import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { toPage } from "hnk/page";
 import type { ReadDb, Scope } from "../../db";
-import { orgId, userId } from "../users/domain";
+import { orgId, userId, type Actor } from "../users/domain";
 import {
   invoiceId,
   invoiceStatuses,
+  reachOf,
   shareLevels,
   unpaidStatuses,
   type Invoice,
@@ -107,11 +108,16 @@ const accessIn = (reach: InvoiceReach): SQL<InvoiceAccess> =>
     : sql<InvoiceAccess>`'manage'`;
 
 /**
- * 他の module が読むための入口。範囲の中の請求書だけが入った副問い合わせを返す。
- * 範囲が必須なので、範囲を付けずに読む書き方が存在しない
+ * 他の module に読ませる窓口。その人が触れる請求書だけが入った副問い合わせを返す。
+ * 誰として読むか（actor）が必須なので、範囲を付けずに読む書き方が存在しない。
+ * 範囲の決め方（reachOf）は invoices の中に閉じていて、読む側は知らなくていい
  */
-export const invoicesWithin = (db: ReadDb, reach: InvoiceReach) =>
-  db.select().from(invoicesTable).where(within(reach)).as("invoices_within");
+export const invoicesWithin = (db: ReadDb, actor: Actor) =>
+  db
+    .select()
+    .from(invoicesTable)
+    .where(within(reachOf(actor)))
+    .as("invoices_within");
 
 export function invoicesRepository(
   scope: Scope<typeof invoicesTable>,

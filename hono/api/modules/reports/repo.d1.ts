@@ -5,7 +5,7 @@
  */
 import { and, eq, gte, inArray, lt, sql, type AnyColumn } from "drizzle-orm";
 import type { ReadDb } from "../../db";
-import { billedStatuses, reachOf } from "../invoices/domain";
+import { billedStatuses } from "../invoices/domain";
 import { invoicesWithin } from "../invoices/repo.d1";
 import { paymentsWithin } from "../payments/repo.d1";
 import type { ReportsRepository } from "./service";
@@ -18,7 +18,7 @@ export function reportsRepository(db: ReadDb): ReportsRepository {
   return {
     async invoicedByMonth(actor, from, to) {
       // 範囲の中の請求書だけが入った副問い合わせから読む。生の表には触れない
-      const invoices = invoicesWithin(db, reachOf(actor));
+      const invoices = invoicesWithin(db, actor);
       const month = monthOf(invoices.dueAt);
 
       return db
@@ -35,7 +35,7 @@ export function reportsRepository(db: ReadDb): ReportsRepository {
     },
 
     async receivedByMonth(actor, from, to) {
-      const payments = paymentsWithin(db, reachOf(actor));
+      const payments = paymentsWithin(db, actor);
       const month = monthOf(payments.updatedAt);
 
       return db

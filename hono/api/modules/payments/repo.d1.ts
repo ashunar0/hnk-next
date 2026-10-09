@@ -4,8 +4,8 @@
 import { and, eq, getTableColumns, sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import type { ReadDb, Scope } from "../../db";
-import type { InvoiceReach } from "../invoices/domain";
 import { invoicesTable, invoicesWithin } from "../invoices/repo.d1";
+import type { Actor } from "../users/domain";
 import { paymentStatuses, type Payment } from "./domain";
 import type { PaymentsRepository } from "./service";
 
@@ -55,8 +55,8 @@ const toPayment = (row: PaymentRow): Payment => ({
  * 他の module が読むための入口。範囲の中の請求書に結ばれた支払いだけが入った副問い合わせを返す。
  * 支払いは組織を持たないので、範囲は請求書を通して決まる
  */
-export const paymentsWithin = (db: ReadDb, reach: InvoiceReach) => {
-  const invoices = invoicesWithin(db, reach);
+export const paymentsWithin = (db: ReadDb, actor: Actor) => {
+  const invoices = invoicesWithin(db, actor);
 
   return db
     .select(getTableColumns(paymentsTable))

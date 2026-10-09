@@ -123,5 +123,5 @@ export const KIND_HINTS = {
 export const NOTES = {
   webhook: "actor（システム）は `allowSystem` から受け取る",
   cron: "deps・actor・now は createWorker が渡す",
-  repo: "他 module の repo は範囲付きの読みと外部キーの references() だけ、他 module の domain は SQL の定数だけ",
+  repo: "他 module の repo からは外部キーの表（〜Table）と読ませる窓口（〜Within）だけ、他 module の domain は SQL の定数と型だけ",
 };

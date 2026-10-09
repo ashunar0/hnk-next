@@ -10,6 +10,9 @@ import { HINTS, KINDS, KIND_HINTS, LAYERS } from "../layers.mjs";
 /** foreign:domain → 他 module の domain */
 const show = (name) => name.replace(/^foreign:/, "他 module の ");
 
+/** 他の module の repo から借りてよい名前。外部キーの表と、読ませる窓口 */
+const WINDOW = /(Table|Within)$/;
+
 const isTypeOnly = (node) =>
   node.importKind === "type" ||
   (node.specifiers?.length > 0 &&
@@ -73,6 +76,17 @@ export default {
           node,
           message: `${self.role} は ${show(target)} から型だけを借りる。import type にする`,
         });
+      } else if (target === "foreign:repo") {
+        // 他の module の repo は、外部キーの表と、読ませる窓口だけを外に見せる
+        for (const spec of node.specifiers ?? []) {
+          const name =
+            spec.type === "ImportSpecifier" ? spec.imported.name : undefined;
+          if (name !== undefined && WINDOW.test(name)) continue;
+          context.report({
+            node: spec,
+            message: `${self.role} が 他 module の repo から ${name ?? "全部"} を import している。他 module の repo から借りてよいのは、外部キーの表（〜Table）と、読ませる窓口（〜Within）だけ。手順や詰め替えは相手の module の中に置いたまま、必要なら相手に〜Within を足してもらう`,
+          });
+        }
       }
     };
 

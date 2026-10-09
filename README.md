@@ -197,19 +197,19 @@ go build ./cmd/api
 
 <!-- layers:start（packages/hnk/lint/layers.mjs から生成。直接は書き換えない） -->
 
-| 側       | 役割     | import してよいもの                                                                                                                                                                                             |
-| -------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| core     | domain   | zod, hnk/system（型だけ）, 他 module の domain（型だけ）                                                                                                                                                        |
-| core     | service  | hnk/result, hnk/page（型だけ）, hnk/system（型だけ）, domain, 他 module の domain（型だけ）                                                                                                                     |
-| core     | commands | hnk/result, hnk/system（型だけ）, domain, service（型だけ）, 他 module の domain（型だけ）                                                                                                                      |
-| inbound  | routes   | hnk, zod, errors, middleware, domain                                                                                                                                                                            |
-| inbound  | webhook  | hnk, zod, errors, middleware, domain。actor（システム）は `allowSystem` から受け取る                                                                                                                            |
-| inbound  | cron     | hnk（型だけ）, domain（型だけ）。deps・actor・now は createWorker が渡す                                                                                                                                        |
-| inbound  | queue    | hnk（型だけ）, domain（型だけ）                                                                                                                                                                                 |
-| outbound | repo     | drizzle-orm, hnk/page, db（型だけ）, domain, service（型だけ）, 他 module の repo, 他 module の domain。他 module の repo は範囲付きの読みと外部キーの references() だけ、他 module の domain は SQL の定数だけ |
-| outbound | gateway  | hnk/result, domain（型だけ）, service（型だけ）                                                                                                                                                                 |
-| outbound | mailer   | hnk/result, domain（型だけ）, service（型だけ）                                                                                                                                                                 |
-| outbound | jobs     | domain（型だけ）, service（型だけ）                                                                                                                                                                             |
+| 側       | 役割     | import してよいもの                                                                                                                                                                                                              |
+| -------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| core     | domain   | zod, hnk/system（型だけ）, 他 module の domain（型だけ）                                                                                                                                                                         |
+| core     | service  | hnk/result, hnk/page（型だけ）, hnk/system（型だけ）, domain, 他 module の domain（型だけ）                                                                                                                                      |
+| core     | commands | hnk/result, hnk/system（型だけ）, domain, service（型だけ）, 他 module の domain（型だけ）                                                                                                                                       |
+| inbound  | routes   | hnk, zod, errors, middleware, domain                                                                                                                                                                                             |
+| inbound  | webhook  | hnk, zod, errors, middleware, domain。actor（システム）は `allowSystem` から受け取る                                                                                                                                             |
+| inbound  | cron     | hnk（型だけ）, domain（型だけ）。deps・actor・now は createWorker が渡す                                                                                                                                                         |
+| inbound  | queue    | hnk（型だけ）, domain（型だけ）                                                                                                                                                                                                  |
+| outbound | repo     | drizzle-orm, hnk/page, db（型だけ）, domain, service（型だけ）, 他 module の repo, 他 module の domain。他 module の repo からは外部キーの表（〜Table）と読ませる窓口（〜Within）だけ、他 module の domain は SQL の定数と型だけ |
+| outbound | gateway  | hnk/result, domain（型だけ）, service（型だけ）                                                                                                                                                                                  |
+| outbound | mailer   | hnk/result, domain（型だけ）, service（型だけ）                                                                                                                                                                                  |
+| outbound | jobs     | domain（型だけ）, service（型だけ）                                                                                                                                                                                              |
 
 <!-- layers:end -->
 
@@ -230,7 +230,10 @@ go build ./cmd/api
 - **共有は同じ組織の中で、閲覧と編集の 2 段階**。member の範囲は「自分のもの＋共有されたもの」。
   repo が範囲を解釈し、行と一緒に access（`manage` / `edit` / `view`）を返す。`canEdit` と `canManage` は access を受け取る純関数。
   共有できるのは所有者と組織の admin。見えない人には在ることも分からない（NOT_FOUND）、見えるが権限が足りないときは FORBIDDEN
-- **他の module に見せる読みは、範囲付きの入口（`invoicesWithin(db, reach)` など）だけ**。範囲が必須引数なので、付け忘れが書けない。
+- **module をまたぐ窓口は 2 つだけ**。書かせるのは書かれる側の `commands/`（core）、SQL で読ませるのは持ち主の repo が出す `〜Within`（outbound）。
+  core どうしは import せず、使う側が形を宣言して `deps.ts` でつなぐ。outbound は他 module の repo から、外部キーの表（`〜Table`）と `〜Within` だけを借りる（lint `layer-imports`）
+- **他の module に見せる読みは、誰として読むかが必須の入口（`invoicesWithin(db, actor)` など）だけ**。actor が必須引数なので、範囲の付け忘れが書けない。
+  範囲の決め方（`reachOf`）は持ち主の中に閉じていて、読む側は知らない。
   生の表は読みに使わせない（lint `no-foreign-table-reads`。外部キーの `references()` の中だけ許す）。
   `〜Within` は repo の export から自動で拾い、`test/reads-contract.test.ts` が「他の組織のデータが出ない」を全部に当てる。
   読みを足したら、その表の行を seed に足さないとテストが落ちる
@@ -245,7 +248,7 @@ invoices と同じ形で書く。迷いやすい所は、次のとおりに揃�
 | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 置き場所                               | `modules/<名前>/` に `domain / service / routes / repo.d1` の 4 つで始める。増やすのは 2 つ目が現れたとき                                                                                                                                                                                                                                            |
 | 他の module を使う                     | import しない。使う側の service が必要な形を宣言し（戻りは使う分だけ。例: `{ id: string }`）、`deps.ts` でつなぐ。`deps.ts` は依存する相手を先に書く                                                                                                                                                                                                 |
-| 他の module の表                       | 外部キーの `references()` の中でだけ使う。読むときは、持ち主が出している `〜Within(db, reach)` を使う                                                                                                                                                                                                                                                |
+| 他の module の表                       | 外部キーの `references()` の中でだけ使う。読むときは、持ち主が出している `〜Within(db, actor)` を使う                                                                                                                                                                                                                                                |
 | 親の下にぶら下がるもの（コメントなど） | 親が見えるかを、親の service に問い合わせる（`get(actor, id)` の形を宣言）。子に orgId は持たせない。親が見えれば読める・書ける。もっと厳しい権限が要るなら、親が access を返す問いを宣言する                                                                                                                                                        |
 | 子の router                            | 親の prefix に mount する（`.route("/invoices", commentsRouter)`）。同じ prefix に router が 2 つ載ってよい。path は `/{id}/<子>`                                                                                                                                                                                                                    |
 | 失敗の使い分け                         | 見えないものは `NOT_FOUND`（在ることも知らせない）、見えるが権限が足りないものは `FORBIDDEN`。確認の順は NOT_FOUND → FORBIDDEN                                                                                                                                                                                                                       |
