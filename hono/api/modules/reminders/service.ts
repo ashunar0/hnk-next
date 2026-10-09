@@ -33,7 +33,7 @@ export type Mailer = {
   }): Promise<Result<void, "MAIL_FAILED">>;
 };
 
-/** 手順が必要とする積み先の形。jobs.queues.ts が満たす */
+/** 手順が必要とする積み先の形。jobs.cloudflare.ts が満たす */
 export type ReminderJobs = {
   enqueue(jobs: ReminderJob[]): Promise<void>;
 };

@@ -27,6 +27,14 @@ import type { Result } from "./result";
 import { systemViewer } from "./system-value";
 import type { System } from "./system";
 
+/**
+ * `as never` / `as unknown as` を使うのは、次の 4 か所だけ。
+ * - provideDeps の `c.set` と、createEndpoint の `c.get`: 内部のキー（DEPS_KEY）は、アプリの Env の変数に載せない
+ * - createEndpoint の handler の中の `reply` と `fn(c, ...)`: route の型 R が決まらないここでは、
+ *   TS が Hono / zod-openapi のジェネリクスを照らし合わせきれない
+ * ここで型を信じてもらう代わりに、使う側は createEndpoint の fn の型（c、reply、deps）で守られる。
+ * hnk で型を信じてもらう場所は、ここだけにする
+ */
 export { err, ok, type Result } from "./result";
 export type { System } from "./system";
 export type { Cursor, Page, PageQuery } from "./page";
