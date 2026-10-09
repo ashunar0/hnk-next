@@ -3,14 +3,17 @@ import { admin, alice, bob, carol, request } from "../../../test/fixtures";
 
 const input = { title: "題名", body: "本文" };
 
-const json = async (res: Response) => (await res.json()) as Record<string, any>;
+/** 応答の本文。このファイルで読む欄だけ */
+type Body = { id: string; title: string; items: { id: string }[]; error: { code: string } };
+
+const json = async (res: Response) => (await res.json()) as Body;
 
 /** alice が note を 1 件作り、その id を返す */
 const create = async () => {
   const res = await request(alice, "POST", "/__kebab__", input);
   expect(res.status).toBe(200);
 
-  return (await json(res)).id as string;
+  return (await json(res)).id;
 };
 
 it("作って、読めて、一覧に出る。入力が正しくなければ 400", async () => {
@@ -21,7 +24,7 @@ it("作って、読めて、一覧に出る。入力が正しくなければ 400
   expect((await json(got)).title).toBe("題名");
 
   const list = await json(await request(alice, "GET", "/__kebab__?limit=100"));
-  expect(list.items.map((item: { id: string }) => item.id)).toContain(id);
+  expect(list.items.map((item) => item.id)).toContain(id);
 
   const bad = await request(alice, "POST", "/__kebab__", { ...input, title: "" });
   expect(bad.status).toBe(400);

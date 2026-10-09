@@ -1,2 +1,5 @@
 # drizzle-kit が生成する。整形すると次の生成との差分が増える
 migrations/meta/
+
+# 生成物。整形しない
+pnpm-lock.yaml
