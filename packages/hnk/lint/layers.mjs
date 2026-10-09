@@ -28,7 +28,7 @@ export const KINDS = {
  * 相手の書き方:
  *   パッケージ名（hnk, hnk/result, zod, drizzle-orm）
  *   自分の module の役割（domain, service, ...）。他の module のものは "foreign:<role>"
- *   アプリの決めごと（errors, middleware, db, deps）
+ *   アプリの決めごと（errors, middleware, db, dbErrors, deps）
  */
 export const LAYERS = {
   // core
@@ -83,6 +83,8 @@ export const LAYERS = {
     "drizzle-orm": "value",
     "hnk/page": "value",
     db: "type",
+    // 一意制約の違反を見分ける（D1 の文面を知る場所は 1 つにする）
+    dbErrors: "value",
     domain: "value",
     service: "type",
     "foreign:repo": "value",

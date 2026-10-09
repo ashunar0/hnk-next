@@ -51,7 +51,8 @@ export const packageOf = (specifier) => {
  * アプリの中のファイルを、役割で見る。
  * modules/<m>/<role>.ts → { module, role }。何に繋ぐかの技術名は落とす（repo.d1 → repo、webhook.stripe → webhook）。
  * modules/<m>/commands/<name>.ts → { module, role: "commands" }。
- * api 直下の決めごと（errors, middleware, db, env, deps）→ { role }
+ * api 直下の決めごと（errors, middleware, db, env, deps）→ { role }。
+ * db/errors は db とは別の役割（dbErrors）。repo が値で使えるのは、これだけ
  */
 export const placeOf = (resolved, root) => {
   const rel = path
@@ -72,6 +73,7 @@ export const placeOf = (resolved, root) => {
     if (!rest.includes("/")) return { module, role: rest.split(".")[0] };
     return { module, role: rest };
   }
+  if (rel === "api/db/errors") return { role: "dbErrors" };
   if ((m = rel.match(/^api\/(errors|env|deps|db)$/))) return { role: m[1] };
   if (rel.startsWith("api/middleware/")) return { role: "middleware" };
   return { role: rel };

@@ -194,20 +194,20 @@ go build ./cmd/api
 
 <!-- layers:start（packages/hnk/lint/layers.mjs から生成。直接は書き換えない） -->
 
-| 側       | 役割     | import してよいもの                                                                                                                                                                                                              |
-| -------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| core     | domain   | zod, hnk/system（型だけ）, hnk/failures（型だけ）, 他 module の domain（型だけ）                                                                                                                                                 |
-| core     | service  | hnk/result, hnk/failures, hnk/page（型だけ）, hnk/system（型だけ）, domain, 他 module の domain（型だけ）                                                                                                                        |
-| core     | commands | hnk/result, hnk/failures, hnk/system（型だけ）, domain, service（型だけ）, 他 module の domain（型だけ）                                                                                                                         |
-| inbound  | routes   | hnk, zod, errors, middleware, domain                                                                                                                                                                                             |
-| inbound  | webhook  | hnk, zod, errors, middleware, domain。actor（システム）は `allowSystem` から受け取る                                                                                                                                             |
-| inbound  | errors   | hnk。入口だけの失敗（webhook の署名など）。モノの失敗は domain.ts に Failure として置く。どの module でも同じ意味のもの（401・403・404）は hnk の標準（NotFound など）を使う                                                     |
-| inbound  | cron     | hnk（型だけ）, domain（型だけ）。deps・actor・now は createWorker が渡す                                                                                                                                                         |
-| inbound  | queue    | hnk（型だけ）, domain（型だけ）                                                                                                                                                                                                  |
-| outbound | repo     | drizzle-orm, hnk/page, db（型だけ）, domain, service（型だけ）, 他 module の repo, 他 module の domain。他 module の repo からは外部キーの表（〜Table）と読ませる窓口（〜Within）だけ、他 module の domain は SQL の定数と型だけ |
-| outbound | gateway  | hnk/result, domain（型だけ）, service（型だけ）                                                                                                                                                                                  |
-| outbound | mailer   | hnk/result, domain（型だけ）, service（型だけ）                                                                                                                                                                                  |
-| outbound | jobs     | domain（型だけ）, service（型だけ）                                                                                                                                                                                              |
+| 側       | 役割     | import してよいもの                                                                                                                                                                                                                        |
+| -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| core     | domain   | zod, hnk/system（型だけ）, hnk/failures（型だけ）, 他 module の domain（型だけ）                                                                                                                                                           |
+| core     | service  | hnk/result, hnk/failures, hnk/page（型だけ）, hnk/system（型だけ）, domain, 他 module の domain（型だけ）                                                                                                                                  |
+| core     | commands | hnk/result, hnk/failures, hnk/system（型だけ）, domain, service（型だけ）, 他 module の domain（型だけ）                                                                                                                                   |
+| inbound  | routes   | hnk, zod, errors, middleware, domain                                                                                                                                                                                                       |
+| inbound  | webhook  | hnk, zod, errors, middleware, domain。actor（システム）は `allowSystem` から受け取る                                                                                                                                                       |
+| inbound  | errors   | hnk。入口だけの失敗（webhook の署名など）。モノの失敗は domain.ts に Failure として置く。どの module でも同じ意味のもの（401・403・404）は hnk の標準（NotFound など）を使う                                                               |
+| inbound  | cron     | hnk（型だけ）, domain（型だけ）。deps・actor・now は createWorker が渡す                                                                                                                                                                   |
+| inbound  | queue    | hnk（型だけ）, domain（型だけ）                                                                                                                                                                                                            |
+| outbound | repo     | drizzle-orm, hnk/page, db（型だけ）, dbErrors, domain, service（型だけ）, 他 module の repo, 他 module の domain。他 module の repo からは外部キーの表（〜Table）と読ませる窓口（〜Within）だけ、他 module の domain は SQL の定数と型だけ |
+| outbound | gateway  | hnk/result, domain（型だけ）, service（型だけ）                                                                                                                                                                                            |
+| outbound | mailer   | hnk/result, domain（型だけ）, service（型だけ）                                                                                                                                                                                            |
+| outbound | jobs     | domain（型だけ）, service（型だけ）                                                                                                                                                                                                        |
 
 <!-- layers:end -->
 
