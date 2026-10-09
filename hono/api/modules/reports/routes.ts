@@ -40,6 +40,7 @@ export const reportsRouter = createRouter()
   .endpoint(
     {
       method: "get",
+      // oxlint-disable-next-line hnk/route-lists-are-paged -- 件数は期間の月数で決まり、MAX_MONTHS（24）で上限を検査している
       path: "/monthly",
       middleware: [requireAuth],
       request: { query: monthlyQuerySchema },

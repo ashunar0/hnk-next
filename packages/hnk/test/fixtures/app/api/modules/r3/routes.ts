@@ -2,7 +2,7 @@
 import { createRouter } from "hnk";
 
 export const r3Router = createRouter().endpoint(
-  { method: "get", path: "/", responses: {} },
+  { method: "post", path: "/", responses: {} },
   async () => {
     throw new Error("fixture");
   },

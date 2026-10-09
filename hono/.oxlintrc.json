@@ -12,6 +12,7 @@
         "hnk/layer-imports": "error",
         "hnk/no-foreign-table-reads": "error",
         "hnk/no-clock-outside-inbound": "error",
+        "hnk/route-lists-are-paged": "error",
         "hnk/route-replies-through-reply": "error",
         "hnk/route-declares-auth": "error",
         "hnk/no-module-scope-state": "error",

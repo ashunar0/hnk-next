@@ -3,7 +3,7 @@ import { requireAuth } from "../../middleware/auth";
 
 export const okRouter = createRouter().endpoint(
   {
-    method: "get",
+    method: "post",
     path: "/",
     middleware: [requireAuth] as const,
     responses: {},
