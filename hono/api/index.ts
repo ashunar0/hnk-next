@@ -17,6 +17,15 @@ import { sendReminder } from "./modules/reminders/queue";
  * 本番は makeDeps と withUser を、テストは偽物を渡す。
  * authenticate はセッションの user（ログインしていなければ null）を文脈に積む middleware。認証の提供元を差し込む場所
  */
+/** zod の日付は JSON Schema で表せないので、文書には日時の文字列として出す */
+const dateAsString = (ctx: {
+  zodSchema: { _zod: { def: { type: string } } };
+  jsonSchema: Record<string, unknown>;
+}) => {
+  if (ctx.zodSchema._zod.def.type === "date")
+    Object.assign(ctx.jsonSchema, { type: "string", format: "date-time" });
+};
+
 export const buildApp = (
   makeDeps: (env: AppEnv["Bindings"]) => Deps,
   authenticate: MiddlewareHandler<AppEnv> = withUser,
@@ -34,7 +43,13 @@ export const buildApp = (
 
   // 登録された route の宣言から作る。リクエストのたびに読むので、登録の順番に関係しない
   app.get("/openapi.json", (c) =>
-    c.json(openapiDocument(app, { title: "invoices", version: "0.0.0" })),
+    c.json(
+      openapiDocument(
+        app,
+        { title: "invoices", version: "0.0.0" },
+        { libraryOptions: { override: dateAsString } },
+      ),
+    ),
   );
 
   return app;
