@@ -16,7 +16,7 @@ app.openapi(
   ...createEndpoint(
     {
       method: "get",
-      path: "/{which}",
+      path: "/:which",
       middleware: [allowAnonymous] as const,
       request: { params: z.object({ which: z.enum(["first", "second"]) }) },
       responses: {

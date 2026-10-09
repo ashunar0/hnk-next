@@ -110,7 +110,7 @@ export const invoicesRouter = createRouter()
     ...createEndpoint(
       {
         method: "get",
-        path: "/{id}",
+        path: "/:id",
         middleware: [requireAuth],
         request: { params: invoiceParamsSchema },
         responses: {
@@ -157,7 +157,7 @@ export const invoicesRouter = createRouter()
     ...createEndpoint(
       {
         method: "put",
-        path: "/{id}",
+        path: "/:id",
         middleware: [requireAuth],
         request: { params: invoiceParamsSchema, body: jsonBody(invoiceInputSchema) },
         responses: {
@@ -183,7 +183,7 @@ export const invoicesRouter = createRouter()
     ...createEndpoint(
       {
         method: "post",
-        path: "/{id}/send",
+        path: "/:id/send",
         middleware: [requireAuth],
         request: { params: invoiceParamsSchema },
         responses: {
@@ -208,7 +208,7 @@ export const invoicesRouter = createRouter()
     ...createEndpoint(
       {
         method: "delete",
-        path: "/{id}",
+        path: "/:id",
         middleware: [requireAuth],
         request: { params: invoiceParamsSchema },
         responses: {
@@ -232,7 +232,7 @@ export const invoicesRouter = createRouter()
     ...createEndpoint(
       {
         method: "put",
-        path: "/{id}/shares",
+        path: "/:id/shares",
         middleware: [requireAuth],
         request: { params: invoiceParamsSchema, body: jsonBody(shareInputSchema) },
         responses: {
@@ -257,7 +257,7 @@ export const invoicesRouter = createRouter()
     ...createEndpoint(
       {
         method: "delete",
-        path: "/{id}/shares/{userId}",
+        path: "/:id/shares/:userId",
         middleware: [requireAuth],
         request: { params: shareParamsSchema },
         responses: {

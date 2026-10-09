@@ -1,5 +1,6 @@
 import type { MiddlewareHandler } from "hono";
 import { createRouter, createWorker, onError, provideDeps } from "hnk";
+import { openapiDocument } from "hnk/openapi";
 import { makeDeps, type Deps } from "./deps";
 import type { AppEnv } from "./env";
 import { invoicesRouter } from "./modules/invoices/routes";
@@ -22,13 +23,7 @@ export const buildApp = (
 ) => {
   const root = createRouter();
 
-  // .use などのチェーンは OpenAPIHono ではなく Hono を返すので、doc は先に呼ぶ
-  root.doc("/openapi.json", {
-    openapi: "3.1.0",
-    info: { title: "invoices", version: "0.0.0" },
-  });
-
-  return root
+  const app = root
     .use("*", provideDeps(makeDeps))
     .use("*", authenticate)
     .route("/invoices", invoicesRouter)
@@ -36,6 +31,13 @@ export const buildApp = (
     .route("/reports", reportsRouter)
     .route("/webhooks/stripe", stripeWebhookRouter)
     .onError(onError);
+
+  // 登録された route の宣言から作る。リクエストのたびに読むので、登録の順番に関係しない
+  app.get("/openapi.json", (c) =>
+    c.json(openapiDocument(app, { title: "invoices", version: "0.0.0" })),
+  );
+
+  return app;
 };
 
 export type ApiApp = ReturnType<typeof buildApp>;
