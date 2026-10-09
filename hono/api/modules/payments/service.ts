@@ -51,12 +51,14 @@ export type PaymentGateway = {
  * payments は invoices を import しない
  */
 export type PayableInvoices = {
-  getPayable(
+  // メソッドの書き方ではなく関数の型で宣言する。引数の型が厳しい関数（InvoiceId を要求する側）を
+  // そのまま渡すと型エラーになり、deps.ts で印を付けて渡すことになる
+  getPayable: (
     id: string,
     viewer: Viewer,
-  ): Promise<Result<{ id: string; title: string; amount: number }, "NOT_FOUND" | "NOT_PAYABLE">>;
+  ) => Promise<Result<{ id: string; title: string; amount: number }, "NOT_FOUND" | "NOT_PAYABLE">>;
   /** 支払い済みにする。invoices の commands が満たす。何度呼んでも同じ結果になる */
-  markPaid(system: System, id: string): Promise<Result<unknown, "NOT_FOUND" | "NOT_PAYABLE">>;
+  markPaid: (system: System, id: string) => Promise<Result<unknown, "NOT_FOUND" | "NOT_PAYABLE">>;
 };
 
 export function paymentsService(

@@ -1,5 +1,6 @@
 import { scopeTo, wireDb } from "./db";
 import type { AppEnv } from "./env";
+import { invoiceId } from "./modules/invoices/domain";
 import { invoicesService } from "./modules/invoices/service";
 import { markPaid } from "./modules/invoices/commands/markPaid";
 import { invoicesRepository, invoiceSharesTable, invoicesTable } from "./modules/invoices/repo.d1";
@@ -35,6 +36,7 @@ export const makeDeps = (env: AppEnv["Bindings"]) => {
     scopeTo(db, invoiceSharesTable),
   );
   const invoices = invoicesService(invoicesRepo);
+  const markInvoicePaid = markPaid(invoicesRepo);
 
   const payments = paymentsService(
     paymentsRepository(scopeTo(db, paymentsTable)),
@@ -44,16 +46,23 @@ export const makeDeps = (env: AppEnv["Bindings"]) => {
       successUrl: `${env.APP_URL}/payments/done`,
       cancelUrl: `${env.APP_URL}/payments/canceled`,
     }),
-    // payments が宣言した PayableInvoices を、読みは invoices の service、書きは commands が満たす
-    { getPayable: invoices.getPayable, markPaid: markPaid(invoicesRepo) },
+    // payments が宣言した PayableInvoices を、読みは invoices の service、書きは commands が満たす。
+    // payments は請求書の ID を素の string として持つので、ここで請求書の ID の印を付けて渡す
+    {
+      getPayable: (id, viewer) => invoices.getPayable(invoiceId(id), viewer),
+      markPaid: (system, id) => markInvoicePaid(system, invoiceId(id)),
+    },
   );
 
   const reminders = remindersService(
     remindersRepository(scopeTo(db, remindersTable)),
     resendMailer({ apiKey: env.RESEND_API_KEY, from: env.MAIL_FROM }),
     queuesReminderJobs(env.REMINDER_QUEUE),
-    // reminders が宣言した OverdueInvoices を、invoices の service が満たす
-    invoices,
+    // reminders が宣言した OverdueInvoices を、invoices の service が満たす。ID の印はここで付ける
+    {
+      listOverdue: invoices.listOverdue,
+      getRemindable: (id, viewer, now) => invoices.getRemindable(invoiceId(id), viewer, now),
+    },
   );
 
   // 自分のテーブルを持たず、読むだけ。書き込みの範囲（scope）ではなく、db をそのまま読みとして渡す

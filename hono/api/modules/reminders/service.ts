@@ -40,13 +40,13 @@ export type ReminderJobs = {
 
 /** 手順が必要とする請求書の形。invoices の service が満たし、deps.ts でつなぐ */
 export type OverdueInvoices = {
-  listOverdue(viewer: Viewer, now: Date): Promise<{ id: string }[]>;
+  listOverdue: (viewer: Viewer, now: Date) => Promise<{ id: string }[]>;
   /** 督促してよいかを invoices に問う。判定は invoices のルールに任せる */
-  getRemindable(
+  getRemindable: (
     id: string,
     viewer: Viewer,
     now: Date,
-  ): Promise<
+  ) => Promise<
     Result<
       { title: string; amount: number; customerEmail: string; dueAt: Date },
       "NOT_FOUND" | "NOT_REMINDABLE"
