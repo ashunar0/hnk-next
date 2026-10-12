@@ -73,7 +73,7 @@ export const makeDeps = (env: AppEnv["Bindings"]) => {
 
 export type Deps = ReturnType<typeof makeDeps>;
 
-declare module "hnk" {
+declare module "hono-kit" {
   interface Register {
     deps: Deps;
   }

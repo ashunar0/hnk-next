@@ -1,7 +1,7 @@
 /**
  * reports を HTTP で公開する
  */
-import { createRouter, errorResponses, Forbidden } from "hnk";
+import { createRouter, errorResponses, Forbidden } from "hono-kit";
 import { z } from "zod";
 import { requireAuth } from "../../middleware/auth";
 import { monthsBetween, type Month } from "./domain";

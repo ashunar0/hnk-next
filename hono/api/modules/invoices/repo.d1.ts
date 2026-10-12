@@ -4,7 +4,7 @@
  */
 import { and, desc, eq, getTableColumns, inArray, lt, or, sql, type SQL } from "drizzle-orm";
 import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { toPage } from "hnk/page";
+import { toPage } from "hono-kit/page";
 import type { ReadDb, Scope } from "../../db";
 import { orgId, userId, type Actor } from "../users/domain";
 import {

@@ -3,7 +3,7 @@
  * 毎朝、期限切れの請求書の督促をキューに積む。
  * 誰として呼ぶか（actor）と、いつの出来事か（now）は、Workers の入口（createWorker）が渡す
  */
-import type { CronContext } from "hnk";
+import type { CronContext } from "hono-kit";
 
 export async function enqueueOverdueReminders({ deps, actor, now }: CronContext) {
   const count = await deps.reminders.enqueueOverdue(actor, now);

@@ -1,6 +1,6 @@
 /**
  * hnk の形を守らせる oxlint のプラグイン。アプリの .oxlintrc.json で
- * `"jsPlugins": ["hnk/lint"]` として読み込む
+ * `"jsPlugins": ["hono-kit/lint"]` として読み込む
  */
 import layerImports from "./rules/layer-imports.mjs";
 import noClockOutsideInbound from "./rules/no-clock-outside-inbound.mjs";

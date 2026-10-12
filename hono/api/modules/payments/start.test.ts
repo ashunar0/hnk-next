@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { expect, it } from "vitest";
-import { err, ok } from "hnk/result";
+import { err, ok } from "hono-kit/result";
 import { scopeTo } from "../../db";
 import { paymentsRepository, paymentsTable } from "./repo.d1";
 import { paymentsService, type PayableInvoices, type PaymentGateway } from "./service";

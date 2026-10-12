@@ -6,7 +6,7 @@ import { invoicesService } from "../api/modules/invoices/service";
 import { paymentsTable } from "../api/modules/payments/repo.d1";
 import { reportsRepository } from "../api/modules/reports/repo.d1";
 import { reportsService } from "../api/modules/reports/service";
-import { systemActor } from "hnk/testing";
+import { systemActor } from "hono-kit/testing";
 import { admin, admin2, alice, carol, db, insertInvoices, invoice, invoicesRepo } from "./fixtures";
 
 const service = () => invoicesService(invoicesRepo());

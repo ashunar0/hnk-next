@@ -26,7 +26,7 @@ export const KINDS = {
  * inbound は誰として呼ぶかを決め、deps から core を受け取って呼ぶ。
  *
  * 相手の書き方:
- *   パッケージ名（hnk, hnk/result, zod, drizzle-orm）
+ *   パッケージ名（hono-kit, hono-kit/result, zod, drizzle-orm）
  *   自分の module の役割（domain, service, ...）。他の module のものは "foreign:<role>"
  *   アプリの決めごと（errors, middleware, db, dbErrors, deps）
  */
@@ -34,23 +34,23 @@ export const LAYERS = {
   // core
   domain: {
     zod: "value",
-    "hnk/system": "type",
-    "hnk/failures": "type",
+    "hono-kit/system": "type",
+    "hono-kit/failures": "type",
     "foreign:domain": "type",
   },
   service: {
-    "hnk/result": "value",
-    "hnk/failures": "value",
-    "hnk/page": "type",
-    "hnk/system": "type",
+    "hono-kit/result": "value",
+    "hono-kit/failures": "value",
+    "hono-kit/page": "type",
+    "hono-kit/system": "type",
     domain: "value",
     "foreign:domain": "type",
   },
   // 他の module に変えさせてよい操作。使う outbound の形は service の宣言を借りる
   commands: {
-    "hnk/result": "value",
-    "hnk/failures": "value",
-    "hnk/system": "type",
+    "hono-kit/result": "value",
+    "hono-kit/failures": "value",
+    "hono-kit/system": "type",
     domain: "value",
     service: "type",
     "foreign:domain": "type",
@@ -58,7 +58,7 @@ export const LAYERS = {
 
   // inbound（HTTP）
   routes: {
-    hnk: "value",
+    "hono-kit": "value",
     zod: "value",
     errors: "value",
     middleware: "value",
@@ -66,22 +66,22 @@ export const LAYERS = {
   },
   // 利用者のいない HTTP。誰として呼ぶか（システム）は allowSystem から c.get("actor") で受け取る
   webhook: {
-    hnk: "value",
+    "hono-kit": "value",
     zod: "value",
     errors: "value",
     middleware: "value",
     domain: "value",
   },
   // その module だけの失敗を、HTTP でどう返すか。routes と webhook が使う
-  errors: { hnk: "value" },
+  errors: { "hono-kit": "value" },
   // inbound（HTTP 以外）。deps と actor と now は createWorker が渡すので、型を借りるだけ
-  cron: { hnk: "type", domain: "type" },
-  queue: { hnk: "type", domain: "type" },
+  cron: { "hono-kit": "type", domain: "type" },
+  queue: { "hono-kit": "type", domain: "type" },
 
   // outbound
   repo: {
     "drizzle-orm": "value",
-    "hnk/page": "value",
+    "hono-kit/page": "value",
     db: "type",
     // 一意制約の違反を見分ける（D1 の文面を知る場所は 1 つにする）
     dbErrors: "value",
@@ -91,20 +91,20 @@ export const LAYERS = {
     // 集計の SQL で、他 module の状態の集合（billedStatuses など）を使う
     "foreign:domain": "value",
   },
-  gateway: { "hnk/result": "value", domain: "type", service: "type" },
-  mailer: { "hnk/result": "value", domain: "type", service: "type" },
+  gateway: { "hono-kit/result": "value", domain: "type", service: "type" },
+  mailer: { "hono-kit/result": "value", domain: "type", service: "type" },
   jobs: { domain: "type", service: "type" },
 };
 
 /** よくある間違いには、どうすればいいかを添える */
 export const HINTS = {
   "domain→service": "domain はモノとルールだけ。手順は service に置く",
-  "domain→hnk/result":
+  "domain→hono-kit/result":
     "domain は失敗を返す手順を持たない。手順は service に置く",
   "service→routes":
     "service は HTTP を知らない。失敗は Result のコードで返し、番号は routes が決める",
-  "service→hnk":
-    "service が hnk から使ってよいのは Result だけ。hnk/result から import する",
+  "service→hono-kit":
+    "service が hono-kit から使ってよいのは Result だけ。hono-kit/result から import する",
   "service→foreign:service":
     "他の module は import しない。使う形を service に宣言し、deps.ts でつなぐ。書くなら相手の commands/ を渡してもらう",
   "routes→foreign:domain":

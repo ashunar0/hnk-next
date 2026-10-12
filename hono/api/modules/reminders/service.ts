@@ -1,8 +1,8 @@
 /**
  * 督促の手順（How）。期限切れを探して積む手順と、1 件ずつ送る手順の 2 つ
  */
-import { err, ok, type Result } from "hnk/result";
-import { NotFound } from "hnk/failures";
+import { err, ok, type Result } from "hono-kit/result";
+import { NotFound } from "hono-kit/failures";
 import type { Actor } from "../users/domain";
 import {
   dayOf,

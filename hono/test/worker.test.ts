@@ -1,5 +1,5 @@
-import { err, ok, createWorker } from "hnk";
-import { systemActor } from "hnk/testing";
+import { err, ok, createWorker } from "hono-kit";
+import { systemActor } from "hono-kit/testing";
 import { expect, it, vi } from "vitest";
 import { makeDeps } from "../api/deps";
 

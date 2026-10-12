@@ -155,7 +155,7 @@ go build ./cmd/api
 
 ## 決めたこと
 
-- **hnk はパッケージとして提供する**。仕組みは `hnk`、アプリの決めごと（失敗の一覧、env、組み立て、middleware）と module はアプリに置く。
+- **hnk はパッケージとして提供する**。仕組みは `hono-kit`、アプリの決めごと（失敗の一覧、env、組み立て、middleware）と module はアプリに置く。
   結びつけのためだけのファイルは作らない（`new Hono()` と同じく、使う場所で 1 行）
 - **呼び出し側が別の道に進める失敗は Result、進めない失敗は throw**。再試行・案内・代替ができるもの
   （見つからない、権限が無い、決済サービスやメールが答えない）は Result で返す。DB が落ちたなど、どうしようもないものは throw。
@@ -169,7 +169,7 @@ go build ./cmd/api
   module の依存が一方向であることは、今は決まりとレビューで守っていて、輪を機械では止めていない（輪が起きる兆しが出たら、deps.ts の依存を調べるテストを足す）。
   getter で遅延する案は、宣言順の保証を失うので外した（組み立ては関数を返すだけで軽い）。deps.ts は何を import してもよい場所で、lint の表には入れていない
 - **route は `router.endpoint(設定, handler)` 1 つで書く**（素の Hono の上）。設定の `request` のキーは、handler で読む `c.req.valid("…")` の名前と同じ（`param` を宣言したら `valid("param")`）。`method` は小文字、`path` は Hono の `/:id`、応答はスキーマをそのまま書く（書き方は 1 つ。失敗の応答だけは `errorResponses` が失敗の文言を説明として付ける）。guard が持つ失敗と ValidationError を hnk が足す。`c.json` だとずれたときの赤線が handler の頭に付くので、`reply` で返す。`createRoute` は公開しない（書き方を 1 つにするため）。`path` の `:name` と `request.param` のキーが食い違うと型エラーになる
-- **スキーマは Standard Schema を満たすものなら何でも**（zod、valibot で確かめた）。hnk は検証のライブラリを決め打ちせず、**hnk 自身の依存は hono だけ**。hnk が持つスキーマ（失敗の本文、ページ送り）は Standard Schema を手で満たして書いている。依存と `as never` の場所は `packages/hnk/test/source.test.mjs` が確かめる。**OpenAPI は別の部品**（`hnk/openapi` の `openapiDocument(app, info)`）で、登録された宣言から文書を作る。JSON Schema への変換はスキーマのライブラリ自身が持つ（Standard JSON Schema）。valibot は単体では出せないので、文書に出したいものだけ `toStandardJsonSchema` で包む。要らないなら使わない
+- **スキーマは Standard Schema を満たすものなら何でも**（zod、valibot で確かめた）。hnk は検証のライブラリを決め打ちせず、**hnk 自身の依存は hono だけ**。hnk が持つスキーマ（失敗の本文、ページ送り）は Standard Schema を手で満たして書いている。依存と `as never` の場所は `packages/hnk/test/source.test.mjs` が確かめる。**OpenAPI は別の部品**（`hono-kit/openapi` の `openapiDocument(app, info)`）で、登録された宣言から文書を作る。JSON Schema への変換はスキーマのライブラリ自身が持つ（Standard JSON Schema）。valibot は単体では出せないので、文書に出したいものだけ `toStandardJsonSchema` で包む。要らないなら使わない
 - **失敗は値で、番号と文言を持つ**（`httpError("NOT_FOUND", 404, "…")`）。モノの失敗は domain に `Failure`（`{ code, kind, message }`、HTTP を知らない）として置き、種類（`conflict` など）から番号を決める表は hnk が 1 か所で持つ（Go の errors.go、gRPC のステータスコードと同じ考え方）。`errorResponses` は `Failure` も `httpError` も受け取る。guard が持つ失敗と ValidationError は自動で宣言する。
   `reply.failure` が受け取れるのは、route に手で書いたドメインの失敗だけ。同じ番号の失敗が複数あっても 1 つの応答にまとめ、コードごとの文言で返す
 - **誰として操作するかは `Actor`（利用者かシステム）で、引数の先頭に置く**（Go の `ctx` と同じ位置）。
@@ -184,36 +184,36 @@ go build ./cmd/api
 - **domain は外を知らない**。import できるのは zod だけ。ルールは zod で書き、フロントとも共有する。手順（How）は service に分ける
 - **ID には印を付ける**（`InvoiceId` / `UserId` / `OrgId`。`string & { [brand]: true }`）。印を付けてよいのは、その module の domain が出す作る関数（`invoiceId(value)`）だけで、他の場所の `as XxxId` は lint `no-id-cast` が止める。素の `string` や別の ID は渡せない。module をまたぐ所は、使う側（payments・reminders）が請求書の ID を素の `string` で宣言し、`deps.ts` で `invoiceId(id)` を付けて渡す（宣言を関数の型で書くので、印を要求する関数をそのまま渡すと型エラー）。共有の相手の利用者 ID（URL やボディから来る）は、routes が他 module の作る関数を使えないので素の `string` のまま（未対応）
 - **入力は検査済みの印（zod の brand）付きでしか service に渡せない**。どの入口から呼んでも、検査を飛ばすと型エラーになる
-- **service は hono を知らない**。hnk から使うのは `hnk/result` だけ
+- **service は hono を知らない**。hnk から使うのは `hono-kit/result` だけ
 - **依存は `buildApp(makeDeps)`**。Workers はリクエストをまたいだ I/O を拒むので、組み立てた結果ではなく組み立て方を渡す。
   `provideDeps` がリクエストごとに、使うときに 1 回だけ組み立てる
 - **outbound の形は service が宣言する**（Go の「interface は使う側が決める」）
-- **lint は `hnk/lint` で提供する**。module の中のファイルは、名前の頭（役割）で core / inbound / outbound に分ける。
+- **lint は `hono-kit/lint` で提供する**。module の中のファイルは、名前の頭（役割）で core / inbound / outbound に分ける。
   役割の分からないファイルは置けない。依存の向きは役割ごとの許可表（`layer-imports`）で守らせ、表に無い import は全部だめ。
   相対 import も tsconfig の paths 経由も同じに見る。HTTP の inbound（routes と webhook）には、 `.endpoint` に認証の指定、`c.json` 禁止、を求める。どこでも、モジュールの一番上に変わる状態を置かない。
   他 module の表を直接読まない（`no-foreign-table-reads`）、ID の印を `as` で付けない（`no-id-cast`）、core と outbound で時計を読まない（`no-clock-outside-inbound`）、上限の無い一覧を書かない（`route-lists-are-paged`）も、lint で止める
 
 <!-- layers:start（packages/hnk/lint/layers.mjs から生成。直接は書き換えない） -->
 
-| 側       | 役割     | import してよいもの                                                                                                                                                                                                                        |
-| -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| core     | domain   | zod, hnk/system（型だけ）, hnk/failures（型だけ）, 他 module の domain（型だけ）                                                                                                                                                           |
-| core     | service  | hnk/result, hnk/failures, hnk/page（型だけ）, hnk/system（型だけ）, domain, 他 module の domain（型だけ）                                                                                                                                  |
-| core     | commands | hnk/result, hnk/failures, hnk/system（型だけ）, domain, service（型だけ）, 他 module の domain（型だけ）                                                                                                                                   |
-| inbound  | routes   | hnk, zod, errors, middleware, domain                                                                                                                                                                                                       |
-| inbound  | webhook  | hnk, zod, errors, middleware, domain。actor（システム）は `allowSystem` から受け取る                                                                                                                                                       |
-| inbound  | errors   | hnk。入口だけの失敗（webhook の署名など）。モノの失敗は domain.ts に Failure として置く。どの module でも同じ意味のもの（401・403・404）は hnk の標準（NotFound など）を使う                                                               |
-| inbound  | cron     | hnk（型だけ）, domain（型だけ）。deps・actor・now は createWorker が渡す                                                                                                                                                                   |
-| inbound  | queue    | hnk（型だけ）, domain（型だけ）                                                                                                                                                                                                            |
-| outbound | repo     | drizzle-orm, hnk/page, db（型だけ）, dbErrors, domain, service（型だけ）, 他 module の repo, 他 module の domain。他 module の repo からは外部キーの表（〜Table）と読ませる窓口（〜Within）だけ、他 module の domain は SQL の定数と型だけ |
-| outbound | gateway  | hnk/result, domain（型だけ）, service（型だけ）                                                                                                                                                                                            |
-| outbound | mailer   | hnk/result, domain（型だけ）, service（型だけ）                                                                                                                                                                                            |
-| outbound | jobs     | domain（型だけ）, service（型だけ）                                                                                                                                                                                                        |
+| 側       | 役割     | import してよいもの                                                                                                                                                                                                                             |
+| -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| core     | domain   | zod, hono-kit/system（型だけ）, hono-kit/failures（型だけ）, 他 module の domain（型だけ）                                                                                                                                                      |
+| core     | service  | hono-kit/result, hono-kit/failures, hono-kit/page（型だけ）, hono-kit/system（型だけ）, domain, 他 module の domain（型だけ）                                                                                                                   |
+| core     | commands | hono-kit/result, hono-kit/failures, hono-kit/system（型だけ）, domain, service（型だけ）, 他 module の domain（型だけ）                                                                                                                         |
+| inbound  | routes   | hono-kit, zod, errors, middleware, domain                                                                                                                                                                                                       |
+| inbound  | webhook  | hono-kit, zod, errors, middleware, domain。actor（システム）は `allowSystem` から受け取る                                                                                                                                                       |
+| inbound  | errors   | hono-kit。入口だけの失敗（webhook の署名など）。モノの失敗は domain.ts に Failure として置く。どの module でも同じ意味のもの（401・403・404）は hnk の標準（NotFound など）を使う                                                               |
+| inbound  | cron     | hono-kit（型だけ）, domain（型だけ）。deps・actor・now は createWorker が渡す                                                                                                                                                                   |
+| inbound  | queue    | hono-kit（型だけ）, domain（型だけ）                                                                                                                                                                                                            |
+| outbound | repo     | drizzle-orm, hono-kit/page, db（型だけ）, dbErrors, domain, service（型だけ）, 他 module の repo, 他 module の domain。他 module の repo からは外部キーの表（〜Table）と読ませる窓口（〜Within）だけ、他 module の domain は SQL の定数と型だけ |
+| outbound | gateway  | hono-kit/result, domain（型だけ）, service（型だけ）                                                                                                                                                                                            |
+| outbound | mailer   | hono-kit/result, domain（型だけ）, service（型だけ）                                                                                                                                                                                            |
+| outbound | jobs     | domain（型だけ）, service（型だけ）                                                                                                                                                                                                             |
 
 <!-- layers:end -->
 
 - **名前は Hono に合わせて `create〜`**。束は `invoicesRouter`
-- **一覧のページ送りは hnk の部品**（`hnk/page` と `pageQuerySchema` / `pageResponseSchema` / `pageResponse`）。
+- **一覧のページ送りは hnk の部品**（`hono-kit/page` と `pageQuerySchema` / `pageResponseSchema` / `pageResponse`）。
   `pageQuerySchema(絞り込みのスキーマ)` が cursor と limit を足し、`pageResponseSchema(1 件のスキーマ)` が `{ items, nextCursor }` を作る。中身はアプリのスキーマ（zod でも valibot でも）。
   一覧は `PageQuery`（`limit` は必須）を受け取って `Page` を返す。query に展開すると `limit` に既定（20）と上限（100）が付く。
   repo は `limit + 1` 件読んで `toPage` に渡す。一覧の route（`get` で、path の最後が `:param` でないもの）の query が `pageQuerySchema(...)` の呼び出し（か、同じファイルでそれを入れた変数）でないと、lint `route-lists-are-paged` が止める。件数が別の所で決まっているもの（月ごとの集計は `MAX_MONTHS` で検査している）は、`// oxlint-disable-next-line hnk/route-lists-are-paged -- 理由` で外す。**試しに強く付けてある**。例外で困る場面が多ければ、このルールを外す
@@ -223,7 +223,7 @@ go build ./cmd/api
 - **HTTP 以外の入口は `createWorker` に渡す**（`index.ts` に 1 つ）。deps は呼び出しごとに 1 回組み立て、`actor`（システム）と `now` を渡す。
   `now` は scheduled なら予定の時刻、queue ならメッセージが積まれた時刻（再送が日をまたいでも同じ日の督促になる）。
   queue の handler は Result を返すだけ: ok で ack、err で retry、想定外の throw はそのメッセージだけ retry にして同じバッチの残りは続ける。
-  cron・queue のファイルはシステムを import せず受け取るだけ。システムの値を作る場所は hnk の中に 1 つ（テストは `hnk/testing`）。
+  cron・queue のファイルはシステムを import せず受け取るだけ。システムの値を作る場所は hnk の中に 1 つ（テストは `hono-kit/testing`）。
   署名つき webhook は `allowSystem` を宣言して `c.get("actor")` で受け取る（署名を確かめた後に使う）
 - **組織は User が持ち、範囲（Reach）がデータで運ぶ**。システムは全組織、admin は自分の組織の全員分、member は自分の分だけ。
   どの範囲も組織の線を越えない

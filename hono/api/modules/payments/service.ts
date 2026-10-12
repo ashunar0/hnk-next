@@ -1,9 +1,9 @@
 /**
  * 支払いの手順（How）。請求書を確かめ、決済サービスの画面を作り、支払いを記録する
  */
-import { err, ok, type Result } from "hnk/result";
-import { NotFound } from "hnk/failures";
-import type { System } from "hnk/system";
+import { err, ok, type Result } from "hono-kit/result";
+import { NotFound } from "hono-kit/failures";
+import type { System } from "hono-kit/system";
 import type { Actor } from "../users/domain";
 import {
   GatewayFailed,

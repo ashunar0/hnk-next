@@ -1,4 +1,4 @@
-import { createRouter } from "hnk";
+import { createRouter } from "hono-kit";
 import { requireAuth } from "../../middleware/auth";
 
 export const okRouter = createRouter().endpoint(

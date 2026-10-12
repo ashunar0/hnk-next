@@ -4,7 +4,7 @@
  */
 import { and, desc, eq, lt, or, sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { toPage } from "hnk/page";
+import { toPage } from "hono-kit/page";
 import type { Scope } from "../../db";
 import { orgId, userId } from "../users/domain";
 import { noteId, type Note, type NoteReach } from "./domain";

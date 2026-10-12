@@ -9,7 +9,7 @@ import {
   pageResponseSchema,
   Forbidden,
   NotFound,
-} from "hnk";
+} from "hono-kit";
 import { z } from "zod";
 import { requireAuth } from "../../middleware/auth";
 import {

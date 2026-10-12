@@ -4,7 +4,7 @@
  * （送れた・見送りは ok で ack、送れなかったら err で retry）。
  * now はメッセージが積まれた時刻。再送が日をまたいでも、同じ日の督促として扱える
  */
-import type { QueueContext } from "hnk";
+import type { QueueContext } from "hono-kit";
 import type { ReminderJob } from "./domain";
 
 export function sendReminder({ deps, actor, now, body }: QueueContext<ReminderJob>) {

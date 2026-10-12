@@ -1,4 +1,4 @@
-import { createRouter, errorResponses, NotFound } from "hnk";
+import { createRouter, errorResponses, NotFound } from "hono-kit";
 import { z } from "zod";
 import { allowAnonymous } from "./middleware/auth";
 

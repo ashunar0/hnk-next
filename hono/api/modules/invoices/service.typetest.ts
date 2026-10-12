@@ -1,5 +1,5 @@
 import { invoiceId, invoiceInputSchema } from "./domain";
-import { systemActor } from "hnk/testing";
+import { systemActor } from "hono-kit/testing";
 import type { User } from "../users/domain";
 import type { InvoicesService } from "./service";
 

@@ -2,7 +2,7 @@
  * 決済サービスからの通知を受ける入口。routes.ts と並ぶ、2 つ目の入口。
  * 利用者ではなく Stripe が呼ぶので、ログインではなく署名で確かめる
  */
-import { allowSystem, createRouter, errorResponses, NotFound } from "hnk";
+import { allowSystem, createRouter, errorResponses, NotFound } from "hono-kit";
 import { z } from "zod";
 import { NotPayable } from "./domain";
 import { InvalidSignature } from "./errors";

@@ -5,9 +5,9 @@
  * routes からは呼べない（deps はこれを routes に渡さず、payments にだけ渡す）。
  * 何度呼んでも同じ結果になる（すでに支払い済みなら、そのまま返す）。時刻（now）は呼び出し元の入口が決める
  */
-import { err, ok, type Result } from "hnk/result";
-import { NotFound } from "hnk/failures";
-import type { System } from "hnk/system";
+import { err, ok, type Result } from "hono-kit/result";
+import { NotFound } from "hono-kit/failures";
+import type { System } from "hono-kit/system";
 import { reachOf, type Invoice, type InvoiceId } from "../domain";
 import type { InvoicesRepository } from "../service";
 

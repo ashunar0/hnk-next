@@ -8,7 +8,7 @@ import {
   pageQuerySchema,
   pageResponse,
   pageResponseSchema,
-} from "hnk";
+} from "hono-kit";
 import { z } from "zod";
 import { requireAuth } from "../../middleware/auth";
 import { noteIdSchema, noteInputSchema, type Note } from "./domain";

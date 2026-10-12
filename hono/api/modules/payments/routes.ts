@@ -1,7 +1,7 @@
 /**
  * payments を HTTP で公開する
  */
-import { createRouter, errorResponses, NotFound } from "hnk";
+import { createRouter, errorResponses, NotFound } from "hono-kit";
 import { z } from "zod";
 import { requireAuth } from "../../middleware/auth";
 import { GatewayFailed, NotPayable, PaymentStarting } from "./domain";

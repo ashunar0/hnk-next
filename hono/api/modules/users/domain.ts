@@ -3,7 +3,7 @@
  * 他の module の domain は、ここから型だけを借りる。
  * システム（利用者のいない呼び出し元）は hnk が持つ。cron・キュー・webhook が受け取る
  */
-import type { System } from "hnk/system";
+import type { System } from "hono-kit/system";
 
 /** ロール。admin は自分の組織の全員のものに触れ、member は自分のものだけ */
 export const roles = ["member", "admin"] as const;

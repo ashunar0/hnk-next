@@ -56,7 +56,7 @@ AI が自分で直せるかはエラーの質で決まるので、赤線の出�
 
 ### 4. 提供の仕方: 仕組みはパッケージ、アプリの決めごとは生成
 
-- 仕組み（Result、`createRouter`、`createWorker`、lint）は `hnk` パッケージ。エラーの表、env、deps、middleware と module はアプリ側
+- 仕組み（Result、`createRouter`、`createWorker`、lint）は `hono-kit` パッケージ。エラーの表、env、deps、middleware と module はアプリ側
 - **却下**: shadcn 方式で lib をコピーする案（Hono の上に載る FW なら、ヘルパーはパッケージで提供するべきだという判断）。結びつけのためだけのファイルを作る案
 
 ### 5. 印: 検査済みの値と ID は、型で区別する

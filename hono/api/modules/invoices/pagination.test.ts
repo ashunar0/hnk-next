@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Cursor } from "hnk/page";
+import type { Cursor } from "hono-kit/page";
 import { alice, bob, insertInvoices, invoice, invoicesRepo } from "../../../test/fixtures";
 
 const at = (iso: string) => new Date(iso);

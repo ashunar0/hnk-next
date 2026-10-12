@@ -1,9 +1,9 @@
 /**
  * 請求書の手順（How）。domain のモノを使って、何をどの順でやるか
  */
-import type { Page, PageQuery } from "hnk/page";
-import { err, ok, type Result } from "hnk/result";
-import { Forbidden, NotFound } from "hnk/failures";
+import type { Page, PageQuery } from "hono-kit/page";
+import { err, ok, type Result } from "hono-kit/result";
+import { Forbidden, NotFound } from "hono-kit/failures";
 import type { Actor, User } from "../users/domain";
 import {
   canEdit,

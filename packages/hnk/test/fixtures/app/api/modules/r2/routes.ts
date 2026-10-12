@@ -1,5 +1,5 @@
 // expect: hnk(route-replies-through-reply) | c.json() ではなく reply で返す
-import { createRouter } from "hnk";
+import { createRouter } from "hono-kit";
 
 export const r2Router = createRouter();
 

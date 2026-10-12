@@ -2,7 +2,7 @@ import { createMiddleware } from "hono/factory";
 import type { MiddlewareHandler } from "hono";
 import type { AppEnv, AuthVariables } from "../env";
 import type { User } from "../modules/users/domain";
-import { fail, guard, Unauthorized } from "hnk";
+import { fail, guard, Unauthorized } from "hono-kit";
 
 /**
  * セッションの利用者を文脈に積む。未ログインでも通す。

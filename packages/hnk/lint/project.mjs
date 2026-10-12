@@ -40,9 +40,9 @@ export const resolveImport = (file, specifier, project) => {
   return null;
 };
 
-/** パッケージ名。`drizzle-orm/d1` は `drizzle-orm`、`@hono/zod-openapi` はそのまま。hnk だけは入口ごとに分ける */
+/** パッケージ名。`drizzle-orm/d1` は `drizzle-orm`、`@hono/zod-openapi` はそのまま。hono-kit だけは入口ごとに分ける */
 export const packageOf = (specifier) => {
-  if (specifier === "hnk" || specifier.startsWith("hnk/")) return specifier;
+  if (specifier === "hono-kit" || specifier.startsWith("hono-kit/")) return specifier;
   const parts = specifier.split("/");
   return specifier.startsWith("@") ? parts.slice(0, 2).join("/") : parts[0];
 };

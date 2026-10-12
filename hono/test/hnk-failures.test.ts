@@ -2,7 +2,7 @@
  * 同じ番号の失敗を 2 つ宣言しても、どちらも返せること。
  * 宣言の中で番号がぶつかると片方が消え、型は通るのに実行時に 500 になっていた
  */
-import { createRouter, errorResponses, httpError, provideDeps } from "hnk";
+import { createRouter, errorResponses, httpError, provideDeps } from "hono-kit";
 import { z } from "zod";
 import { expect, it } from "vitest";
 import { allowAnonymous } from "../api/middleware/auth";

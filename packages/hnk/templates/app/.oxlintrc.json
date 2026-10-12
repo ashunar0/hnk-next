@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["import"],
-  "jsPlugins": ["hnk/lint"],
+  "jsPlugins": ["hono-kit/lint"],
   "rules": {
     "import/no-cycle": "error"
   },

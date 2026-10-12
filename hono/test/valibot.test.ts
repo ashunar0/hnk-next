@@ -13,8 +13,8 @@ import {
   pageResponseSchema,
   provideDeps,
   NotFound,
-} from "hnk";
-import { openapiDocument } from "hnk/openapi";
+} from "hono-kit";
+import { openapiDocument } from "hono-kit/openapi";
 import * as v from "valibot";
 import { expect, it } from "vitest";
 import { allowAnonymous } from "../api/middleware/auth";

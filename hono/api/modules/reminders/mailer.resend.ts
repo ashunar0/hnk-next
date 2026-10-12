@@ -1,7 +1,7 @@
 /**
  * メールとの接点。service.ts が宣言した Mailer を、Resend で満たす
  */
-import { err, ok } from "hnk/result";
+import { err, ok } from "hono-kit/result";
 import type { Mailer } from "./service";
 
 export function resendMailer(config: { apiKey: string; from: string }): Mailer {

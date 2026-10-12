@@ -11,7 +11,7 @@ export type AppEnv = {
   Variables: AuthVariables;
 };
 
-declare module "hnk" {
+declare module "hono-kit" {
   interface Register {
     env: AppEnv;
   }

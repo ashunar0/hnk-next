@@ -1,8 +1,8 @@
 /**
  * レポートの手順（How）
  */
-import { err, ok, type Result } from "hnk/result";
-import { Forbidden } from "hnk/failures";
+import { err, ok, type Result } from "hono-kit/result";
+import { Forbidden } from "hono-kit/failures";
 import type { Actor } from "../users/domain";
 import {
   canViewReports,

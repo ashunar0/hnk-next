@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { systemActor } from "hnk/testing";
+import { systemActor } from "hono-kit/testing";
 import { expect, it } from "vitest";
 import { makeDeps } from "../api/deps";
 import { buildApp } from "../api/index";

@@ -78,8 +78,9 @@ const init = (target) => {
 
   fs.mkdirSync(dir, { recursive: true });
   const appName = path.basename(dir);
-  // シンボリックリンクを解いた場所どうしで相対にする（/var → /private/var のような所で、相対が 1 段ずれる）
-  const spec = `link:${path.relative(fs.realpathSync(dir), fs.realpathSync(root))}`;
+  // 既定は npm に出ている同じ版。e2e は HNK_SPEC で手元の hono-kit（link: や file:）に差し替える
+  const { version } = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+  const spec = process.env.HNK_SPEC ?? `^${version}`;
   const from = path.join(root, "templates/app");
   for (const file of listFiles(from)) {
     const text = fs

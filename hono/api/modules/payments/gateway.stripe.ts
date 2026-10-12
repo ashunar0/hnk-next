@@ -2,7 +2,7 @@
  * 決済サービスとの接点。service.ts が宣言した PaymentGateway を、Stripe で満たす。
  * Stripe の API の形と認証はこのファイルの外に出さない
  */
-import { err, ok } from "hnk/result";
+import { err, ok } from "hono-kit/result";
 import type { PaymentEvent } from "./domain";
 import type { PaymentGateway } from "./service";
 
