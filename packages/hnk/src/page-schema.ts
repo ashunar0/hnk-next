@@ -2,7 +2,7 @@
  * 一覧のページ送りの、HTTP の入出力の形。スキーマのライブラリに依存しないよう、
  * Standard Schema を手で満たす（hnkSchema）。絞り込みや 1 件の形は、アプリのスキーマ（zod、valibot など）を包む
  */
-import { PAGE_LIMIT, type Cursor, type Page } from "./page";
+import { PAGE_LIMIT, type Cursor, type Page } from "./page.js";
 import {
   hnkSchema,
   issue,
@@ -10,7 +10,7 @@ import {
   type InferInput,
   type InferOutput,
   type StandardSchema,
-} from "./standard-schema";
+} from "./standard-schema.js";
 
 /** 位置を、外からは中身の読めない文字列にする */
 const encodeCursor = (cursor: Cursor) =>

@@ -14,8 +14,8 @@ import {
   type AnyFailure,
   type HttpError,
   type ToHttpError,
-} from "./failure";
-import type { RegisteredDeps, RegisteredEnv } from "./register";
+} from "./failure.js";
+import type { RegisteredDeps, RegisteredEnv } from "./register.js";
 import {
   type AnySchema,
   type RouteConfig,
@@ -23,15 +23,15 @@ import {
   type RouteConfigToTypedResponse,
   type RouteHandler,
   type SchemaOfResponse,
-} from "./route-types";
+} from "./route-types.js";
 import {
   hnkSchema,
   issue,
   type InferInput,
   type InferOutput,
-} from "./standard-schema";
+} from "./standard-schema.js";
 
-import type { System } from "./system";
+import type { System } from "./system.js";
 
 /**
  * `as never` / `as unknown as` を書いてよい場所と数は、test/source.test.mjs が決めて確かめる

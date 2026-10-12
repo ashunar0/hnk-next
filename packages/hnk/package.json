@@ -14,15 +14,58 @@
     "./testing": "./src/testing.ts",
     "./lint": "./lint/index.mjs"
   },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./result": {
+        "types": "./dist/result.d.ts",
+        "default": "./dist/result.js"
+      },
+      "./failures": {
+        "types": "./dist/failures.d.ts",
+        "default": "./dist/failures.js"
+      },
+      "./openapi": {
+        "types": "./dist/openapi.d.ts",
+        "default": "./dist/openapi.js"
+      },
+      "./page": {
+        "types": "./dist/page.d.ts",
+        "default": "./dist/page.js"
+      },
+      "./system": {
+        "types": "./dist/system.d.ts",
+        "default": "./dist/system.js"
+      },
+      "./testing": {
+        "types": "./dist/testing.d.ts",
+        "default": "./dist/testing.js"
+      },
+      "./lint": "./lint/index.mjs"
+    }
+  },
+  "files": [
+    "dist",
+    "bin",
+    "lint",
+    "templates"
+  ],
   "peerDependencies": {
     "hono": "^4.13.1"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261007.1",
     "hono": "^4.13.1",
     "oxlint": "^1.80.0",
-    "prettier": "^3.9.6"
+    "prettier": "^3.9.6",
+    "typescript": "^7.0.2"
   },
   "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "prepublishOnly": "pnpm build",
     "test": "node --test test/*.test.mjs",
     "readme:layers": "node scripts/readme-layers.mjs",
     "readme:check": "node scripts/readme-layers.mjs --check",

@@ -13,15 +13,15 @@ import {
   type BuiltRoute,
   type EndpointConfig,
   type EndpointFn,
-} from "./endpoint";
-import { fail, ValidationError } from "./failure";
-import type { RegisteredEnv } from "./register";
+} from "./endpoint.js";
+import { fail, ValidationError } from "./failure.js";
+import type { RegisteredEnv } from "./register.js";
 import type {
   AnySchema,
   ComputeInput,
   RouteConfig,
   RouteConfigToTypedResponse,
-} from "./route-types";
+} from "./route-types.js";
 
 /** handler に、宣言を覚えさせる。OpenAPI の文書は、登録された handler からこれを読んで作る */
 export const ROUTE: unique symbol = Symbol("hnk.route");

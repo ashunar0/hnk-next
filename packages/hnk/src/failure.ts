@@ -1,7 +1,7 @@
 import type { ErrorHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
-import type { Failure, FailureKind } from "./failures";
+import type { Failure, FailureKind } from "./failures.js";
 
 /** HTTP で返す失敗 1 つ。コード、何番か、既定の文言を持つ */
 export type HttpError<

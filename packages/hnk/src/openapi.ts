@@ -3,9 +3,9 @@
  * 要る人だけが使う部品。JSON Schema への変換は、スキーマのライブラリ自身が持つ（Standard JSON Schema）
  */
 import type { Hono } from "hono";
-import { ROUTE } from "./router";
-import type { AnySchema, ResponseEntry, RouteConfig } from "./route-types";
-import { toJsonSchema } from "./standard-schema";
+import { ROUTE } from "./router.js";
+import type { AnySchema, ResponseEntry, RouteConfig } from "./route-types.js";
+import { toJsonSchema } from "./standard-schema.js";
 
 const TARGET = "draft-2020-12";
 

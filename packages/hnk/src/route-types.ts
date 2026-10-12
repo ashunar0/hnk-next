@@ -18,7 +18,7 @@ import type {
   InferInput,
   InferOutput,
   StandardSchema,
-} from "./standard-schema";
+} from "./standard-schema.js";
 
 type MaybePromise<T> = Promise<T> | T;
 

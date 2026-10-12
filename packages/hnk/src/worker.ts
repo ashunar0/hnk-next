@@ -1,9 +1,9 @@
 import { createMiddleware } from "hono/factory";
 
-import type { RegisteredDeps, RegisteredEnv } from "./register";
-import type { Result } from "./result";
-import { systemActor } from "./system-value";
-import type { System } from "./system";
+import type { RegisteredDeps, RegisteredEnv } from "./register.js";
+import type { Result } from "./result.js";
+import { systemActor } from "./system-value.js";
+import type { System } from "./system.js";
 
 /**
  * 入口が受け取るもの。誰として呼ぶか（actor）も、いつの出来事か（now）も、入口が決めずに受け取る。

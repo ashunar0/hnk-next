@@ -86,7 +86,8 @@ const init = (target) => {
       .readFileSync(path.join(from, file), "utf8")
       .replaceAll("__APP_NAME__", appName)
       .replaceAll("__HNK_SPEC__", spec);
-    write(path.join(dir, file), text);
+    // npm は .gitignore を公開物に入れないので、雛形では gitignore の名前で持つ
+    write(path.join(dir, file === "gitignore" ? ".gitignore" : file), text);
   }
 
   console.log(`✓ ${dir} に土台を出した`);

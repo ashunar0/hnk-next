@@ -1,4 +1,4 @@
-import type { System } from "./system";
+import type { System } from "./system.js";
 
 /**
  * システムの値。hnk の中の createWorker と allowSystem だけが渡す。テストは hnk/testing から借りる。
