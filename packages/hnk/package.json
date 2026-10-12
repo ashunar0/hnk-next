@@ -12,7 +12,8 @@
     "./page": "./src/page.ts",
     "./system": "./src/system.ts",
     "./testing": "./src/testing.ts",
-    "./lint": "./lint/index.mjs"
+    "./lint": "./lint/index.mjs",
+    "./package.json": "./package.json"
   },
   "publishConfig": {
     "exports": {
@@ -44,7 +45,8 @@
         "types": "./dist/testing.d.ts",
         "default": "./dist/testing.js"
       },
-      "./lint": "./lint/index.mjs"
+      "./lint": "./lint/index.mjs",
+      "./package.json": "./package.json"
     }
   },
   "files": [

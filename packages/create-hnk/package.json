@@ -1,0 +1,15 @@
+{
+  "name": "create-hnk",
+  "version": "0.0.0",
+  "description": "pnpm create hnk <dir> で hono-kit のアプリの土台を出す",
+  "type": "module",
+  "bin": {
+    "create-hnk": "./index.mjs"
+  },
+  "files": [
+    "index.mjs"
+  ],
+  "dependencies": {
+    "hono-kit": "workspace:^"
+  }
+}

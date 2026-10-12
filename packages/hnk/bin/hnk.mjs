@@ -93,7 +93,7 @@ const init = (target) => {
 
   console.log(`✓ ${dir} に土台を出した`);
   console.log(`  cd ${target} && pnpm install && pnpm check`);
-  console.log("  module を足す: hnk g module <複数形の名前>");
+  console.log("  module を足す: pnpm hnk g module <複数形の名前>");
 };
 
 // ---- g module ----
