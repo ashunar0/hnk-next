@@ -1,5 +1,7 @@
 # hnk-next
 
+> パッケージは [hono-kit](https://github.com/ashunar0/hono-kit) として公開した（npm `hono-kit` / `pnpm create hnk`）。このリポジトリは、そこに至るまでの実験と記録の置き場。
+
 [hnk](https://github.com/ashunar0/hnk) の作り直しの実験場。Hono の上で「誰が書いても（AI が書いても）同じ形になる」ための仕組みを、パッケージとして作っている。
 
 設計・思想のレビューをしてもらう場合は、先に [REVIEW.md](REVIEW.md) を読んでください（判断の柱、読む順番、見てほしい問い）。
